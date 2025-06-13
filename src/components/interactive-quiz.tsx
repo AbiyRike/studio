@@ -70,6 +70,28 @@ export function InteractiveQuiz({ sessionData }: InteractiveQuizProps) {
   const currentQuestion = allQuestions[currentQuestionIndex];
   const isCorrect = selectedAnswer === currentQuestion?.answer;
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const saveHistoryAndClearActiveSession = useCallback(() => {
+    if (!quizFinished) return; // Only save when truly finished
+    const historyItem: HistoryItem = {
+      id: new Date().toISOString() + '_' + sessionData.documentName.replace(/\s/g, '_'), 
+      documentName: sessionData.documentName,
+      summary: sessionData.summary,
+      questions: allQuestions,
+      documentContent: sessionData.documentContent,
+      mediaDataUri: sessionData.mediaDataUri,
+      userAnswers: allUserAnswers,
+      score,
+      completedAt: new Date().toISOString(),
+    };
+    addToLearningHistory(historyItem);
+    setActiveTutorSession(null); 
+    toast({
+        title: "Session Complete!",
+        description: `Your progress for ${allQuestions.length} questions has been saved.`,
+    });
+  }, [quizFinished, sessionData, allQuestions, allUserAnswers, score, toast]);
+
   const fetchNextBatch = useCallback(async () => {
     if (isFetchingNextBatch || !hasMoreQuestionsToFetch || allQuestions.length >= MAX_QUESTIONS) {
       return;
@@ -161,27 +183,6 @@ export function InteractiveQuiz({ sessionData }: InteractiveQuizProps) {
     }
   };
   
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  const saveHistoryAndClearActiveSession = useCallback(() => {
-    if (!quizFinished) return; // Only save when truly finished
-    const historyItem: HistoryItem = {
-      id: new Date().toISOString() + '_' + sessionData.documentName.replace(/\s/g, '_'), 
-      documentName: sessionData.documentName,
-      summary: sessionData.summary,
-      questions: allQuestions,
-      documentContent: sessionData.documentContent,
-      mediaDataUri: sessionData.mediaDataUri,
-      userAnswers: allUserAnswers,
-      score,
-      completedAt: new Date().toISOString(),
-    };
-    addToLearningHistory(historyItem);
-    setActiveTutorSession(null); 
-    toast({
-        title: "Session Complete!",
-        description: `Your progress for ${allQuestions.length} questions has been saved.`,
-    });
-  }, [quizFinished, sessionData, allQuestions, allUserAnswers, score, toast]);
 
 
   if (quizFinished && !isFetchingNextBatch) {
@@ -350,3 +351,4 @@ export function InteractiveQuiz({ sessionData }: InteractiveQuizProps) {
     </div>
   );
 }
+
