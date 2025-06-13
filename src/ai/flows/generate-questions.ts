@@ -22,18 +22,27 @@ const GenerateQuestionsInputSchema = z.object({
     .describe(
       "An optional photo related to the document, as a data URI that must include a MIME type and use Base64 encoding. Expected format: 'data:<mimetype>;base64,<encoded_data>'."
     ),
+  numberOfQuestions: z
+    .number()
+    .optional()
+    .default(5)
+    .describe('The desired number of questions to generate, defaults to 5.'),
+  previousQuestionTexts: z
+    .array(z.string())
+    .optional()
+    .describe('An array of question texts that have already been asked, to encourage variety and avoid repetition.')
 });
 export type GenerateQuestionsInput = z.infer<typeof GenerateQuestionsInputSchema>;
 
+const QuestionSchema = z.object({
+  question: z.string().describe('The question text.'),
+  options: z.array(z.string()).length(4).describe('The four multiple-choice options.'),
+  answer: z.number().min(0).max(3).describe('The index (0-3) of the correct answer in the options array.'),
+  explanation: z.string().optional().describe('A brief explanation for the correct answer.')
+});
+
 const GenerateQuestionsOutputSchema = z.object({
-  questions: z.array(
-    z.object({
-      question: z.string().describe('The question text.'),
-      options: z.array(z.string()).length(4).describe('The four multiple-choice options.'),
-      answer: z.number().min(0).max(3).describe('The index (0-3) of the correct answer in the options array.'),
-      explanation: z.string().optional().describe('A brief explanation for the correct answer.')
-    })
-  ).describe('An array of multiple-choice questions.'),
+  questions: z.array(QuestionSchema).describe('An array of multiple-choice questions.'),
 });
 export type GenerateQuestionsOutput = z.infer<typeof GenerateQuestionsOutputSchema>;
 
@@ -60,9 +69,16 @@ const prompt = ai.definePrompt({
   {{/unless}}
   {{/if}}
 
-  Generate a set of 3 to 5 multiple-choice questions. Each question MUST have exactly 4 options.
+  Generate exactly {{{numberOfQuestions}}} multiple-choice questions. Each question MUST have exactly 4 options.
   Clearly indicate the correct answer's index (0, 1, 2, or 3) in the options array.
   Provide a brief explanation for why the answer is correct for each question.
+
+  {{#if previousQuestionTexts}}
+  IMPORTANT: You have already generated questions with the following texts. Ensure the new questions you generate are DIFFERENT and cover NEW aspects or details from the provided content. Do NOT repeat these questions or variations of them:
+  {{#each previousQuestionTexts}}
+  - "{{this}}"
+  {{/each}}
+  {{/if}}
 
   The output MUST be a JSON object with a "questions" field. The "questions" field must be an array of objects, where each object has the following structure:
   {
@@ -71,6 +87,8 @@ const prompt = ai.definePrompt({
     "answer": 0, // The index of the correct answer (0-3).
     "explanation": "Brief explanation for the correct answer."
   }
+  If no content is provided to base questions on, return an empty "questions" array.
+  If you cannot generate {{{numberOfQuestions}}} distinct new questions based on the content and previous questions, generate as many new distinct questions as you can, up to {{{numberOfQuestions}}}.
   `,
 });
 
@@ -81,12 +99,10 @@ const generateQuestionsFlow = ai.defineFlow(
     outputSchema: GenerateQuestionsOutputSchema,
   },
   async input => {
-     // Ensure at least one input is present for the AI
     if (!input.documentContent && !input.photoDataUri) {
-      return { questions: [] }; // Return empty if no content
+      return { questions: [] };
     }
     const {output} = await prompt(input);
-    // Ensure output.questions is an array, even if AI fails to produce it.
     return { questions: output?.questions || [] };
   }
 );
