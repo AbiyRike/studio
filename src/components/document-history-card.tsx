@@ -1,9 +1,11 @@
+
 import type { HistoryItem } from '@/lib/session-store';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Badge } from "@/components/ui/badge";
 import { CheckCircle, XCircle, HelpCircle } from "lucide-react";
 import { format } from 'date-fns';
+import { cn } from '@/lib/utils'; // Added import
 
 interface DocumentHistoryCardProps {
   item: HistoryItem;
