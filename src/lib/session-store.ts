@@ -1,4 +1,15 @@
-import type { TutorSessionData } from '@/app/actions';
+
+import type { Question } from '@/app/actions'; // Import Question type
+
+// Re-define TutorSessionData here or import from actions if it's fully defined there.
+// For clarity, let's assume it's mostly defined by its use in actions.ts
+export interface TutorSessionData {
+  documentName: string;
+  summary: string;
+  questions: Question[]; // Initial batch of questions
+  documentContent?: string;
+  mediaDataUri?: string;
+}
 
 const ACTIVE_TUTOR_SESSION_KEY = 'activeTutorSession';
 
@@ -21,10 +32,15 @@ export const getActiveTutorSession = (): TutorSessionData | null => {
 // For learning history (persisted)
 const HISTORY_STORAGE_KEY = 'geminiAITutorHistory';
 
-export interface HistoryItem extends TutorSessionData {
+export interface HistoryItem {
   id: string;
-  userAnswers: (number | null)[];
-  score: number;
+  documentName: string;
+  summary: string;
+  questions: Question[]; // Can now contain up to 100 questions
+  documentContent?: string;
+  mediaDataUri?: string;
+  userAnswers: (number | null)[]; // Corresponding answers for all questions
+  score: number; // Score based on all questions answered
   completedAt: string; // ISO date string
 }
 
@@ -37,12 +53,11 @@ export const getLearningHistory = (): HistoryItem[] => {
 export const addToLearningHistory = (item: HistoryItem): void => {
   if (typeof window === 'undefined') return;
   const history = getLearningHistory();
-  // Prevent duplicates by ID if this function could be called multiple times for the same session
   const existingIndex = history.findIndex(h => h.id === item.id);
   if (existingIndex > -1) {
     history[existingIndex] = item;
   } else {
-    history.unshift(item); // Add to the beginning
+    history.unshift(item);
   }
-  localStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify(history.slice(0, 50))); // Limit history size
+  localStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify(history.slice(0, 50)));
 };
