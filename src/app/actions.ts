@@ -4,7 +4,6 @@
 import { summarizeDocument } from "@/ai/flows/summarize-document";
 import { generateQuestions, type GenerateQuestionsInput as AIQuestionsInput } from "@/ai/flows/generate-questions";
 import type { SummarizeDocumentInput } from "@/ai/flows/summarize-document";
-// Removed GenerateQuestionsInput from flow import as it's now more specific.
 
 export interface Question {
   question: string;
@@ -75,8 +74,6 @@ export async function processContentForTutor(
           explanation: "The primary goal is typically to understand the presented material."
         }
       ];
-      // If AI fails to provide even initial questions, we might only get these placeholders.
-      // The iterative quiz might not be able to fetch more if the content is problematic.
     }
     
     const questionsWithExplanation = initialQuestions.map(q => ({
@@ -96,7 +93,7 @@ export async function processContentForTutor(
     console.error("Error processing content in processContentForTutor:", e);
     const errorMessage = e instanceof Error ? e.message : "An unknown error occurred during AI processing.";
     
-    if (errorMessage.includes("rate limit") || errorMessage.includes("quota")) {
+    if (errorMessage.includes("rate limit") || errorMessage.includes("quota") || errorMessage.includes("503") || errorMessage.toLowerCase().includes("overloaded")) {
         return { error: "The AI service is currently busy or rate limits have been exceeded. Please try again in a few moments." };
     }
     if (errorMessage.toLowerCase().includes("safety") || errorMessage.toLowerCase().includes("blocked")) {
@@ -121,23 +118,21 @@ export async function generateAdditionalQuestions(
     if (!documentContent.trim() && !mediaDataUri) {
       return { error: "Document content or media must be provided to generate more questions." };
     }
-     if (previousQuestionTexts.length >= 100) { // Max questions limit
-      return { questions: [] }; // Stop generating if we've hit the target
+     if (previousQuestionTexts.length >= 100) { 
+      return { questions: [] }; 
     }
 
     const aiInput: AIQuestionsInput = {
       documentContent,
       ...(mediaDataUri && { photoDataUri: mediaDataUri }),
-      numberOfQuestions: 5, // Request next batch of 5 questions
+      numberOfQuestions: 5, 
       previousQuestionTexts,
     };
 
     const result = await generateQuestions(aiInput);
 
     if (!result.questions || result.questions.length === 0) {
-      // This might happen if the AI can't find more unique questions
-      // or if there was an issue.
-      return { questions: [] }; // Send empty array, client should handle this as end of quiz.
+      return { questions: [] }; 
     }
     
     const questionsWithExplanation = result.questions.map(q => ({
@@ -150,7 +145,7 @@ export async function generateAdditionalQuestions(
   } catch (e) {
     console.error("Error in generateAdditionalQuestions:", e);
     const errorMessage = e instanceof Error ? e.message : "An unknown error occurred during AI processing.";
-     if (errorMessage.includes("rate limit") || errorMessage.includes("quota")) {
+     if (errorMessage.includes("rate limit") || errorMessage.includes("quota") || errorMessage.includes("503") || errorMessage.toLowerCase().includes("overloaded")) {
         return { error: "The AI service is currently busy or rate limits have been exceeded. Please try again in a few moments." };
     }
     if (errorMessage.toLowerCase().includes("safety") || errorMessage.toLowerCase().includes("blocked")) {
