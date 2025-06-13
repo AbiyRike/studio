@@ -40,39 +40,35 @@ export function InteractiveQuiz({ sessionData }: InteractiveQuizProps) {
   
   const [quizFinished, setQuizFinished] = useState(false);
   const [isFetchingNextBatch, setIsFetchingNextBatch] = useState(false);
-  const [hasMoreQuestionsToFetch, setHasMoreQuestionsToFetch] = useState(true);
+  const [hasMoreQuestionsToFetch, setHasMoreQuestionsToFetch] = useState(true); // Initialize to true
   
   const [avatarFeedback, setAvatarFeedback] = useState<'neutral' | 'correct' | 'incorrect'>('neutral');
   const [avatarMessage, setAvatarMessage] = useState<string | undefined>(undefined);
 
 
   useEffect(() => {
-    // If initial questions are less than a full batch or max questions,
-    // and we haven't explicitly been told there are no more.
-    if (sessionData.questions.length === 0 && hasMoreQuestionsToFetch) {
-        // No initial questions means AI couldn't generate any, or an error happened.
-        // Treat as no more questions.
+    if (sessionData.questions.length === 0) {
         setHasMoreQuestionsToFetch(false);
-        setQuizFinished(true); // Or show an error message
-         toast({
+        setQuizFinished(true);
+        toast({
             title: "No Questions Available",
             description: "The AI could not generate questions for this content.",
             variant: "destructive",
         });
-    } else if (sessionData.questions.length < QUESTIONS_PER_BATCH && sessionData.questions.length > 0) {
-        setHasMoreQuestionsToFetch(false); // Assume no more if initial batch is small
     } else if (sessionData.questions.length >= MAX_QUESTIONS) {
+        // If initial batch itself meets or exceeds max questions
         setHasMoreQuestionsToFetch(false);
     }
-  }, [sessionData.questions, toast, hasMoreQuestionsToFetch]);
+    // We no longer set hasMoreQuestionsToFetch to false if the initial batch is small.
+    // Let the first call to fetchNextBatch or subsequent calls determine this.
+  }, [sessionData.questions, toast]);
 
 
   const currentQuestion = allQuestions[currentQuestionIndex];
   const isCorrect = selectedAnswer === currentQuestion?.answer;
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   const saveHistoryAndClearActiveSession = useCallback(() => {
-    if (!quizFinished) return; // Only save when truly finished
+    if (!quizFinished) return; 
     const historyItem: HistoryItem = {
       id: new Date().toISOString() + '_' + sessionData.documentName.replace(/\s/g, '_'), 
       documentName: sessionData.documentName,
@@ -116,38 +112,43 @@ export function InteractiveQuiz({ sessionData }: InteractiveQuizProps) {
         description: result.error,
         variant: "destructive",
       });
-      setHasMoreQuestionsToFetch(false); // Stop trying if there's an error
-      if (currentQuestionIndex >= allQuestions.length -1) { // If at the end, finish quiz
+      setHasMoreQuestionsToFetch(false); 
+      if (currentQuestionIndex >= allQuestions.length -1) { 
         setQuizFinished(true);
         saveHistoryAndClearActiveSession();
       }
     } else if (result.questions && result.questions.length > 0) {
       setAllQuestions(prev => [...prev, ...result.questions]);
       setAllUserAnswers(prev => [...prev, ...Array(result.questions.length).fill(null)]);
-      if (result.questions.length < QUESTIONS_PER_BATCH || (allQuestions.length + result.questions.length) >= MAX_QUESTIONS) {
+      
+      const newTotalQuestions = allQuestions.length + result.questions.length;
+      if (result.questions.length < QUESTIONS_PER_BATCH || newTotalQuestions >= MAX_QUESTIONS) {
         setHasMoreQuestionsToFetch(false);
       }
-       // Automatically move to the first new question after fetch completes IF we were waiting for it
-      if (showFeedback && currentQuestionIndex === allQuestions.length - 1 - result.questions.length) {
-         setCurrentQuestionIndex(prev => prev + 1); // Move to the first new q
-         setShowFeedback(false);
-         setSelectedAnswer(null);
-         setAvatarFeedback('neutral');
-      }
+      
+      // This auto-advance logic is tricky; for now, user clicks "Next" after loading.
+      // if (showFeedback && currentQuestionIndex === allQuestions.length - 1 - result.questions.length) { 
+      //    setCurrentQuestionIndex(prev => prev + 1); 
+      //    setShowFeedback(false);
+      //    setSelectedAnswer(null);
+      //    setAvatarFeedback('neutral');
+      // }
 
     } else {
-      // No more questions returned by AI
-      toast({
-        title: "No More Unique Questions",
-        description: "The AI couldn't generate more unique questions for this content.",
-      });
+      // No more questions returned by AI (empty array)
+      if (!('error' in result)) { // Check if it wasn't already an error toast
+         toast({
+            title: "No More Unique Questions",
+            description: "The AI couldn't generate more unique questions for this content.",
+         });
+      }
       setHasMoreQuestionsToFetch(false);
-      if (currentQuestionIndex >= allQuestions.length -1) { // If at the end, finish quiz
+      if (currentQuestionIndex >= allQuestions.length -1) { 
         setQuizFinished(true);
         saveHistoryAndClearActiveSession();
       }
     }
-  }, [isFetchingNextBatch, hasMoreQuestionsToFetch, allQuestions, sessionData, toast, currentQuestionIndex, showFeedback, saveHistoryAndClearActiveSession]);
+  }, [isFetchingNextBatch, hasMoreQuestionsToFetch, allQuestions, sessionData, toast, currentQuestionIndex, saveHistoryAndClearActiveSession]);
 
   const handleAnswerSubmit = () => {
     if (selectedAnswer === null || !currentQuestion) return;
@@ -172,10 +173,9 @@ export function InteractiveQuiz({ sessionData }: InteractiveQuizProps) {
 
     if (currentQuestionIndex < allQuestions.length - 1) {
       setCurrentQuestionIndex(prev => prev + 1);
-    } else { // At the end of currently loaded questions
+    } else { 
       if (hasMoreQuestionsToFetch && allQuestions.length < MAX_QUESTIONS) {
-        fetchNextBatch(); // This will potentially update currentQuestionIndex if successful
-                         // or finish the quiz if no more questions are fetched.
+        fetchNextBatch(); 
       } else {
         setQuizFinished(true);
         saveHistoryAndClearActiveSession();
@@ -183,8 +183,6 @@ export function InteractiveQuiz({ sessionData }: InteractiveQuizProps) {
     }
   };
   
-
-
   if (quizFinished && !isFetchingNextBatch) {
     const incorrectAnswers = allQuestions.map((q, index) => ({
         ...q,
@@ -247,16 +245,15 @@ export function InteractiveQuiz({ sessionData }: InteractiveQuizProps) {
     );
   }
 
-  if (!currentQuestion && !isFetchingNextBatch) {
-    // This might happen if initial questions are empty and fetching fails or yields nothing immediately.
-    // The quizFinished state should handle this generally.
+  if (!currentQuestion && !isFetchingNextBatch && allQuestions.length === 0) {
+    // This handles the case where initial questions were empty and quiz hasn't formally finished.
     return (
         <Card className="w-full max-w-2xl mx-auto shadow-xl">
             <CardHeader><CardTitle>Loading Questions...</CardTitle></CardHeader>
             <CardContent className="text-center py-10">
                 <Loader2 className="mx-auto h-12 w-12 animate-spin text-primary mb-4" />
                 <p>Please wait while we prepare your quiz.</p>
-                {allQuestions.length === 0 && <p className="text-sm text-muted-foreground mt-2">If this takes too long, the AI might be having trouble generating questions.</p>}
+                 <p className="text-sm text-muted-foreground mt-2">If this takes too long, the AI might be having trouble generating questions for the provided content.</p>
             </CardContent>
             <CardFooter><Button onClick={() => router.push('/dashboard')}>Back to Dashboard</Button></CardFooter>
         </Card>
@@ -273,7 +270,7 @@ export function InteractiveQuiz({ sessionData }: InteractiveQuizProps) {
       <Card className="w-full shadow-xl">
         <CardHeader>
           <Progress value={progressValue} className="w-full mb-4" />
-          <CardTitle className="text-2xl font-headline">Question {currentQuestionIndex + 1} of {Math.min(questionsDisplayedCount, MAX_QUESTIONS)}{hasMoreQuestionsToFetch && questionsDisplayedCount < MAX_QUESTIONS ? ` (aiming for ${MAX_QUESTIONS})` : ""}</CardTitle>
+          <CardTitle className="text-2xl font-headline">Question {currentQuestionIndex + 1} of {Math.min(questionsDisplayedCount, MAX_QUESTIONS)}{hasMoreQuestionsToFetch && questionsDisplayedCount < MAX_QUESTIONS && !isFetchingNextBatch ? ` (aiming for up to ${MAX_QUESTIONS})` : ""}</CardTitle>
           {currentQuestion && <CardDescription className="text-lg pt-2">{currentQuestion.question}</CardDescription>}
           {!currentQuestion && isFetchingNextBatch && <p className="text-muted-foreground pt-2">Loading next question...</p>}
         </CardHeader>
@@ -320,9 +317,10 @@ export function InteractiveQuiz({ sessionData }: InteractiveQuizProps) {
                 <Button 
                     onClick={handleNextQuestion} 
                     className="w-full text-lg py-3"
-                    disabled={isFetchingNextBatch && currentQuestionIndex >= allQuestions.length -1} // Disable if fetching and it's the *last* current question
+                    // Disable if fetching AND we are effectively waiting for that fetch to show the next question.
+                    disabled={isFetchingNextBatch && currentQuestionIndex >= allQuestions.length -1 && hasMoreQuestionsToFetch} 
                 >
-                  {isFetchingNextBatch && currentQuestionIndex >= allQuestions.length -1 ? (
+                  {isFetchingNextBatch && currentQuestionIndex >= allQuestions.length -1 && hasMoreQuestionsToFetch ? (
                     <><Loader2 className="mr-2 h-5 w-5 animate-spin" /> Loading Next...</>
                   ) : (currentQuestionIndex < allQuestions.length - 1 || (hasMoreQuestionsToFetch && allQuestions.length < MAX_QUESTIONS)) ? 
                     'Next Question' : 
@@ -332,6 +330,12 @@ export function InteractiveQuiz({ sessionData }: InteractiveQuizProps) {
               )}
             </CardFooter>
           </>
+        )}
+         {/* Fallback for when currentQuestion is null but quiz is not finished (e.g. initial load error not caught by quizFinished) */}
+        {!currentQuestion && !isFetchingNextBatch && !quizFinished && allQuestions.length > 0 && (
+             <CardContent className="text-center py-10">
+                <p className="text-muted-foreground">Preparing question...</p>
+            </CardContent>
         )}
       </Card>
 

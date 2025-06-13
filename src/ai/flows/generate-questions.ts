@@ -74,7 +74,8 @@ const prompt = ai.definePrompt({
   Provide a brief explanation for why the answer is correct for each question.
 
   {{#if previousQuestionTexts}}
-  IMPORTANT: You have already generated questions with the following texts. Ensure the new questions you generate are DIFFERENT and cover NEW aspects or details from the provided content. Do NOT repeat these questions or variations of them:
+  IMPORTANT: You have already generated questions with the following texts. Ensure the new questions you generate are SUBSTANTIALLY DIFFERENT and cover NEW aspects, details, or question styles from the provided content. Do NOT repeat these questions or variations of them. Focus on variety.
+  Previously generated question texts to avoid:
   {{#each previousQuestionTexts}}
   - "{{this}}"
   {{/each}}
@@ -88,7 +89,7 @@ const prompt = ai.definePrompt({
     "explanation": "Brief explanation for the correct answer."
   }
   If no content is provided to base questions on, return an empty "questions" array.
-  If you cannot generate {{{numberOfQuestions}}} distinct new questions based on the content and previous questions, generate as many new distinct questions as you can, up to {{{numberOfQuestions}}}.
+  If you cannot generate {{{numberOfQuestions}}} distinct new questions based on the content and previous questions, generate as many new distinct questions as you can, up to {{{numberOfQuestions}}}. If no new distinct questions can be generated, return an empty "questions" array.
   `,
 });
 
