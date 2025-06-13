@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect } from 'react';
@@ -10,9 +11,10 @@ import { Progress } from "@/components/ui/progress";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { CheckCircle, XCircle, Info, Sparkles } from 'lucide-react';
 import { AvatarPlaceholder } from './avatar-placeholder';
-import { addToLearningHistory, HistoryItem } from '@/lib/session-store';
+import { addToLearningHistory, HistoryItem, setActiveTutorSession } from '@/lib/session-store';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
+import { cn } from '@/lib/utils';
 
 interface InteractiveQuizProps {
   sessionData: TutorSessionData;
@@ -57,19 +59,24 @@ export function InteractiveQuiz({ sessionData }: InteractiveQuizProps) {
       setCurrentQuestionIndex(currentQuestionIndex + 1);
     } else {
       setQuizFinished(true);
-      saveHistory();
+      saveHistoryAndClearActiveSession();
     }
   };
   
-  const saveHistory = () => {
+  const saveHistoryAndClearActiveSession = () => {
     const historyItem: HistoryItem = {
-      id: new Date().toISOString() + '_' + sessionData.documentName.replace(/\s/g, '_'), // simple unique ID
-      ...sessionData,
+      id: new Date().toISOString() + '_' + sessionData.documentName.replace(/\s/g, '_'), 
+      documentName: sessionData.documentName,
+      summary: sessionData.summary,
+      questions: sessionData.questions,
+      documentContent: sessionData.documentContent,
+      mediaDataUri: sessionData.mediaDataUri,
       userAnswers,
       score,
       completedAt: new Date().toISOString(),
     };
     addToLearningHistory(historyItem);
+    setActiveTutorSession(null); // Clear the active session from localStorage
     toast({
         title: "Session Complete!",
         description: "Your progress has been saved to Learning History.",
@@ -97,7 +104,14 @@ export function InteractiveQuiz({ sessionData }: InteractiveQuizProps) {
   }
 
   if (!currentQuestion) {
-    return <p>Loading questions or questions not found.</p>; 
+    // This case should ideally not be hit if sessionData is validated upstream
+    return (
+        <Card className="w-full max-w-2xl mx-auto shadow-xl">
+            <CardHeader><CardTitle>Error</CardTitle></CardHeader>
+            <CardContent><p>No questions available for this session. Please start a new session.</p></CardContent>
+            <CardFooter><Button onClick={() => router.push('/dashboard')}>Back to Dashboard</Button></CardFooter>
+        </Card>
+    );
   }
 
   const progressValue = ((currentQuestionIndex + 1) / sessionData.questions.length) * 100;
@@ -156,9 +170,9 @@ export function InteractiveQuiz({ sessionData }: InteractiveQuizProps) {
             {isCorrect ? "Correct!" : "Not Quite!"}
           </AlertTitle>
           <AlertDescription className={isCorrect ? "text-green-600" : "text-red-600"}>
-            {isCorrect
-              ? currentQuestion.explanation || "Excellent work!"
-              : currentQuestion.explanation || `The correct answer was: ${currentQuestion.options[currentQuestion.answer]}`}
+            {currentQuestion.explanation || (isCorrect
+              ? "Excellent work!"
+              : `The correct answer was: ${currentQuestion.options[currentQuestion.answer]}`)}
           </AlertDescription>
         </Alert>
       )}

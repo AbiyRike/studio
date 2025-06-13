@@ -1,20 +1,21 @@
+
 "use client";
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { InteractiveQuiz } from '@/components/interactive-quiz';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { getTemporarySessionData } from '@/lib/session-store';
+import { getActiveTutorSession } from '@/lib/session-store';
 import type { TutorSessionData } from '@/app/actions';
 import { Skeleton } from '@/components/ui/skeleton';
-import { AlertTriangle } from 'lucide-react';
+import { AlertTriangle, Image as ImageIcon } from 'lucide-react'; // Added ImageIcon
 import { Button } from '@/components/ui/button';
 import { redirect } from 'next/navigation';
-
+import Image from 'next/image'; // For displaying image
 
 // This client-side component will handle the auth check and redirect if necessary
-// For server components, auth would ideally be handled by middleware.
 const ClientAuthGuard = ({ children }: { children: React.ReactNode }) => {
+  // Check for window to ensure client-side execution
   if (typeof window !== 'undefined' && !localStorage.getItem('isLoggedIn')) {
     redirect('/login');
   }
@@ -29,11 +30,11 @@ export default function TutorPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const data = getTemporarySessionData();
+    const data = getActiveTutorSession();
     if (data) {
       setSessionData(data);
     } else {
-      setError("No session data found. Please start a new session from the dashboard.");
+      setError("No active session data found. Please start a new session from the dashboard.");
     }
     setIsLoading(false);
   }, []);
@@ -76,6 +77,24 @@ export default function TutorPage() {
       <div className="container mx-auto py-8 space-y-8">
         <div>
           <h1 className="text-3xl font-bold font-headline mb-2">{sessionData.documentName}</h1>
+          {sessionData.mediaDataUri && (
+            <Card className="shadow-md mb-6">
+              <CardHeader>
+                <CardTitle className="text-xl font-headline flex items-center">
+                  <ImageIcon className="mr-2 h-6 w-6 text-primary" /> Associated Image
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="flex justify-center">
+                <Image 
+                  src={sessionData.mediaDataUri} 
+                  alt="Associated media" 
+                  width={400} 
+                  height={300} 
+                  className="rounded-md object-contain max-h-[300px]"
+                />
+              </CardContent>
+            </Card>
+          )}
           <Card className="shadow-md">
             <CardHeader>
               <CardTitle className="text-xl font-headline">Summary</CardTitle>

@@ -1,24 +1,22 @@
 import type { TutorSessionData } from '@/app/actions';
 
-interface StoredSessionData extends TutorSessionData {
-  // any additional fields if needed for storage
-}
+const ACTIVE_TUTOR_SESSION_KEY = 'activeTutorSession';
 
-// This is a very simple in-memory store for demonstration.
-// It only holds one session at a time. For multiple sessions or persistence,
-// use localStorage, IndexedDB, or a state management library like Zustand/Redux.
-
-let currentSession: StoredSessionData | null = null;
-
-export const setTemporarySessionData = (data: StoredSessionData): void => {
-  currentSession = data;
+export const setActiveTutorSession = (data: TutorSessionData | null): void => {
+  if (typeof window === 'undefined') return;
+  if (data === null) {
+    localStorage.removeItem(ACTIVE_TUTOR_SESSION_KEY);
+  } else {
+    localStorage.setItem(ACTIVE_TUTOR_SESSION_KEY, JSON.stringify(data));
+  }
 };
 
-export const getTemporarySessionData = (): StoredSessionData | null => {
-  const data = currentSession;
-  currentSession = null; // Consume once
-  return data;
+export const getActiveTutorSession = (): TutorSessionData | null => {
+  if (typeof window === 'undefined') return null;
+  const storedData = localStorage.getItem(ACTIVE_TUTOR_SESSION_KEY);
+  return storedData ? JSON.parse(storedData) : null;
 };
+
 
 // For learning history (persisted)
 const HISTORY_STORAGE_KEY = 'geminiAITutorHistory';
