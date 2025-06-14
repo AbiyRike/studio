@@ -117,8 +117,8 @@ export interface InteractiveTutorStepData {
 
 export interface ActiveInteractiveTutorSessionData {
   documentName: string;
-  documentContent: string; // Store full content for AI context
-  mediaDataUri?: string;   // Store media URI for AI context
+  documentContent: string; 
+  mediaDataUri?: string;   
   currentStepIndex: number;
   currentStepData: InteractiveTutorStepData;
 }
@@ -141,6 +141,47 @@ export const getActiveInteractiveTutorSession = (): ActiveInteractiveTutorSessio
     return storedData ? JSON.parse(storedData) : null;
   } catch (e) {
     console.error("Error parsing active interactive tutor session from localStorage", e);
+    return null;
+  }
+};
+
+// For "Ask Mr. Know" Chat Session
+export interface AskMrKnowMessagePart {
+  text?: string;
+  // Future: inlineData for images/files from user or AI
+}
+export interface AskMrKnowMessage {
+  role: 'user' | 'model';
+  parts: AskMrKnowMessagePart[];
+  timestamp: string;
+}
+
+export interface ActiveAskMrKnowSessionData {
+  kbItemId: string; // To know which KB item is the context
+  documentName: string;
+  documentContent: string;
+  mediaDataUri?: string;
+  chatHistory: AskMrKnowMessage[];
+}
+
+const ACTIVE_ASK_MR_KNOW_SESSION_KEY = 'activeAskMrKnowSession';
+
+export const setActiveAskMrKnowSession = (data: ActiveAskMrKnowSessionData | null): void => {
+  if (typeof window === 'undefined') return;
+  if (data === null) {
+    localStorage.removeItem(ACTIVE_ASK_MR_KNOW_SESSION_KEY);
+  } else {
+    localStorage.setItem(ACTIVE_ASK_MR_KNOW_SESSION_KEY, JSON.stringify(data));
+  }
+};
+
+export const getActiveAskMrKnowSession = (): ActiveAskMrKnowSessionData | null => {
+  if (typeof window === 'undefined') return null;
+  const storedData = localStorage.getItem(ACTIVE_ASK_MR_KNOW_SESSION_KEY);
+  try {
+    return storedData ? JSON.parse(storedData) : null;
+  } catch (e) {
+    console.error("Error parsing active Ask Mr. Know session from localStorage", e);
     return null;
   }
 };

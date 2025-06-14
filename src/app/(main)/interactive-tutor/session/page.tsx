@@ -5,15 +5,14 @@ import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter, CardDescription } from "@/components/ui/card";
-import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { getActiveInteractiveTutorSession, setActiveInteractiveTutorSession, type ActiveInteractiveTutorSessionData, type InteractiveTutorStepData } from '@/lib/session-store';
-import { getNextInteractiveTutorStep as getNextTutorStepServerAction } from '@/app/actions'; // Renamed for clarity
+import { getNextInteractiveTutorStep as getNextTutorStepServerAction } from '@/app/actions'; 
 import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from '@/components/ui/skeleton';
-import { AlertTriangle, GraduationCap, MessageSquare, Mic, PlayCircle, StopCircle, Loader2, ArrowLeft, Home, Send } from 'lucide-react';
+import { AlertTriangle, GraduationCap, PlayCircle, StopCircle, Loader2, ArrowLeft, Home } from 'lucide-react';
 import { ScrollArea } from "@/components/ui/scroll-area";
 
 const ClientAuthGuard = ({ children }: { children: React.ReactNode }) => {
@@ -43,8 +42,6 @@ export default function InteractiveTutorSessionPage() {
   const [isFetchingNext, setIsFetchingNext] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
-  const [userQuestion, setUserQuestion] = useState("");
-  const [isRecordingVoice, setIsRecordingVoice] = useState(false); 
   const [isPlayingTTS, setIsPlayingTTS] = useState(false); 
   const [miniQuizAnswer, setMiniQuizAnswer] = useState<string | undefined>(undefined);
   const [submittedQuizAnswerForFeedback, setSubmittedQuizAnswerForFeedback] = useState<string | undefined>(undefined);
@@ -72,24 +69,13 @@ export default function InteractiveTutorSessionPage() {
     router.push('/dashboard');
   }
 
-  const processAndSetNextStep = async (userQueryInput?: string, quizAnswerInput?: string) => {
+  const processAndSetNextStep = async (quizAnswerInput?: string) => {
     if (!sessionData || !currentStep) return;
     setIsFetchingNext(true);
 
-    let targetStepForAI: number;
-    let incrementClientStepIndex: boolean;
-
-    if (userQueryInput) {
-      // If user asks a question, AI addresses it within the current step context
-      targetStepForAI = sessionData.currentStepIndex;
-      incrementClientStepIndex = false;
-    } else {
-      // If user proceeds (Next Step or submitting quiz), AI generates the next conceptual step
-      targetStepForAI = sessionData.currentStepIndex + 1;
-      incrementClientStepIndex = true;
-    }
-    
-    const result = await getNextTutorStepServerAction(sessionData, targetStepForAI, userQueryInput, quizAnswerInput);
+    const targetStepForAI = sessionData.currentStepIndex + 1;
+        
+    const result = await getNextTutorStepServerAction(sessionData, targetStepForAI, quizAnswerInput);
     setIsFetchingNext(false);
 
     if ('error' in result) {
@@ -99,7 +85,7 @@ export default function InteractiveTutorSessionPage() {
          setCurrentStep(prev => prev ? {...prev, isLastStep: true} : null);
       }
     } else {
-      const newClientStepIndex = incrementClientStepIndex ? sessionData.currentStepIndex + 1 : sessionData.currentStepIndex;
+      const newClientStepIndex = sessionData.currentStepIndex + 1;
       const updatedSessionData: ActiveInteractiveTutorSessionData = { 
         ...sessionData, 
         currentStepIndex: newClientStepIndex, 
@@ -108,7 +94,6 @@ export default function InteractiveTutorSessionPage() {
       setSessionData(updatedSessionData);
       setCurrentStep(result);
       setActiveInteractiveTutorSession(updatedSessionData);
-      setUserQuestion(""); 
       setMiniQuizAnswer(undefined); 
       setSubmittedQuizAnswerForFeedback(undefined); 
       if (result.isLastStep) {
@@ -120,30 +105,18 @@ export default function InteractiveTutorSessionPage() {
   const handleNextStepOrSubmitQuiz = () => {
     if (currentStep?.miniQuiz && miniQuizAnswer !== undefined) {
         setSubmittedQuizAnswerForFeedback(miniQuizAnswer); 
-        processAndSetNextStep(undefined, miniQuizAnswer);
-    } else {
+        processAndSetNextStep(miniQuizAnswer);
+    } else if (!currentStep?.miniQuiz) { // Only proceed if there's no quiz
         processAndSetNextStep();
+    } else {
+        // If there is a quiz, but no answer is selected, do nothing (or show a toast)
+        toast({ title: "Mini-Quiz Incomplete", description: "Please select an answer for the quiz to proceed.", variant: "default"});
     }
-  };
-
-
-  const handleUserQuestionSubmit = () => {
-    if (!userQuestion.trim()) {
-      toast({ title: "Please enter a question", variant: "default" });
-      return;
-    }
-    processAndSetNextStep(userQuestion, undefined); 
   };
   
   const toggleTTS = () => {
     setIsPlayingTTS(!isPlayingTTS);
     // Actual TTS implementation would go here
-    // For now, we just toggle the state
-  }
-  const toggleVoiceInput = () => {
-      setIsRecordingVoice(!isRecordingVoice);
-      // Actual voice input implementation would go here
-      // For now, we just toggle the state
   }
 
   if (isLoading) {
@@ -238,42 +211,16 @@ export default function InteractiveTutorSessionPage() {
           </Card>
         )}
         
-        {!currentStep.isLastStep && (
-          <Card className="w-full max-w-3xl shadow-lg">
-            <CardHeader>
-              <CardTitle className="text-xl">Ask a Question</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <Textarea 
-                placeholder="Type your question about the current topic..." 
-                value={userQuestion}
-                onChange={(e) => setUserQuestion(e.target.value)}
-                rows={3}
-                disabled={isFetchingNext}
-              />
-              <div className="flex flex-col sm:flex-row gap-2">
-                <Button onClick={handleUserQuestionSubmit} className="flex-grow" disabled={isFetchingNext || !userQuestion.trim()}>
-                  <Send className="mr-2 h-5 w-5" /> Submit Question
-                </Button>
-                <Button onClick={toggleVoiceInput} variant="outline" className="sm:w-auto" disabled={isFetchingNext}>
-                  <Mic className="mr-2 h-5 w-5" /> {isRecordingVoice ? "Stop Recording" : "Ask with Voice"} 
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-
         <div className="w-full max-w-3xl flex flex-col sm:flex-row items-center justify-between gap-4 mt-4">
            {!currentStep.isLastStep && (
              <Button 
                 onClick={handleNextStepOrSubmitQuiz} 
-                disabled={isFetchingNext || (!!currentStep.miniQuiz && miniQuizAnswer === undefined && !userQuestion.trim()) }
+                disabled={isFetchingNext || (!!currentStep.miniQuiz && miniQuizAnswer === undefined) }
                 size="lg" 
                 className="w-full sm:w-auto shadow-md"
               >
                 {isFetchingNext ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : null}
-                {currentStep.miniQuiz && miniQuizAnswer === undefined && !userQuestion.trim() ? "Answer Quiz to Proceed" : "Next Step"}
+                {currentStep.miniQuiz && miniQuizAnswer === undefined ? "Answer Quiz to Proceed" : "Next Step"}
               </Button>
            )}
            {currentStep.isLastStep && (

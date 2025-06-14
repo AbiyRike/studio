@@ -5,9 +5,10 @@ import { summarizeDocument } from "@/ai/flows/summarize-document";
 import { generateQuestions, type GenerateQuestionsInput as AIQuestionsInput } from "@/ai/flows/generate-questions";
 import { generateFlashcards, type GenerateFlashcardsInput as AIFlashcardsInput } from "@/ai/flows/generate-flashcards";
 import { getNextInteractiveTutorStep as getNextTutorStepFlow, type InteractiveTutorInput as AIInteractiveTutorInput } from "@/ai/flows/interactive-tutor-flow";
+import { chatWithMrKnowMMLFlow, type AskMrKnowInput as AIAskMrKnowInput } from "@/ai/flows/ask-mr-know-flow";
 import type { SummarizeDocumentInput } from "@/ai/flows/summarize-document";
 import { generateId, type KnowledgeBaseItem } from '@/lib/knowledge-base-store'; 
-import type { InteractiveTutorStepData, ActiveInteractiveTutorSessionData } from '@/lib/session-store';
+import type { InteractiveTutorStepData, ActiveInteractiveTutorSessionData, AskMrKnowMessage, ActiveAskMrKnowSessionData } from '@/lib/session-store';
 
 
 export interface Question {
@@ -327,8 +328,6 @@ export async function generateFlashcardsFromKBItem(
     let createdFlashcards = flashcardsResult.flashcards;
 
     if (!createdFlashcards || createdFlashcards.length === 0) {
-      // Return an error or empty array if AI fails to generate, instead of sample.
-      // Let the UI decide how to handle "no flashcards".
       console.warn(`AI failed to generate flashcards for "${documentName}".`);
       return { documentName, flashcards: [] };
     }
@@ -363,7 +362,7 @@ export async function startInteractiveTutorSession(
     const firstStepInput: AIInteractiveTutorInput = {
         documentContent: kbItem.documentContent || "", 
         photoDataUri: kbItem.mediaDataUri,
-        currentStep: 0, 
+        currentStep: 0,
     };
     
     const firstStepResult = await getNextTutorStepFlow(firstStepInput);
@@ -391,7 +390,6 @@ export async function startInteractiveTutorSession(
 export async function getNextInteractiveTutorStep(
   currentSession: ActiveInteractiveTutorSessionData,
   targetStepIndex: number, 
-  userInput?: string,
   userQuizAnswer?: string,
 ): Promise<InteractiveTutorStepData | { error: string }> {
   try {
@@ -401,7 +399,6 @@ export async function getNextInteractiveTutorStep(
         currentStep: targetStepIndex, 
         previousExplanation: currentSession.currentStepData.explanation,
         currentTopic: currentSession.currentStepData.topic,
-        userQuery: userInput,
         userQuizAnswer: userQuizAnswer,
     };
 
@@ -425,4 +422,75 @@ export async function getNextInteractiveTutorStep(
   }
 }
 
+// ---- Ask Mr. Know Actions ----
+export async function startAskMrKnowSession(
+  kbItem: KnowledgeBaseItem
+): Promise<ActiveAskMrKnowSessionData | { error: string }> {
+  try {
+    if (!kbItem) {
+      return { error: "Knowledge base item is required to start a chat session." };
+    }
+    return {
+      kbItemId: kbItem.id,
+      documentName: kbItem.documentName,
+      documentContent: kbItem.documentContent || "",
+      mediaDataUri: kbItem.mediaDataUri,
+      chatHistory: [
+        {
+          role: 'model', // Initial greeting from AI
+          parts: [{ text: `Hello! I'm Mr. Know. Ask me anything about "${kbItem.documentName}".` }],
+          timestamp: new Date().toISOString(),
+        }
+      ],
+    };
+  } catch (e) {
+    console.error("Error starting Ask Mr. Know session:", e);
+    const errorMessage = e instanceof Error ? e.message : "An unknown error occurred.";
+    return { error: `Failed to start chat session: ${errorMessage}` };
+  }
+}
+
+export async function getNextAskMrKnowResponse(
+  currentSession: ActiveAskMrKnowSessionData,
+  userMessage: string
+): Promise<AskMrKnowMessage | { error: string }> {
+  try {
+    if (!userMessage.trim()) {
+      return { error: "Message cannot be empty." };
+    }
+    const aiInput: AIAskMrKnowInput = {
+      documentContent: currentSession.documentContent,
+      photoDataUri: currentSession.mediaDataUri,
+      chatHistory: currentSession.chatHistory.map(msg => ({
+        role: msg.role,
+        parts: msg.parts,
+      })), // Pass a simplified version if AI expects it
+      userQuery: userMessage,
+    };
+
+    const aiResponse = await chatWithMrKnowMMLFlow(aiInput);
+
+    if ('error' in aiResponse) {
+        return { error: aiResponse.error };
+    }
+    
+    return {
+        role: 'model',
+        parts: [{ text: aiResponse.response }],
+        timestamp: new Date().toISOString(),
+    };
+
+  } catch (e) {
+    console.error("Error getting next Ask Mr. Know response:", e);
+    const errorMessage = e instanceof Error ? e.message : "An unknown error occurred.";
+    // Add specific error checks for rate limits, safety, etc., as done for other AI calls
+    if (errorMessage.includes("rate limit") || errorMessage.includes("quota") || errorMessage.includes("503") || errorMessage.toLowerCase().includes("overloaded")) {
+        return { error: "Mr. Know is currently busy. Please try again in a few moments." };
+    }
+    if (errorMessage.toLowerCase().includes("safety") || errorMessage.toLowerCase().includes("blocked")) {
+        return { error: "Your message could not be processed due to safety filters."};
+    }
+    return { error: `Mr. Know chat failed. Details: ${errorMessage}.` };
+  }
+}
     

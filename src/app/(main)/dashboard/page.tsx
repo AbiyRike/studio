@@ -9,7 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { getLearningHistory, type HistoryItem } from '@/lib/session-store';
 import { getKnowledgeBaseItems } from '@/lib/knowledge-base-store';
-import { Brain, Layers, UserCircle, TrendingUp, BookCopy, Target, AlertTriangle, PieChart, CheckSquare, Activity, DatabaseZap, Edit3, GraduationCap, CheckCircle2, XCircle, HelpCircle } from 'lucide-react';
+import { Brain, Layers, UserCircle, TrendingUp, BookCopy, Target, AlertTriangle, PieChart, CheckSquare, Activity, DatabaseZap, Edit3, GraduationCap, CheckCircle2, XCircle, HelpCircle, MessageCircleQuestion } from 'lucide-react';
 import Image from 'next/image';
 
 const ClientAuthGuard = ({ children }: { children: React.ReactNode }) => {
@@ -159,7 +159,7 @@ export default function EnhancedDashboardPage() {
 
         <section>
           <h2 className="text-2xl font-semibold font-headline mb-6 text-center text-foreground/90">Start Your Learning Journey</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             <FeatureButton
               href="/knowledge-base/new"
               icon={DatabaseZap}
@@ -193,7 +193,14 @@ export default function EnhancedDashboardPage() {
               icon={GraduationCap}
               title="Tutor Me"
               description="Select from KB for a step-by-step interactive tutoring session."
-              className="bg-gradient-to-br from-purple-500/5 via-transparent to-purple-500/5 hover:from-purple-500/10 hover:to-purple-500/10 md:col-span-2 lg:col-span-4"
+              className="bg-gradient-to-br from-purple-500/5 via-transparent to-purple-500/5 hover:from-purple-500/10 hover:to-purple-500/10"
+            />
+             <FeatureButton
+              href="/ask-mr-know/select"
+              icon={MessageCircleQuestion}
+              title="Ask Mr. Know"
+              description="Chat with Gemini about content selected from your knowledge base."
+              className="bg-gradient-to-br from-sky-500/5 via-transparent to-sky-500/5 hover:from-sky-500/10 hover:to-sky-500/10"
             />
           </div>
         </section>
@@ -240,7 +247,7 @@ export default function EnhancedDashboardPage() {
               </Card>
             </div>
           ) : (
-            <Card className="text-center py-10 shadow-md col-span-1 md:col-span-2 lg:col-span-3 xl:col-span-4">
+            <Card className="text-center py-10 shadow-md col-span-1 md:col-span-2 lg:grid-cols-3 xl:col-span-4">
                 <CardContent>
                     <TrendingUp className="mx-auto h-16 w-16 text-muted-foreground mb-4" />
                     <p className="text-xl text-muted-foreground">No learning data yet.</p>
@@ -296,3 +303,4 @@ export default function EnhancedDashboardPage() {
     </ClientAuthGuard>
   );
 }
+
