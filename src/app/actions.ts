@@ -6,9 +6,12 @@ import { generateQuestions, type GenerateQuestionsInput as AIQuestionsInput } fr
 import { generateFlashcards, type GenerateFlashcardsInput as AIFlashcardsInput } from "@/ai/flows/generate-flashcards";
 import { getNextInteractiveTutorStep as getNextTutorStepFlow, type InteractiveTutorInput as AIInteractiveTutorInput } from "@/ai/flows/interactive-tutor-flow";
 import { chatWithMrKnowMMLFlow, type AskMrKnowInput as AIAskMrKnowInput, AskMrKnowOutput } from "@/ai/flows/ask-mr-know-flow";
+import { getProgrammingLanguages as getProgrammingLanguagesFlow, type GetProgrammingLanguagesInput as AIGetProgrammingLanguagesInput } from "@/ai/flows/get-programming-languages-flow";
+import { getCodeTeachingStep as getCodeTeachingStepFlow, type GetCodeTeachingStepInput as AIGetCodeTeachingStepInput } from "@/ai/flows/get-code-teaching-step-flow";
+
 import type { SummarizeDocumentInput } from "@/ai/flows/summarize-document";
 import { generateId, type KnowledgeBaseItem } from '@/lib/knowledge-base-store'; 
-import type { InteractiveTutorStepData, ActiveInteractiveTutorSessionData, AskMrKnowMessage, ActiveAskMrKnowSessionData } from '@/lib/session-store';
+import type { InteractiveTutorStepData, ActiveInteractiveTutorSessionData, AskMrKnowMessage, ActiveAskMrKnowSessionData, CodeTeachingStepData, ActiveCodeTeachingSessionData } from '@/lib/session-store';
 
 
 export interface Question {
@@ -363,7 +366,6 @@ export async function startInteractiveTutorSession(
         documentContent: kbItem.documentContent || "", 
         photoDataUri: kbItem.mediaDataUri,
         currentStep: 0,
-        // removed: totalSteps: 5, // Default to 5 steps for the initial design, AI can override isLastStep
     };
     
     const firstStepResult = await getNextTutorStepFlow(firstStepInput);
@@ -403,24 +405,22 @@ export async function getNextInteractiveTutorStep(
     const nextStepInput: AIInteractiveTutorInput = {
         documentContent: currentSession.documentContent,
         photoDataUri: currentSession.mediaDataUri,
-        currentStep: targetStepIndex, // This is the step number the AI should generate
+        currentStep: targetStepIndex, 
         previousExplanation: currentSession.currentStepData.explanation,
         currentTopic: currentSession.currentStepData.topic,
         userQuizAnswer: userQuizAnswer,
-        // removed: totalSteps: currentSession.totalSteps, 
     };
 
     const nextStepResult = await getNextTutorStepFlow(nextStepInput);
 
-    if (typeof (nextStepResult as any).error === 'string') { // Check if the flow returned an error object
+    if (typeof (nextStepResult as any).error === 'string') { 
         return { error: `Failed to get next tutoring step: ${(nextStepResult as any).error}` };
     }
-    return nextStepResult as InteractiveTutorStepData; // Cast to expected successful output type
+    return nextStepResult as InteractiveTutorStepData;
 
   } catch (e) {
       console.error("Error getting next interactive tutor step:", e);
       const errorMessage = e instanceof Error ? e.message : "An unknown error occurred.";
-      // These specific error checks should ideally be inside the flow or closer to the AI call
       if (errorMessage.includes("rate limit") || errorMessage.includes("quota") || errorMessage.includes("503") || errorMessage.toLowerCase().includes("overloaded")) {
         return { error: "The AI tutor service is currently busy. Please try again in a few moments." };
       }
@@ -445,11 +445,11 @@ export async function startAskMrKnowSession(
     return {
       kbItemId: kbItem.id,
       documentName: kbItem.documentName,
-      documentContent: kbItem.documentContent || "", // Ensure it's always a string
+      documentContent: kbItem.documentContent || "", 
       mediaDataUri: kbItem.mediaDataUri,
       chatHistory: [
         {
-          role: 'model', // Initial greeting from AI
+          role: 'model', 
           parts: [{ text: `Hello! I'm Mr. Know. Ask me anything about "${kbItem.documentName}".` }],
           timestamp: new Date().toISOString(),
         }
@@ -473,7 +473,7 @@ export async function getNextAskMrKnowResponse(
     const aiInput: AIAskMrKnowInput = {
       documentContent: currentSession.documentContent,
       photoDataUri: currentSession.mediaDataUri,
-      chatHistory: currentSession.chatHistory.map(msg => ({ // Map to the schema expected by the AI flow
+      chatHistory: currentSession.chatHistory.map(msg => ({ 
         role: msg.role,
         parts: msg.parts.map(p => ({ text: p.text })),
       })), 
@@ -482,15 +482,13 @@ export async function getNextAskMrKnowResponse(
 
     const aiResponseOrError = await chatWithMrKnowMMLFlow(aiInput);
 
-    if ('error' in aiResponseOrError) { // This means chatWithMrKnowMMLFlow returned an error object
+    if ('error' in aiResponseOrError) { 
         return { error: aiResponseOrError.error };
     }
     
-    // If no error, it's an AskMrKnowOutput
     const aiResponse = aiResponseOrError as AskMrKnowOutput;
 
     if (!aiResponse.response) {
-        // This case should be minimized by the improved error handling within chatWithMrKnowMMLFlow
         return { error: "Mr. Know didn't provide a response. Please try again." };
     }
     
@@ -503,8 +501,85 @@ export async function getNextAskMrKnowResponse(
   } catch (e) {
     console.error("Error in getNextAskMrKnowResponse server action:", e);
     const errorMessage = e instanceof Error ? e.message : "An unknown error occurred contacting Mr. Know.";
-    // Fallback error handling, though chatWithMrKnowMMLFlow should catch most AI-specific issues.
     return { error: `Mr. Know experienced an issue: ${errorMessage}.` };
   }
 }
+
+// ---- Code with Me Actions ----
+export interface GetProgrammingLanguagesServerInput {
+  category: 'frontend' | 'backend';
+}
+export interface GetProgrammingLanguagesServerOutput {
+  languages: string[];
+}
+
+export async function getProgrammingLanguages(
+  input: GetProgrammingLanguagesServerInput
+): Promise<GetProgrammingLanguagesServerOutput | { error: string }> {
+  try {
+    const aiInput: AIGetProgrammingLanguagesInput = { category: input.category };
+    const result = await getProgrammingLanguagesFlow(aiInput);
+    return { languages: result.languages || [] };
+  } catch (e) {
+    console.error("Error fetching programming languages:", e);
+    const errorMessage = e instanceof Error ? e.message : "Unknown error.";
+    return { error: `Failed to fetch languages: ${errorMessage}` };
+  }
+}
+
+export interface StartCodeTeachingSessionInput {
+  language: string;
+}
+
+export async function startCodeTeachingSession(
+  input: StartCodeTeachingSessionInput
+): Promise<ActiveCodeTeachingSessionData | { error: string }> {
+  try {
+    const firstStepInput: AIGetCodeTeachingStepInput = {
+      language: input.language,
+      currentTopic: "Syntax Basics", // Initial topic
+    };
+    const firstStepResult = await getCodeTeachingStepFlow(firstStepInput);
+
+    if (typeof (firstStepResult as any).error === 'string') {
+      return { error: `Failed to get first coding step: ${(firstStepResult as any).error}` };
+    }
+    const validFirstStepResult = firstStepResult as CodeTeachingStepData;
+
+    return {
+      language: input.language,
+      currentTopic: validFirstStepResult.topic, // Use topic from AI
+      currentStepData: validFirstStepResult,
+      history: [],
+    };
+  } catch (e) {
+    console.error("Error starting code teaching session:", e);
+    const errorMessage = e instanceof Error ? e.message : "Unknown error.";
+    return { error: `Failed to start session: ${errorMessage}` };
+  }
+}
+
+export async function getNextCodeTeachingStep(
+  currentSession: ActiveCodeTeachingSessionData,
+  userAnswerOrCode?: string
+): Promise<CodeTeachingStepData | { error: string }> {
+  try {
+    const nextStepInput: AIGetCodeTeachingStepInput = {
+      language: currentSession.language,
+      currentTopic: currentSession.currentStepData.nextTopicSuggestion || currentSession.currentTopic, // Use AI's suggestion or fallback
+      previousExplanation: currentSession.currentStepData.explanation,
+      userAnswerOrCode: userAnswerOrCode,
+    };
+    const nextStepResult = await getCodeTeachingStepFlow(nextStepInput);
     
+    if (typeof (nextStepResult as any).error === 'string') {
+      return { error: `Failed to get next coding step: ${(nextStepResult as any).error}` };
+    }
+    return nextStepResult as CodeTeachingStepData;
+  } catch (e)
+   {
+    console.error("Error getting next code teaching step:", e);
+    const errorMessage = e instanceof Error ? e.message : "Unknown error.";
+    return { error: `Failed to get next step: ${errorMessage}` };
+  }
+}

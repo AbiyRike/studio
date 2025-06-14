@@ -185,3 +185,49 @@ export const getActiveAskMrKnowSession = (): ActiveAskMrKnowSessionData | null =
     return null;
   }
 };
+
+
+// For "Code with Me" Session
+export interface CodeTeachingStepData {
+  topic: string;
+  explanation: string;
+  codeExample?: string;
+  challenge: string;
+  feedbackOnPrevious?: string;
+  nextTopicSuggestion: string;
+  isLastStepInTopic?: boolean;
+}
+
+export interface CodeTeachingSessionHistoryItem {
+    previousStep: CodeTeachingStepData;
+    userAnswerSubmitted: string;
+}
+
+export interface ActiveCodeTeachingSessionData {
+  language: string;
+  currentTopic: string; // The broader topic, managed by AI's nextTopicSuggestion
+  currentStepData: CodeTeachingStepData;
+  history: CodeTeachingSessionHistoryItem[]; // To provide context for feedback
+}
+
+const ACTIVE_CODE_TEACHING_SESSION_KEY = 'activeCodeTeachingSession';
+
+export const setActiveCodeTeachingSession = (data: ActiveCodeTeachingSessionData | null): void => {
+  if (typeof window === 'undefined') return;
+  if (data === null) {
+    localStorage.removeItem(ACTIVE_CODE_TEACHING_SESSION_KEY);
+  } else {
+    localStorage.setItem(ACTIVE_CODE_TEACHING_SESSION_KEY, JSON.stringify(data));
+  }
+};
+
+export const getActiveCodeTeachingSession = (): ActiveCodeTeachingSessionData | null => {
+  if (typeof window === 'undefined') return null;
+  const storedData = localStorage.getItem(ACTIVE_CODE_TEACHING_SESSION_KEY);
+  try {
+    return storedData ? JSON.parse(storedData) : null;
+  } catch (e) {
+    console.error("Error parsing active code teaching session from localStorage", e);
+    return null;
+  }
+};

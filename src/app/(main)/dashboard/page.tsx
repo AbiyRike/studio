@@ -9,7 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { getLearningHistory, type HistoryItem } from '@/lib/session-store';
 import { getKnowledgeBaseItems } from '@/lib/knowledge-base-store';
-import { Brain, Layers, UserCircle, TrendingUp, BookCopy, Target, AlertTriangle, PieChart, CheckSquare, Activity, DatabaseZap, Edit3, GraduationCap, CheckCircle2, XCircle, HelpCircle, MessageCircleQuestion } from 'lucide-react';
+import { Brain, Layers, UserCircle, TrendingUp, BookCopy, Target, AlertTriangle, PieChart, CheckSquare, Activity, DatabaseZap, Edit3, GraduationCap, CheckCircle2, XCircle, HelpCircle, MessageCircleQuestion, Code2 } from 'lucide-react';
 import Image from 'next/image';
 
 const ClientAuthGuard = ({ children }: { children: React.ReactNode }) => {
@@ -201,6 +201,13 @@ export default function EnhancedDashboardPage() {
               title="Ask Mr. Know"
               description="Chat with Gemini about content selected from your knowledge base."
               className="bg-gradient-to-br from-sky-500/5 via-transparent to-sky-500/5 hover:from-sky-500/10 hover:to-sky-500/10"
+            />
+             <FeatureButton
+              href="/code-with-me/select"
+              icon={Code2}
+              title="Code with Me"
+              description="Learn programming concepts interactively, starting from syntax basics."
+              className="bg-gradient-to-br from-rose-500/5 via-transparent to-rose-500/5 hover:from-rose-500/10 hover:to-rose-500/10"
             />
           </div>
         </section>
