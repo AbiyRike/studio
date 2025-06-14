@@ -9,13 +9,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { processContentForTutor, type ProcessContentInput } from "@/app/actions";
+import { processContentForTutor, type ProcessContentInput, type TutorSessionData } from "@/app/actions";
 import { Loader2, FileText, Mic, Video, Camera, StopCircle, UploadCloud, X } from 'lucide-react';
 import { setActiveTutorSession } from '@/lib/session-store';
+import { addKnowledgeBaseItem, generateId } from '@/lib/knowledge-base-store';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import * as pdfjsLib from 'pdfjs-dist';
 
-// Required by pdfjs-dist
 if (typeof window !== 'undefined') {
   pdfjsLib.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
 }
@@ -41,56 +41,59 @@ export function ContentUploader() {
   const [capturedImageDataUri, setCapturedImageDataUri] = useState<string | null>(null);
 
 
+  const resetOtherInputs = (activeInputType: 'text' | 'pdf' | 'mic' | 'camera') => {
+    if (activeInputType !== 'text') setDocumentContent("");
+    if (activeInputType !== 'pdf' && fileInputRef.current) fileInputRef.current.value = "";
+    if (activeInputType !== 'camera') setCapturedImageDataUri(null);
+    if (activeInputType !== 'mic' && mediaRecorderRef.current && isRecording) {
+        mediaRecorderRef.current.stop();
+        setIsRecording(false);
+    }
+    if (activeInputType !== 'camera' && isCameraOpen) {
+        setIsCameraOpen(false);
+        if (videoRef.current && videoRef.current.srcObject) {
+            (videoRef.current.srcObject as MediaStream).getTracks().forEach(track => track.stop());
+        }
+    }
+  };
+
   const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
-      if (file.type === "application/pdf") {
-        setDocumentName(file.name);
-        setDocumentContent(""); // Clear previous content
-        setCapturedImageDataUri(null); // Clear any captured image
-        setIsLoading(true);
-        toast({ title: "Processing PDF...", description: "Extracting text from PDF." });
-        try {
-          const arrayBuffer = await file.arrayBuffer();
-          const pdf = await pdfjsLib.getDocument({data: arrayBuffer}).promise;
-          let textContent = "";
-          for (let i = 1; i <= pdf.numPages; i++) {
-            const page = await pdf.getPage(i);
-            const text = await page.getTextContent();
-            textContent += text.items.map(item => ('str' in item ? item.str : '')).join(" ") + "\n";
-          }
-          setDocumentContent(textContent.trim());
-          toast({
-            title: "PDF Processed",
-            description: `${file.name} text extracted. Ready to submit.`,
-          });
-        } catch (error) {
-          console.error("Error processing PDF:", error);
-          toast({
-            title: "PDF Processing Error",
-            description: "Could not extract text from PDF. Please ensure it's a valid PDF.",
-            variant: "destructive",
-          });
-          setDocumentContent("Error extracting text from PDF.");
-        } finally {
-          setIsLoading(false);
+      resetOtherInputs('pdf');
+      setDocumentName(file.name.replace(/\.pdf$/i, ""));
+      setIsLoading(true);
+      toast({ title: "Processing PDF...", description: "Extracting text from PDF." });
+      try {
+        const arrayBuffer = await file.arrayBuffer();
+        const pdf = await pdfjsLib.getDocument({data: arrayBuffer}).promise;
+        let textContent = "";
+        for (let i = 1; i <= pdf.numPages; i++) {
+          const page = await pdf.getPage(i);
+          const text = await page.getTextContent();
+          textContent += text.items.map(item => ('str' in item ? item.str : '')).join(" ") + "\n";
         }
-      } else {
+        setDocumentContent(textContent.trim());
         toast({
-          title: "Invalid File Type",
-          description: "Please select a PDF file.",
+          title: "PDF Processed",
+          description: `${file.name} text extracted. Ready to submit.`,
+        });
+      } catch (error) {
+        console.error("Error processing PDF:", error);
+        toast({
+          title: "PDF Processing Error",
+          description: "Could not extract text from PDF. Ensure it's a valid PDF.",
           variant: "destructive",
         });
+        setDocumentContent("Error extracting text from PDF.");
+      } finally {
+        setIsLoading(false);
       }
     }
   };
 
   const startRecording = async () => {
-    // Clear other inputs
-    setDocumentContent("");
-    setCapturedImageDataUri(null);
-    if (fileInputRef.current) fileInputRef.current.value = "";
-
+    resetOtherInputs('mic');
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       mediaRecorderRef.current = new MediaRecorder(stream);
@@ -99,9 +102,7 @@ export function ContentUploader() {
         audioChunksRef.current.push(event.data);
       };
       mediaRecorderRef.current.onstop = () => {
-        // const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/wav' });
-        // For actual audio processing, you would convert blob to data URI and send to an AI speech-to-text flow.
-        setDocumentName(`Audio Recording - ${new Date().toLocaleString()}.wav`);
+        setDocumentName(`Audio Recording - ${new Date().toLocaleTimeString()}.wav`);
         setDocumentContent("Audio recording captured. (Actual transcription would require an AI speech-to-text service).");
         toast({
           title: "Recording Finished",
@@ -165,21 +166,17 @@ export function ContentUploader() {
 
 
   const handleToggleCamera = () => {
-    if (capturedImageDataUri) { // If an image is already captured, clear it and related fields.
+    if (capturedImageDataUri) { 
       setCapturedImageDataUri(null);
-      setDocumentContent(""); // Image implies content comes from image
       setDocumentName("");
     }
-    // Clear other inputs
-    setDocumentContent("");
-    if (fileInputRef.current) fileInputRef.current.value = "";
-
+    resetOtherInputs('camera');
     setIsCameraOpen(prev => !prev);
     if (isCameraOpen) setHasCameraPermission(null); 
   };
 
   const captureImage = () => {
-    if (videoRef.current && canvasRef.current) {
+    if (videoRef.current && canvasRef.current && videoRef.current.videoWidth > 0) {
       const video = videoRef.current;
       const canvas = canvasRef.current;
       canvas.width = video.videoWidth;
@@ -189,9 +186,7 @@ export function ContentUploader() {
         context.drawImage(video, 0, 0, canvas.width, canvas.height);
         const imageDataUrl = canvas.toDataURL('image/png');
         setCapturedImageDataUri(imageDataUrl);
-        setDocumentName(`Camera Capture - ${new Date().toLocaleString()}.png`);
-        // Document content can be left empty if image is primary, or provide a short description.
-        // For AI, the image itself will be the main content.
+        setDocumentName(`Camera Capture - ${new Date().toLocaleTimeString()}.png`);
         setDocumentContent("Visual content captured from camera."); 
         toast({
           title: "Image Captured",
@@ -204,13 +199,15 @@ export function ContentUploader() {
       }
       setIsCameraOpen(false);
       setHasCameraPermission(null);
+    } else {
+       toast({ title: "Camera Error", description: "Could not capture image. Ensure camera is active.", variant: "destructive"});
     }
   };
 
   const clearCapturedImage = () => {
     setCapturedImageDataUri(null);
-    setDocumentName("");
-    setDocumentContent("");
+    if (documentName.startsWith("Camera Capture")) setDocumentName("");
+    if (documentContent.startsWith("Visual content captured")) setDocumentContent("");
   }
 
 
@@ -218,12 +215,9 @@ export function ContentUploader() {
     event.preventDefault();
     
     let currentDocumentContent = documentContent;
-    // If an image is captured, the primary content might be the image itself.
-    // The text area can be a supplementary description or name.
     if (capturedImageDataUri && !documentContent.trim()) {
-      currentDocumentContent = `Image analysis: ${documentName}`; // Placeholder if text is empty but image exists
+      currentDocumentContent = `Image analysis: ${documentName}`; 
     }
-
 
     if (!documentName.trim() || (!currentDocumentContent.trim() && !capturedImageDataUri)) {
       toast({
@@ -234,30 +228,43 @@ export function ContentUploader() {
       return;
     }
     
-    setActiveTutorSession(null); // Clear previous active session
+    setActiveTutorSession(null); 
     setIsLoading(true);
 
     const processInput: ProcessContentInput = {
       documentName,
-      documentContent: currentDocumentContent, // Use potentially modified content
+      documentContent: currentDocumentContent,
       mediaDataUri: capturedImageDataUri || undefined,
     };
 
     const result = await processContentForTutor(processInput);
-    setIsLoading(false);
+    
 
     if ('error' in result) {
+      setIsLoading(false);
       toast({
         title: "Error Processing Content",
         description: result.error,
         variant: "destructive",
       });
     } else {
-      setActiveTutorSession(result);
-      toast({
-        title: "Content Processed!",
-        description: "Starting your learning session...",
+      // Add to knowledge base
+      const now = new Date().toISOString();
+      addKnowledgeBaseItem({
+        id: generateId(),
+        documentName: result.documentName,
+        documentContent: result.documentContent, // Original content from TutorSessionData
+        mediaDataUri: result.mediaDataUri,     // Original media URI from TutorSessionData
+        summary: result.summary,               // AI-generated summary from TutorSessionData
+        createdAt: now,
+        updatedAt: now,
       });
+      toast({
+        title: "Content Processed & Saved!",
+        description: `"${result.documentName}" added to knowledge base. Starting quiz...`,
+      });
+      setActiveTutorSession(result);
+      setIsLoading(false); // Set loading to false before navigation
       router.push('/tutor');
     }
   };
@@ -265,9 +272,9 @@ export function ContentUploader() {
   return (
     <Card className="w-full shadow-lg">
       <CardHeader>
-        <CardTitle className="text-2xl font-headline">Start a New Learning Session</CardTitle>
+        <CardTitle className="text-2xl font-headline">Start a New Quiz Session</CardTitle>
         <CardDescription>
-          Enter text, upload a PDF, record audio, or capture an image to begin.
+          Upload new content (text, PDF, audio, image). It will be added to your knowledge base and a quiz will start.
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -290,10 +297,10 @@ export function ContentUploader() {
             <Textarea
               id="documentContent"
               value={documentContent}
-              onChange={(e) => setDocumentContent(e.target.value)}
-              placeholder="Paste text, or this will be auto-filled by PDF. For camera, this can be a description."
+              onChange={(e) => {setDocumentContent(e.target.value); resetOtherInputs('text');}}
+              placeholder="Paste text, or this will be auto-filled by PDF/audio. For camera, this can be a description."
               className="mt-1 min-h-[100px] text-sm"
-              disabled={isLoading || !!capturedImageDataUri} // Disable if image is captured, content comes from image
+              disabled={isLoading || !!capturedImageDataUri} 
             />
              {capturedImageDataUri && <p className="text-xs text-muted-foreground mt-1">Text content is optional when an image is captured. The AI will analyze the image.</p>}
           </div>
@@ -301,7 +308,7 @@ export function ContentUploader() {
           <div className="space-y-4">
             <p className="text-sm text-muted-foreground">Input Options (select one):</p>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <Button type="button" variant="outline" disabled={isLoading || isRecording || isCameraOpen} onClick={() => { setCapturedImageDataUri(null); fileInputRef.current?.click(); }}>
+              <Button type="button" variant="outline" disabled={isLoading || isRecording || isCameraOpen} onClick={() => fileInputRef.current?.click()}>
                 <FileText className="mr-2 h-5 w-5" /> Upload PDF
               </Button>
               <input type="file" ref={fileInputRef} onChange={handleFileChange} accept=".pdf" style={{ display: 'none' }} />
@@ -347,9 +354,8 @@ export function ContentUploader() {
             <Card className="mt-4 relative">
               <CardHeader>
                 <CardTitle className="text-lg">Captured Image Preview</CardTitle>
-                 <Button variant="ghost" size="icon" className="absolute top-2 right-2 h-6 w-6" onClick={clearCapturedImage}>
+                 <Button variant="ghost" size="icon" className="absolute top-2 right-2 h-6 w-6" onClick={clearCapturedImage} aria-label="Clear captured image">
                   <X className="h-4 w-4"/>
-                  <span className="sr-only">Clear captured image</span>
                 </Button>
               </CardHeader>
               <CardContent className="p-4 flex justify-center">
@@ -367,10 +373,10 @@ export function ContentUploader() {
             {isLoading ? (
               <>
                 <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                Processing...
+                Processing & Starting Quiz...
               </>
             ) : (
-             <> <UploadCloud className="mr-2 h-5 w-5" /> Start Tutoring Session </>
+             <> <UploadCloud className="mr-2 h-5 w-5" /> Process & Start Quiz </>
             )}
           </Button>
         </form>

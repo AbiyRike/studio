@@ -4,7 +4,7 @@
 import { summarizeDocument } from "@/ai/flows/summarize-document";
 import { generateQuestions, type GenerateQuestionsInput as AIQuestionsInput } from "@/ai/flows/generate-questions";
 import type { SummarizeDocumentInput } from "@/ai/flows/summarize-document";
-import { generateId } from '@/lib/knowledge-base-store'; // Import generateId
+import { generateId, type KnowledgeBaseItem } from '@/lib/knowledge-base-store'; 
 
 export interface Question {
   question: string;
@@ -17,8 +17,8 @@ export interface TutorSessionData {
   documentName: string;
   summary: string;
   questions: Question[];
-  documentContent: string; // Ensure this is always passed for KB and quiz continuation
-  mediaDataUri?: string;  // Ensure this is always passed
+  documentContent: string; 
+  mediaDataUri?: string;  
 }
 
 export interface ProcessContentInput {
@@ -51,7 +51,6 @@ export async function processContentForTutor(
       previousQuestionTexts: [],
     };
 
-    // Run in parallel
     const [summaryResult, questionsResult] = await Promise.all([
         summarizeDocument(aiSummarizeInput),
         generateQuestions(aiInitialQuestionsInput)
@@ -73,7 +72,6 @@ export async function processContentForTutor(
           explanation: "The primary goal is typically to understand the presented material."
         }
       ];
-       // Add a toast or log if AI fails to generate questions, but provide sample ones to proceed.
        console.warn("AI failed to generate initial questions. Using sample questions.");
     }
     
@@ -86,8 +84,8 @@ export async function processContentForTutor(
       documentName,
       summary: finalSummary,
       questions: questionsWithExplanation,
-      documentContent: documentContent, // Return original document content
-      mediaDataUri: mediaDataUri,     // Return original media URI
+      documentContent: documentContent, 
+      mediaDataUri: mediaDataUri,     
     };
 
   } catch (e) {
@@ -120,7 +118,7 @@ export async function generateAdditionalQuestions(
       return { error: "Document content or media must be provided to generate more questions." };
     }
      if (previousQuestionTexts.length >= 100) { 
-      return { questions: [] }; // Max questions reached
+      return { questions: [] }; 
     }
 
     const aiInput: AIQuestionsInput = {
@@ -156,8 +154,6 @@ export async function generateAdditionalQuestions(
   }
 }
 
-
-// New action for "Build Knowledge Base"
 export interface SummarizeAndGetDataForStorageInput {
   documentName: string;
   documentContent: string;
@@ -170,8 +166,8 @@ export interface SummarizeAndGetDataForStorageOutput {
   documentContent: string;
   mediaDataUri?: string;
   summary: string;
-  createdAt: string; // ISO string
-  updatedAt: string; // ISO string
+  createdAt: string; 
+  updatedAt: string; 
 }
 
 export async function summarizeAndGetDataForStorage(
@@ -202,7 +198,7 @@ export async function summarizeAndGetDataForStorage(
     const now = new Date().toISOString();
 
     return {
-      id: generateId(), // Generate a unique ID
+      id: generateId(), 
       documentName,
       documentContent,
       mediaDataUri,
@@ -221,5 +217,70 @@ export async function summarizeAndGetDataForStorage(
         return { error: "The content could not be processed due to safety filters or was blocked by the AI. Please try with different content."};
     }
     return { error: `AI processing failed for summarization. Details: ${errorMessage}.` };
+  }
+}
+
+export interface GenerateQuizFromKBItemInput {
+  documentName: string;
+  documentContent: string;
+  mediaDataUri?: string;
+  summary: string; // The existing summary from KB
+}
+
+export async function generateQuizSessionFromKBItem(
+  input: GenerateQuizFromKBItemInput
+): Promise<TutorSessionData | { error: string }> {
+  try {
+    const { documentName, documentContent, mediaDataUri, summary } = input;
+
+    if (!documentName || (!documentContent && !mediaDataUri)) {
+      return { error: "Invalid knowledge base item data provided." };
+    }
+
+    const aiInitialQuestionsInput: AIQuestionsInput = {
+      documentContent,
+      ...(mediaDataUri && { photoDataUri: mediaDataUri }),
+      numberOfQuestions: 5,
+      previousQuestionTexts: [],
+    };
+
+    const questionsResult = await generateQuestions(aiInitialQuestionsInput);
+    let initialQuestions = questionsResult.questions;
+
+    if (!initialQuestions || initialQuestions.length === 0) {
+      initialQuestions = [
+        {
+          question: "Sample Question: What is a key concept from this material?",
+          options: ["Concept A", "Concept B", "Concept C", "Concept D"],
+          answer: 0,
+          explanation: "This is a sample question as initial generation failed."
+        }
+      ];
+      console.warn("AI failed to generate initial questions from KB item. Using sample questions.");
+    }
+
+    const questionsWithExplanation = initialQuestions.map(q => ({
+        ...q,
+        explanation: q.explanation || `The correct answer is "${q.options[q.answer]}" (option ${q.answer + 1}).`
+    }));
+
+    return {
+      documentName,
+      summary: summary, // Use the existing summary from KB
+      questions: questionsWithExplanation,
+      documentContent: documentContent,
+      mediaDataUri: mediaDataUri,
+    };
+
+  } catch (e) {
+    console.error("Error in generateQuizSessionFromKBItem:", e);
+    const errorMessage = e instanceof Error ? e.message : "An unknown error occurred during AI processing.";
+    if (errorMessage.includes("rate limit") || errorMessage.includes("quota") || errorMessage.includes("503") || errorMessage.toLowerCase().includes("overloaded")) {
+        return { error: "The AI service is currently busy. Please try again later." };
+    }
+    if (errorMessage.toLowerCase().includes("safety") || errorMessage.toLowerCase().includes("blocked")) {
+        return { error: "Content processing was blocked by AI safety filters. Please try with different content."};
+    }
+    return { error: `AI processing failed for quiz generation. Details: ${errorMessage}.` };
   }
 }

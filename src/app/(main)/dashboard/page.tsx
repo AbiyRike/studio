@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { getLearningHistory, type HistoryItem } from '@/lib/session-store';
-import { Brain, Layers, GraduationCap, UserCircle, TrendingUp, BookCopy, Target, AlertTriangle, PieChart, CheckSquare, Activity, DatabaseZap } from 'lucide-react';
+import { Brain, Layers, GraduationCap, UserCircle, TrendingUp, BookCopy, Target, AlertTriangle, PieChart, CheckSquare, Activity, DatabaseZap, Edit3 } from 'lucide-react';
 import { redirect } from 'next/navigation';
 import Image from 'next/image';
 
@@ -40,16 +40,33 @@ export default function NewDashboardPage() {
     setHistory(loadedHistory);
 
     if (loadedHistory.length > 0) {
-      const totalScore = loadedHistory.reduce((acc, item) => acc + item.score, 0);
-      const totalQuestionsAttempted = loadedHistory.reduce((acc, item) => acc + item.questions.length, 0);
+      let totalCorrectAnswers = 0;
+      let totalQuestionsAttemptedInHistory = 0;
+      
+      loadedHistory.forEach(item => {
+        totalCorrectAnswers += item.score;
+        totalQuestionsAttemptedInHistory += item.questions.length;
+      });
+
       const quizzesTaken = loadedHistory.length;
       const topics = Array.from(new Set(loadedHistory.map(item => item.documentName)));
       
+      const overallAccuracy = totalQuestionsAttemptedInHistory > 0 ? Math.round((totalCorrectAnswers / totalQuestionsAttemptedInHistory) * 100) : 0;
+      
+      // Average score is the average of individual quiz percentages
+      let sumOfQuizPercentages = 0;
+      loadedHistory.forEach(item => {
+        if (item.questions.length > 0) {
+          sumOfQuizPercentages += (item.score / item.questions.length) * 100;
+        }
+      });
+      const averageScore = quizzesTaken > 0 ? Math.round(sumOfQuizPercentages / quizzesTaken) : 0;
+
       setMetrics({
-        overallAccuracy: totalQuestionsAttempted > 0 ? Math.round((totalScore / totalQuestionsAttempted) * 100) : 0,
+        overallAccuracy: overallAccuracy,
         quizzesTaken: quizzesTaken,
         topicsStudied: topics.slice(0, 5), 
-        averageScore: quizzesTaken > 0 ? Math.round((totalQuestionsAttempted > 0 ? (totalScore / totalQuestionsAttempted * 100) : 0) / quizzesTaken) : 0, // Average score as a percentage
+        averageScore: averageScore,
       });
     }
     setIsLoading(false);
@@ -102,9 +119,16 @@ export default function NewDashboardPage() {
              <FeatureButton
               href="/quiz-session/new"
               icon={Brain}
-              title="Quiz Me"
-              description="Select from knowledge base or upload new content for interactive quizzes."
+              title="Quiz Me (New)"
+              description="Upload new content. It's added to KB & a quiz starts."
               className="bg-gradient-to-br from-primary/5 via-transparent to-primary/5 hover:from-primary/10 hover:to-primary/10"
+            />
+             <FeatureButton
+              href="/quiz-from-kb"
+              icon={Edit3} 
+              title="Tutor Me (KB Quiz)"
+              description="Select from your knowledge base to start an interactive quiz."
+              className="bg-gradient-to-br from-orange-500/5 via-transparent to-orange-500/5 hover:from-orange-500/10 hover:to-orange-500/10"
             />
             <FeatureButton
               href="/flashcards"
@@ -113,13 +137,14 @@ export default function NewDashboardPage() {
               description="Create or use AI-generated flashcards for focused study sessions. (Coming Soon)"
               className="bg-gradient-to-br from-accent/5 via-transparent to-accent/5 hover:from-accent/10 hover:to-accent/10"
             />
-            <FeatureButton
+            {/* Placeholder for the original "Tutor Me" live explanation feature */}
+            {/* <FeatureButton
               href="/live-tutor"
               icon={GraduationCap}
-              title="Tutor Me"
+              title="Live Tutor (Future)"
               description="Engage with an AI tutor for live explanations and guided learning. (Coming Soon)"
               className="bg-gradient-to-br from-secondary/10 via-transparent to-secondary/10 hover:from-secondary/20 hover:to-secondary/20"
-            />
+            /> */}
           </div>
         </section>
 
