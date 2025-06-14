@@ -3,13 +3,13 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation'; // Added for ClientAuthGuard
+import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { getLearningHistory, type HistoryItem } from '@/lib/session-store';
 import { getKnowledgeBaseItems } from '@/lib/knowledge-base-store';
-import { Brain, Layers, UserCircle, TrendingUp, BookCopy, Target, AlertTriangle, PieChart, CheckSquare, Activity, DatabaseZap, Edit3, BarChartHorizontalBig, ThumbsUp, ThumbsDown } from 'lucide-react';
+import { Brain, Layers, UserCircle, TrendingUp, BookCopy, Target, AlertTriangle, PieChart, CheckSquare, Activity, DatabaseZap, Edit3, GraduationCap } from 'lucide-react';
 import Image from 'next/image';
 
 const ClientAuthGuard = ({ children }: { children: React.ReactNode }) => {
@@ -27,7 +27,7 @@ const ClientAuthGuard = ({ children }: { children: React.ReactNode }) => {
   }, [router]);
 
   if (!isVerified) {
-    return ( // Render a loader or nothing while checking auth
+    return (
       <div className="flex items-center justify-center min-h-screen">
         <Brain className="h-12 w-12 animate-pulse text-primary" />
       </div>
@@ -154,7 +154,7 @@ export default function EnhancedDashboardPage() {
               href="/knowledge-base/new"
               icon={DatabaseZap}
               title="Add to Knowledge"
-              description="Upload content (PDF, text, image, audio) to create summaries and store them in your knowledge base."
+              description="Upload content to create summaries and store them in your knowledge base."
               className="bg-gradient-to-br from-green-500/5 via-transparent to-green-500/5 hover:from-green-500/10 hover:to-green-500/10"
             />
              <FeatureButton
@@ -177,6 +177,13 @@ export default function EnhancedDashboardPage() {
               title="Flashcards"
               description="Create or use flashcards from your knowledge base for quick reviews."
               className="bg-gradient-to-br from-accent/5 via-transparent to-accent/5 hover:from-accent/10 hover:to-accent/10"
+            />
+            <FeatureButton
+              href="/interactive-tutor/select"
+              icon={GraduationCap}
+              title="Tutor Me"
+              description="Select from KB for a step-by-step interactive tutoring session."
+              className="bg-gradient-to-br from-purple-500/5 via-transparent to-purple-500/5 hover:from-purple-500/10 hover:to-purple-500/10 md:col-span-2 lg:col-span-4"
             />
           </div>
         </section>

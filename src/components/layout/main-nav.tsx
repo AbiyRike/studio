@@ -4,7 +4,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { LayoutDashboard, History, LogOut, Brain, DatabaseZap, Edit3, Layers } from "lucide-react";
+import { LayoutDashboard, History, LogOut, Brain, DatabaseZap, Edit3, Layers, GraduationCap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
 
@@ -13,8 +13,9 @@ const navItems = [
   { href: "/knowledge-base/new", label: "Add to Knowledge", icon: DatabaseZap },
   { href: "/quiz-session/new", label: "New Quiz", icon: Brain },
   { href: "/quiz-from-kb", label: "Quiz from KB", icon: Edit3 },
-  { href: "/history", label: "Learning History", icon: History },
   { href: "/flashcards", label: "Flashcards", icon: Layers },
+  { href: "/interactive-tutor/select", label: "Tutor Me", icon: GraduationCap },
+  { href: "/history", label: "Learning History", icon: History },
 ];
 
 export function MainNav() {
@@ -57,5 +58,3 @@ export function MainNav() {
     </nav>
   );
 }
-
-    

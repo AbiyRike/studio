@@ -1,5 +1,5 @@
 
-import type { Question, Flashcard } from '@/app/actions'; // Import Question and Flashcard types
+import type { Question, Flashcard } from '@/app/actions'; 
 
 export interface TutorSessionData {
   documentName: string;
@@ -94,6 +94,55 @@ export const getActiveFlashcardSession = (): FlashcardSessionData | null => {
     return storedData ? JSON.parse(storedData) : null;
   } catch (e) {
     console.error("Error parsing active flashcard session from localStorage", e);
+    return null;
+  }
+};
+
+// For Interactive Tutor Session
+export interface InteractiveTutorMiniQuiz {
+  question: string;
+  type: 'mcq' | 'short_answer'; // Add more types like 'fill_in_blank' later
+  options?: string[]; // For MCQ
+  answer?: number | string; // Index for MCQ, string for short_answer
+  explanation?: string;
+}
+
+export interface InteractiveTutorStepData {
+  topic: string;
+  explanation: string;
+  explanationAudioUri?: string; // Placeholder for TTS audio URL
+  miniQuiz?: InteractiveTutorMiniQuiz;
+  isLastStep: boolean;
+}
+
+export interface ActiveInteractiveTutorSessionData {
+  kbItemId: string;
+  documentName: string;
+  currentStepIndex: number;
+  currentStepData: InteractiveTutorStepData;
+  // We might store the full document content here if needed for context by the AI on each step
+  // documentContent?: string; 
+  // mediaDataUri?: string;
+}
+
+const ACTIVE_INTERACTIVE_TUTOR_SESSION_KEY = 'activeInteractiveTutorSession';
+
+export const setActiveInteractiveTutorSession = (data: ActiveInteractiveTutorSessionData | null): void => {
+  if (typeof window === 'undefined') return;
+  if (data === null) {
+    localStorage.removeItem(ACTIVE_INTERACTIVE_TUTOR_SESSION_KEY);
+  } else {
+    localStorage.setItem(ACTIVE_INTERACTIVE_TUTOR_SESSION_KEY, JSON.stringify(data));
+  }
+};
+
+export const getActiveInteractiveTutorSession = (): ActiveInteractiveTutorSessionData | null => {
+  if (typeof window === 'undefined') return null;
+  const storedData = localStorage.getItem(ACTIVE_INTERACTIVE_TUTOR_SESSION_KEY);
+  try {
+    return storedData ? JSON.parse(storedData) : null;
+  } catch (e) {
+    console.error("Error parsing active interactive tutor session from localStorage", e);
     return null;
   }
 };

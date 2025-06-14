@@ -4,8 +4,11 @@
 import { summarizeDocument } from "@/ai/flows/summarize-document";
 import { generateQuestions, type GenerateQuestionsInput as AIQuestionsInput } from "@/ai/flows/generate-questions";
 import { generateFlashcards, type GenerateFlashcardsInput as AIFlashcardsInput } from "@/ai/flows/generate-flashcards";
+import { getNextInteractiveTutorStep as getNextTutorStepFlow } from "@/ai/flows/interactive-tutor-flow"; // Placeholder
 import type { SummarizeDocumentInput } from "@/ai/flows/summarize-document";
-import { generateId, type KnowledgeBaseItem } from '@/lib/knowledge-base-store'; 
+import { generateId, type KnowledgeBaseItem, getKnowledgeBaseItemById } from '@/lib/knowledge-base-store'; 
+import type { InteractiveTutorStepData, ActiveInteractiveTutorSessionData } from '@/lib/session-store';
+
 
 export interface Question {
   question: string;
@@ -225,7 +228,7 @@ export interface GenerateQuizFromKBItemInput {
   documentName: string;
   documentContent: string;
   mediaDataUri?: string;
-  summary: string; // The existing summary from KB
+  summary: string; 
 }
 
 export async function generateQuizSessionFromKBItem(
@@ -267,7 +270,7 @@ export async function generateQuizSessionFromKBItem(
 
     return {
       documentName,
-      summary: summary, // Use the existing summary from KB
+      summary: summary, 
       questions: questionsWithExplanation,
       documentContent: documentContent,
       mediaDataUri: mediaDataUri,
@@ -317,14 +320,13 @@ export async function generateFlashcardsFromKBItem(
     const aiFlashcardsInput: AIFlashcardsInput = {
       documentContent,
       ...(mediaDataUri && { photoDataUri: mediaDataUri }),
-      numberOfFlashcards: 10, // Default to 10 flashcards
+      numberOfFlashcards: 10, 
     };
 
     const flashcardsResult = await generateFlashcards(aiFlashcardsInput);
     let createdFlashcards = flashcardsResult.flashcards;
 
     if (!createdFlashcards || createdFlashcards.length === 0) {
-       // Provide sample flashcards if AI fails
       createdFlashcards = [
         { term: "Sample Term 1", definition: "This is a sample definition for when AI flashcard generation fails." },
         { term: "Sample Term 2", definition: "Ensure your document content is suitable for flashcard creation." }
@@ -349,3 +351,87 @@ export async function generateFlashcardsFromKBItem(
     return { error: `AI processing failed for flashcard generation. Details: ${errorMessage}.` };
   }
 }
+
+// ---- Interactive Tutor Actions ----
+export async function startInteractiveTutorSession(
+  kbItemId: string
+): Promise<ActiveInteractiveTutorSessionData | { error: string }> {
+  const kbItem = getKnowledgeBaseItemById(kbItemId); // This function runs on the client, but we are in a server action.
+                                                    // This will need to be refactored if KB is server-side.
+                                                    // For now, assuming this action might be called from client where KB is accessible.
+                                                    // Or, this needs to be an API endpoint that client calls, not a server action directly
+                                                    // if KB items are purely client-side.
+                                                    // *** For this placeholder, we'll mock it. ***
+  if (!kbItem) {
+    // In a real scenario, if getKnowledgeBaseItemById was server-side, it would fetch from a DB.
+    // Since it's client-side, this check is more conceptual if kbItemId is just passed.
+    // To make this fully work server-side, the KB content would need to be passed in or fetched.
+    // For now, we'll proceed with a mock if not found, but ideally the client ensures kbItem exists.
+     return { error: "Knowledge base item not found. Cannot start tutor session." };
+  }
+
+  // Placeholder: Call Genkit flow to get the first step
+  // const firstStep = await getNextTutorStepFlow({ documentContent: kbItem.documentContent, photoDataUri: kbItem.mediaDataUri, currentStep: 0, userQuery: undefined });
+  // if ('error' in firstStep) return firstStep;
+
+  // Dummy first step for now
+  const dummyFirstStep: InteractiveTutorStepData = {
+    topic: "Introduction to " + kbItem.documentName,
+    explanation: `This is the beginning of your interactive tutoring session on "${kbItem.documentName}". Let's start with the basics. (This is placeholder content from the server action).`,
+    miniQuiz: {
+      question: `What is the main subject of "${kbItem.documentName}"? (Placeholder quiz)`,
+      type: 'short_answer',
+    },
+    isLastStep: false,
+  };
+
+  return {
+    kbItemId: kbItem.id,
+    documentName: kbItem.documentName,
+    currentStepIndex: 0,
+    currentStepData: dummyFirstStep,
+  };
+}
+
+export async function getNextInteractiveTutorStep(
+  currentSession: ActiveInteractiveTutorSessionData,
+  userInput?: string // Could be an answer to a mini-quiz, or a question
+): Promise<InteractiveTutorStepData | { error: string }> {
+  
+  // Placeholder: Call Genkit flow to get the next step
+  // const kbItem = getKnowledgeBaseItemById(currentSession.kbItemId); // Again, this implies client-side access or needs content.
+  // if (!kbItem) return { error: "Original content not found for session."};
+  // const nextStep = await getNextTutorStepFlow({ 
+  //   documentContent: kbItem.documentContent, // Pass full content for context
+  //   photoDataUri: kbItem.mediaDataUri,
+  //   currentStep: currentSession.currentStepIndex + 1, 
+  //   previousExplanation: currentSession.currentStepData.explanation,
+  //   userQuery: userInput 
+  // });
+  // if ('error' in nextStep) return nextStep;
+  // return nextStep;
+
+  // Dummy next step logic
+  const nextStepIndex = currentSession.currentStepIndex + 1;
+  if (nextStepIndex >= 3) { // Simulate 3 steps total
+    return { 
+        topic: "Conclusion",
+        explanation: `This concludes our placeholder tutoring session on "${currentSession.documentName}". You've reached the end!`,
+        isLastStep: true
+    };
+  }
+
+  const dummyNextStep: InteractiveTutorStepData = {
+    topic: `Topic ${nextStepIndex + 1} for ${currentSession.documentName}`,
+    explanation: `This is placeholder explanation for step ${nextStepIndex + 1}. User input was: "${userInput || 'None'}".`,
+    miniQuiz: {
+      question: `Placeholder MCQ for step ${nextStepIndex + 1}. Option A or B?`,
+      type: 'mcq',
+      options: ["Option A", "Option B", "Option C"],
+      answer: 0,
+    },
+    isLastStep: false,
+  };
+  return dummyNextStep;
+}
+
