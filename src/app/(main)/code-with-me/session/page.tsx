@@ -11,7 +11,7 @@ import { getActiveCodeTeachingSession, setActiveCodeTeachingSession, type Active
 import { getNextCodeTeachingStep } from '@/app/actions';
 import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from '@/components/ui/skeleton';
-import { AlertTriangle, Code2, Loader2, ArrowLeft, Home, CheckCircle, XCircle } from 'lucide-react';
+import { AlertTriangle, Code2, Loader2, ArrowLeft, Home, CheckCircle, XCircle, Check } from 'lucide-react';
 
 const ClientAuthGuard = ({ children }: { children: React.ReactNode }) => {
   const router = useRouter();
@@ -82,6 +82,7 @@ export default function CodeTeachingSessionPage() {
     } else {
       const updatedSessionData: ActiveCodeTeachingSessionData = {
         ...sessionData,
+        currentTopic: result.topic, // Update current topic based on AI's response for the new step
         currentStepData: result,
         history: [...(sessionData.history || []), { previousStep: currentStep, userAnswerSubmitted: userAnswer }],
       };
@@ -93,11 +94,11 @@ export default function CodeTeachingSessionPage() {
         setShowFeedback(true);
         setFeedbackMessage(result.feedbackOnPrevious);
         // Simple heuristic for correctness, can be improved
-        setIsCorrect(!result.feedbackOnPrevious.toLowerCase().includes("not quite") && !result.feedbackOnPrevious.toLowerCase().includes("incorrect"));
+        setIsCorrect(!result.feedbackOnPrevious.toLowerCase().includes("not quite") && !result.feedbackOnPrevious.toLowerCase().includes("incorrect") && !result.feedbackOnPrevious.toLowerCase().includes("try again"));
       }
       
       if (result.isLastStepInTopic && result.topic.toLowerCase().includes("congratulations")) {
-         toast({ title: "Module Complete!", description: result.explanation, duration: 5000 });
+         toast({ title: "Module Complete!", description: result.explanation, duration: 7000, className: "bg-green-100 border-green-500 text-green-700" });
       }
     }
   };
@@ -127,7 +128,7 @@ export default function CodeTeachingSessionPage() {
     );
   }
 
-  const isFinalStepMessage = currentStep.isLastStepInTopic && currentStep.topic.toLowerCase().includes("congratulations");
+  const isFinalStepMessage = !!(currentStep.isLastStepInTopic && currentStep.topic.toLowerCase().includes("congratulations"));
 
   return (
     <ClientAuthGuard>
@@ -153,20 +154,20 @@ export default function CodeTeachingSessionPage() {
           <Card className="w-full max-w-3xl shadow-lg">
             <CardHeader><CardTitle className="text-xl">Code Example</CardTitle></CardHeader>
             <CardContent>
-              <ScrollArea className="h-auto max-h-48 p-4 border rounded-md bg-gray-800 text-gray-100 font-mono text-sm">
-                <pre><code>{currentStep.codeExample}</code></pre>
+              <ScrollArea className="h-auto max-h-60 p-4 border rounded-md bg-gray-900 text-gray-100 font-code text-sm shadow-inner">
+                <pre><code dangerouslySetInnerHTML={{ __html: currentStep.codeExample.replace(/</g, '&lt;').replace(/>/g, '&gt;') }} /></pre>
               </ScrollArea>
             </CardContent>
           </Card>
         )}
 
         {showFeedback && feedbackMessage && (
-          <Card className={`w-full max-w-3xl shadow-md ${isCorrect ? 'border-green-500 bg-green-50' : 'border-red-500 bg-red-50'}`}>
-            <CardHeader className="flex flex-row items-center space-x-2">
-              {isCorrect ? <CheckCircle className="h-5 w-5 text-green-600" /> : <XCircle className="h-5 w-5 text-red-600" />}
-              <CardTitle className={`text-lg ${isCorrect ? 'text-green-700' : 'text-red-700'}`}>Feedback</CardTitle>
+          <Card className={`w-full max-w-3xl shadow-md ${isCorrect ? 'border-green-500 bg-green-50 dark:bg-green-900/30' : 'border-red-500 bg-red-50 dark:bg-red-900/30'}`}>
+            <CardHeader className="flex flex-row items-center space-x-2 py-3 px-4">
+              {isCorrect ? <CheckCircle className="h-5 w-5 text-green-600 dark:text-green-400" /> : <XCircle className="h-5 w-5 text-red-600 dark:text-red-400" />}
+              <CardTitle className={`text-lg ${isCorrect ? 'text-green-700 dark:text-green-300' : 'text-red-700 dark:text-red-300'}`}>Feedback</CardTitle>
             </CardHeader>
-            <CardContent className={`${isCorrect ? 'text-green-700' : 'text-red-700'}`}>
+            <CardContent className={`px-4 pb-3 ${isCorrect ? 'text-green-700 dark:text-green-400' : 'text-red-700 dark:text-red-400'}`}>
               {feedbackMessage}
             </CardContent>
           </Card>
@@ -181,21 +182,27 @@ export default function CodeTeachingSessionPage() {
                 value={userAnswer}
                 onChange={(e) => setUserAnswer(e.target.value)}
                 rows={3}
-                className="min-h-[60px] font-mono text-sm"
+                className="min-h-[60px] font-code text-sm"
                 disabled={isFetchingNext}
               />
             </CardContent>
           </Card>
         )}
 
-        <div className="w-full max-w-3xl flex flex-col sm:flex-row items-center justify-between gap-4 mt-4">
+        <div className="w-full max-w-3xl flex flex-col sm:flex-row items-center justify-center gap-4 mt-4">
           {!isFinalStepMessage ? (
-            <Button onClick={handleSubmitOrNext} disabled={isFetchingNext || !userAnswer.trim()} size="lg" className="w-full sm:w-auto shadow-md">
+            <Button onClick={handleSubmitOrNext} disabled={isFetchingNext || (!userAnswer.trim() && currentStep.challenge !== "What kind of project are you excited to start with your new JavaScript skills?" && !currentStep.topic.toLowerCase().includes("congratulations")) } size="lg" className="w-full sm:w-auto shadow-md">
               {isFetchingNext ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : null}
               Submit Answer &amp; Continue
             </Button>
           ) : (
-             <p className="text-lg font-semibold text-primary">Module complete! Well done!</p>
+             <Card className="w-full max-w-xl shadow-md border-primary bg-primary/10 dark:bg-primary/20">
+                <CardContent className="p-6 text-center">
+                    <Check className="mx-auto h-12 w-12 text-primary mb-3" />
+                    <p className="text-xl font-semibold text-primary">{currentStep.topic}</p>
+                    <p className="text-muted-foreground mt-1">{currentStep.explanation.split('\n')[0]}</p>
+                </CardContent>
+             </Card>
           )}
         </div>
 
@@ -211,3 +218,5 @@ export default function CodeTeachingSessionPage() {
     </ClientAuthGuard>
   );
 }
+
+
