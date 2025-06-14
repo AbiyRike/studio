@@ -7,14 +7,14 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { getActiveAskMrKnowSession, setActiveAskMrKnowSession, type ActiveAskMrKnowSessionData, type AskMrKnowMessage } from '@/lib/session-store';
 import { getNextAskMrKnowResponse } from '@/app/actions';
 import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from '@/components/ui/skeleton';
 import { AlertTriangle, MessageCircleQuestion, User, Bot, Send, Loader2, ArrowLeft, Home, Image as ImageIcon } from 'lucide-react';
 import { format } from 'date-fns';
-import Image from 'next/image'; // For displaying mediaDataUri if it's an image
+import NextImage from 'next/image'; // Renamed to avoid conflict with Lucide's Image icon
 import { cn } from '@/lib/utils';
 
 const ClientAuthGuard = ({ children }: { children: React.ReactNode }) => {
@@ -89,7 +89,7 @@ export default function AskMrKnowChatPage() {
     };
     setSessionData(updatedSessionWithUserMsg);
     setActiveAskMrKnowSession(updatedSessionWithUserMsg);
-    setUserMessage(""); // Clear input
+    setUserMessage(""); 
 
     const aiResponse = await getNextAskMrKnowResponse(updatedSessionWithUserMsg, userMessage);
     setIsSending(false);
@@ -97,6 +97,7 @@ export default function AskMrKnowChatPage() {
     if ('error' in aiResponse) {
       toast({ title: "Error from Mr. Know", description: aiResponse.error, variant: "destructive" });
       // Optionally remove the user's message if the AI call fails completely, or mark it as failed
+      // For now, we keep the user message and show the error.
     } else {
       const updatedSessionWithAiMsg: ActiveAskMrKnowSessionData = {
         ...updatedSessionWithUserMsg,
@@ -146,7 +147,7 @@ export default function AskMrKnowChatPage() {
 
   return (
     <ClientAuthGuard>
-      <div className="container mx-auto py-8 flex flex-col h-[calc(100vh-10rem)]"> {/* Adjusted height */}
+      <div className="container mx-auto py-8 flex flex-col h-[calc(100vh-10rem)]">
         <Card className="w-full max-w-3xl mx-auto shadow-xl flex flex-col flex-grow">
           <CardHeader className="text-center border-b">
             <MessageCircleQuestion className="mx-auto h-10 w-10 text-primary mb-2" />
@@ -154,14 +155,14 @@ export default function AskMrKnowChatPage() {
             <CardDescription>Chatting about: {sessionData.documentName}</CardDescription>
           </CardHeader>
 
-          {isMediaImage && (
+          {isMediaImage && sessionData.mediaDataUri && (
             <CardContent className="p-4 border-b flex justify-center bg-muted/30 max-h-48 overflow-hidden">
-                 <Image 
-                    src={sessionData.mediaDataUri!} 
+                 <NextImage 
+                    src={sessionData.mediaDataUri} 
                     alt="Context Media" 
                     width={200} 
                     height={150} 
-                    className="rounded-md object-contain"
+                    className="rounded-md object-contain border"
                   />
             </CardContent>
           )}

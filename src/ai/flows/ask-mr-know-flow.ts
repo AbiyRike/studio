@@ -28,7 +28,7 @@ export const AskMrKnowInputSchema = z.object({
     .string()
     .optional()
     .describe(
-      "An optional photo related to the document, as a data URI. Used as additional context."
+      "An optional photo related to the document, as a data URI that must include a MIME type and use Base64 encoding. Expected format: 'data:<mimetype>;base64,<encoded_data>'. Used as additional context."
     ),
   chatHistory: z.array(ChatMessageSchema).describe("The history of the conversation so far."),
   userQuery: z.string().describe("The user's latest question or message."),
@@ -36,55 +36,62 @@ export const AskMrKnowInputSchema = z.object({
 export type AskMrKnowInput = z.infer<typeof AskMrKnowInputSchema>;
 
 export const AskMrKnowOutputSchema = z.object({
-  response: z.string().describe("Mr. Know's response to the user's query."),
+  response: z.string().describe("Mr. Know's response to the user's query. If the AI cannot provide a meaningful answer based on the context, it should state so politely."),
 });
 export type AskMrKnowOutput = z.infer<typeof AskMrKnowOutputSchema>;
 
 
 export async function chatWithMrKnowMMLFlow(input: AskMrKnowInput): Promise<AskMrKnowOutput | { error: string }> {
   try {
-    // Initial basic validation
     if (!input.documentContent && !input.photoDataUri) {
-      return { error: "Mr. Know needs some context (document text or image) to chat about." };
+      return { error: "Mr. Know needs some context (document text or image) to chat about. Please select content from the knowledge base." };
     }
     if (!input.userQuery.trim()) {
-        return { error: "User query cannot be empty." };
+        return { error: "Your message to Mr. Know cannot be empty." };
     }
 
     const result = await mrKnowFlow(input);
+    if (!result || !result.response) {
+        console.warn("AI returned a null or empty response for Mr. Know.");
+        return { error: "Mr. Know didn't provide a response. This might be due to the context or a temporary issue. Please try rephrasing or asking again." };
+    }
     return result;
   } catch (e) {
     console.error("Error in chatWithMrKnowMMLFlow execution:", e);
     const errorMessage = e instanceof Error ? e.message : "An unknown error occurred in the Mr. Know flow.";
     if (errorMessage.includes("rate limit") || errorMessage.includes("quota") || errorMessage.includes("503") || errorMessage.toLowerCase().includes("overloaded")) {
-        return { error: "Mr. Know is currently busy. Please try again in a few moments." };
+        return { error: "Mr. Know is currently busy or rate limits have been exceeded. Please try again in a few moments." };
     }
     if (errorMessage.toLowerCase().includes("safety") || errorMessage.toLowerCase().includes("blocked")) {
-        return { error: "Your message or the context could not be processed due to safety filters."};
+        return { error: "Your message or the provided context could not be processed due to safety filters. Please try different phrasing or content."};
     }
-    return { error: `Mr. Know processing failed. Details: ${errorMessage}.` };
+    return { error: `Mr. Know encountered an issue. Details: ${errorMessage}.` };
   }
 }
 
 // Constructing the prompt for the AI model.
-// We'll use a system message to set the persona and task, then append the chat history and the new user query.
 const buildPromptFromHistory = (input: AskMrKnowInput) => {
-  let promptString = `You are "Mr. Know", a helpful AI assistant. Your knowledge is primarily based on the following document content and/or image.
-Answer the user's questions based on this information. If the question is outside the scope of the provided context, politely state that you can only answer questions related to the document.
-Do not make up information. Be concise and helpful.
+  let promptString = `You are "Mr. Know", a helpful and friendly AI assistant. Your knowledge is primarily based on the following document content and/or image.
+Answer the user's questions based on this information. If the question is clearly outside the scope of the provided context, politely state that you can only answer questions related to the document/image.
+Do not make up information. Be concise and helpful. If you are unsure or cannot answer, say so politely.
 
-Document Context:
+Context:
 `;
   if (input.documentContent) {
-    promptString += `Text:
+    promptString += `Document Text:
 ${input.documentContent}
 `;
   }
   if (input.photoDataUri) {
-    promptString += `\nImage: {{media url=${input.photoDataUri}}}\n`; // Using media helper
+    // Ensure photoDataUri is correctly formatted for {{media}} helper
+    // It expects just the Data URI string.
+    promptString += `\nAssociated Image: {{media url="${input.photoDataUri}"}}\n`;
+  }
+  if (!input.documentContent && !input.photoDataUri) {
+    promptString += "No specific text or image context provided.\n";
   }
 
-  promptString += "\nChat History:\n";
+  promptString += "\nChat History (User and Mr. Know):\n";
   input.chatHistory.forEach(msg => {
     const role = msg.role === 'user' ? 'User' : 'Mr. Know';
     const text = msg.parts.map(p => p.text).join(' ');
@@ -100,7 +107,7 @@ const mrKnowPrompt = ai.definePrompt({
   name: 'mrKnowPrompt',
   input: { schema: AskMrKnowInputSchema },
   output: { schema: AskMrKnowOutputSchema },
-  prompt: buildPromptFromHistory, // Use the dynamic prompt builder
+  prompt: buildPromptFromHistory, 
 });
 
 
@@ -111,19 +118,12 @@ const mrKnowFlow = ai.defineFlow(
     outputSchema: AskMrKnowOutputSchema,
   },
   async (input) => {
-    // Generate the full prompt string dynamically using the helper
-    // This is because definePrompt's 'prompt' field itself is a template string,
-    // and we need to pass the dynamically generated string into that template.
-    // However, if definePrompt's prompt function can handle complex objects, this might be simpler.
-    // For now, we assume the 'prompt' field in definePrompt expects a handlebars string.
-    // The `buildPromptFromHistory` already generates the full string.
-    // So, we effectively pass this generated string to the model via the prompt object.
-
-    const { output } = await mrKnowPrompt(input); // Pass the structured input
+    const { output } = await mrKnowPrompt(input); 
     
     if (!output || !output.response) {
-        // This case should ideally be handled by Zod schema validation in the prompt definition or a more specific error.
-        throw new Error("AI did not return a valid response for Mr. Know. The output was null or undefined.");
+        // This case is also handled in the wrapper, but good to have a specific check here.
+        // Returning a structured output as per schema, even if the response is a polite "I cannot answer"
+        return { response: "I'm sorry, I couldn't generate a response for that. Please try rephrasing your question or asking something else related to the context." };
     }
     return output;
   }
