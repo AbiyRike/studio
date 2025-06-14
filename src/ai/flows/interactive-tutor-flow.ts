@@ -33,7 +33,7 @@ const InteractiveTutorInputSchema = z.object({
   previousExplanation: z.string().optional().describe("The previous explanation given by the tutor, if any."),
   userQuery: z.string().optional().describe("A question or input from the user regarding the current topic or a previous explanation."),
   userQuizAnswer: z.string().optional().describe("The user's answer to the previous mini-quiz, if any. The AI should evaluate this if present and can provide feedback implicitly in the next explanation or as part of a new quiz if relevant."),
-  currentStep: z.number().describe("The current step number in the tutoring session (0-indexed)."),
+  currentStep: z.number().describe("The current step number in the tutoring session (0-indexed). This is the step number THE AI IS GENERATING."),
   totalSteps: z.number().optional().default(5).describe("The desired total number of steps for this topic, helps in pacing. The AI should aim to complete the tutoring within this many steps if possible."),
 });
 export type InteractiveTutorInput = z.infer<typeof InteractiveTutorInputSchema>;
@@ -76,7 +76,7 @@ Document Content to Tutor:
 {{#if documentContent}}
 {{{documentContent}}}
 {{else}}
-No primary document text provided. Focus on the image if available.
+No primary document text provided. Focus on the image if available, or state inability to tutor if no image either.
 {{/if}}
 
 {{#if photoDataUri}}
@@ -85,29 +85,34 @@ Image Associated with Content (use this to inform your explanations and quizzes)
 {{/if}}
 
 Current Tutoring State:
-- Step Number: {{{currentStep}}} (out of a planned {{{totalSteps}}}). This is the step you are generating.
+- Step Number You Are Generating: {{{currentStep}}} (0-indexed, out of a planned {{{totalSteps}}}).
 {{#if currentTopic}}- Previous Topic Focus: {{{currentTopic}}}{{/if}}
 {{#if previousExplanation}}- Previous Explanation Given: {{{previousExplanation}}}{{/if}}
-{{#if userQuery}}- User's Question/Input: {{{userQuery}}} (Address this in your new 'explanation'. If it's a question, answer it. If it's a statement, acknowledge it.) {{/if}}
-{{#if userQuizAnswer}}- User's Answer to Last Mini-Quiz: {{{userQuizAnswer}}} (If the user provided an answer, assess it. You don't need to explicitly say "correct" or "incorrect" but your 'explanation' for the current step can subtly guide them or build upon their understanding. For instance, if they were wrong, the new explanation could clarify the concept they misunderstood.) {{/if}}
+{{#if userQuery}}- User's Question/Input: {{{userQuery}}} (Address this in your new 'explanation' for step {{{currentStep}}}. If it's a question, answer it. If it's a statement, acknowledge it. The topic should be relevant to this query.) {{/if}}
+{{#if userQuizAnswer}}- User's Answer to Last Mini-Quiz: {{{userQuizAnswer}}} (If the user provided an answer, assess it. Your 'explanation' for the current step can subtly guide them or build upon their understanding. For instance, if they were wrong, the new explanation could clarify the concept they misunderstood.) {{/if}}
 
 Task for generating step {{{currentStep}}}:
-1.  Determine the next logical 'topic' from the document content. This should be a concise title for your explanation. If this is the first step (currentStep is 0), start with an introductory topic. If a 'userQuery' is present, make the 'topic' and 'explanation' relevant to addressing it.
-2.  Provide a clear and concise 'explanation' for this 'topic'. This explanation MUST be based on the "Document Content to Tutor" and/or "Image Associated with Content" provided above.
+1.  Determine the next logical 'topic' from the document content. 
+    - If this is step 0, start with an introductory topic.
+    - If a 'userQuery' is present, the 'topic' and 'explanation' MUST be relevant to addressing this query for the current step {{{currentStep}}}.
+    - Otherwise, pick the next logical sub-topic from the document.
+2.  Provide a clear and concise 'explanation' for this 'topic'. This explanation MUST be based on the "Document Content to Tutor" and/or "Image Associated with Content" provided above. If 'userQuery' is present, the explanation must primarily address it.
 3.  Optionally, create a 'miniQuiz' object to test understanding of THIS 'explanation'.
     -   'question': The quiz question text.
     -   'type': 'mcq' or 'short_answer'.
     -   'options' (if 'mcq'): An array of 3-4 strings for multiple-choice options. Ensure one is clearly the best answer based on your explanation.
-    -   'answer' and 'explanation' fields in the miniQuiz are for your internal reference or for a system to validate; do not expect the user to see them directly during the quiz.
-4.  Set 'isLastStep' to true if this is the final planned step (i.e., if currentStep is totalSteps - 1), or if you assess that the provided content has been thoroughly covered and no more meaningful steps can be generated. If the document content is very short, you might reach the last step sooner than 'totalSteps'.
+    -   'answer' and 'explanation' fields in the miniQuiz are for your internal reference.
+4.  Set 'isLastStep' to true ONLY if:
+    a)  currentStep is equal to totalSteps - 1 (i.e., you are generating the last planned step), OR
+    b)  You have genuinely exhausted ALL meaningful, distinct sub-topics from the provided "Document Content to Tutor" and/or "Image Associated with Content" AND cannot break it down further, even if currentStep < totalSteps - 1.
+    Critically evaluate if there are distinct sub-topics or concepts remaining that can be explained in subsequent steps, up to the 'totalSteps' limit. Do not set 'isLastStep' to true prematurely if meaningful, distinct sub-topics are still available and currentStep < totalSteps - 1.
 
 Important Instructions:
--   Your primary source of information is the "Document Content to Tutor" and the "Image Associated with Content". Do not invent information outside of this.
--   If no document content AND no image is provided, you MUST state that you cannot proceed and set 'isLastStep' to true with an appropriate topic and explanation.
--   Pacing: Try to cover distinct concepts in each step. Aim to complete tutoring within the 'totalSteps' if the content allows.
--   User Interaction: If 'userQuery' is present, your 'explanation' should directly address it. If 'userQuizAnswer' is present, your 'explanation' can implicitly guide or correct.
+-   Your primary source of information is the "Document Content to Tutor" and the "Image Associated with Content". Do not invent information.
+-   If no document content AND no image is provided, set 'topic' to "Unable to Proceed", 'explanation' to "No content was provided for tutoring.", and 'isLastStep' to true.
+-   Pacing: Aim to cover distinct concepts in each step.
 -   Quiz Relevance: Any 'miniQuiz' must be directly related to the 'explanation' you just provided for the current step.
--   Conciseness: Keep explanations and quiz questions focused and to the point.
+-   Conciseness: Keep explanations and quiz questions focused.
 
 Ensure the output is a valid JSON object strictly matching the InteractiveTutorOutputSchema.
 If you cannot generate content (e.g., no input document/image), 'topic' should be "Unable to Proceed", 'explanation' should state why, and 'isLastStep' should be true.

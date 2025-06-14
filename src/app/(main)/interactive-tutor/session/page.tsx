@@ -10,11 +10,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { getActiveInteractiveTutorSession, setActiveInteractiveTutorSession, type ActiveInteractiveTutorSessionData, type InteractiveTutorStepData } from '@/lib/session-store';
-import { getNextInteractiveTutorStep } from '@/app/actions';
+import { getNextInteractiveTutorStep as getNextTutorStepServerAction } from '@/app/actions'; // Renamed for clarity
 import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from '@/components/ui/skeleton';
 import { AlertTriangle, GraduationCap, MessageSquare, Mic, PlayCircle, StopCircle, Loader2, ArrowLeft, Home, Send } from 'lucide-react';
-import { ScrollArea } from "@/components/ui/scroll-area"; // Added import
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 const ClientAuthGuard = ({ children }: { children: React.ReactNode }) => {
   const router = useRouter();
@@ -72,24 +72,37 @@ export default function InteractiveTutorSessionPage() {
     router.push('/dashboard');
   }
 
-  const processNextStep = async (userQueryInput?: string, quizAnswerInput?: string) => {
-    if (!sessionData) return;
+  const processAndSetNextStep = async (userQueryInput?: string, quizAnswerInput?: string) => {
+    if (!sessionData || !currentStep) return;
     setIsFetchingNext(true);
 
-    // Pass the current full session data, the user's question, and their quiz answer
-    const result = await getNextInteractiveTutorStep(sessionData, userQueryInput, quizAnswerInput);
+    let targetStepForAI: number;
+    let incrementClientStepIndex: boolean;
+
+    if (userQueryInput) {
+      // If user asks a question, AI addresses it within the current step context
+      targetStepForAI = sessionData.currentStepIndex;
+      incrementClientStepIndex = false;
+    } else {
+      // If user proceeds (Next Step or submitting quiz), AI generates the next conceptual step
+      targetStepForAI = sessionData.currentStepIndex + 1;
+      incrementClientStepIndex = true;
+    }
+    
+    const result = await getNextTutorStepServerAction(sessionData, targetStepForAI, userQueryInput, quizAnswerInput);
     setIsFetchingNext(false);
 
     if ('error' in result) {
       toast({ title: "Error fetching next step", description: result.error, variant: "destructive" });
       if (result.error.toLowerCase().includes("no more steps") || result.error.toLowerCase().includes("unable to proceed") || result.error.toLowerCase().includes("session on")) {
          setError(`Tutoring session ended: ${result.error}`);
-         setCurrentStep(prev => prev ? {...prev, isLastStep: true} : null); // Mark as last step visually
+         setCurrentStep(prev => prev ? {...prev, isLastStep: true} : null);
       }
     } else {
+      const newClientStepIndex = incrementClientStepIndex ? sessionData.currentStepIndex + 1 : sessionData.currentStepIndex;
       const updatedSessionData: ActiveInteractiveTutorSessionData = { 
         ...sessionData, 
-        currentStepIndex: sessionData.currentStepIndex + 1, 
+        currentStepIndex: newClientStepIndex, 
         currentStepData: result 
       };
       setSessionData(updatedSessionData);
@@ -97,7 +110,7 @@ export default function InteractiveTutorSessionPage() {
       setActiveInteractiveTutorSession(updatedSessionData);
       setUserQuestion(""); 
       setMiniQuizAnswer(undefined); 
-      setSubmittedQuizAnswerForFeedback(undefined); // Clear submitted quiz answer
+      setSubmittedQuizAnswerForFeedback(undefined); 
       if (result.isLastStep) {
         toast({ title: "Tutoring Complete!", description: result.explanation || "You've reached the end of this topic."});
       }
@@ -105,14 +118,11 @@ export default function InteractiveTutorSessionPage() {
   }
   
   const handleNextStepOrSubmitQuiz = () => {
-    // If there's a quiz and an answer, submit the answer with the request for the next step.
-    // The AI's next explanation can then incorporate feedback based on the answer.
     if (currentStep?.miniQuiz && miniQuizAnswer !== undefined) {
-        setSubmittedQuizAnswerForFeedback(miniQuizAnswer); // For display if needed, though AI handles feedback
-        processNextStep(undefined, miniQuizAnswer); // Pass quiz answer
+        setSubmittedQuizAnswerForFeedback(miniQuizAnswer); 
+        processAndSetNextStep(undefined, miniQuizAnswer);
     } else {
-        // If no quiz, or quiz not answered, just proceed to next step
-        processNextStep();
+        processAndSetNextStep();
     }
   };
 
@@ -122,8 +132,7 @@ export default function InteractiveTutorSessionPage() {
       toast({ title: "Please enter a question", variant: "default" });
       return;
     }
-    // Pass the user's question to get the next step, which should address it.
-    processNextStep(userQuestion, undefined); 
+    processAndSetNextStep(userQuestion, undefined); 
   };
   
   // Placeholder functions
@@ -193,7 +202,7 @@ export default function InteractiveTutorSessionPage() {
             </ScrollArea>
             <Button onClick={toggleTTS} variant="outline" className="w-full sm:w-auto" disabled={isFetchingNext}>
               {isPlayingTTS ? <StopCircle className="mr-2 h-5 w-5" /> : <PlayCircle className="mr-2 h-5 w-5" />}
-              {isPlayingTTS ? "Stop TTS" : "Play Explanation (TTS)"}
+              {isPlayingTTS ? "Stop Speaking" : "Speak"}
             </Button>
           </CardContent>
         </Card>
@@ -258,12 +267,12 @@ export default function InteractiveTutorSessionPage() {
            {!currentStep.isLastStep && (
              <Button 
                 onClick={handleNextStepOrSubmitQuiz} 
-                disabled={isFetchingNext || (!!currentStep.miniQuiz && miniQuizAnswer === undefined) }
+                disabled={isFetchingNext || (!!currentStep.miniQuiz && miniQuizAnswer === undefined && !userQuestion.trim()) }
                 size="lg" 
                 className="w-full sm:w-auto shadow-md"
               >
                 {isFetchingNext ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : null}
-                {currentStep.miniQuiz && miniQuizAnswer === undefined ? "Answer Quiz to Proceed" : "Next Step"}
+                {currentStep.miniQuiz && miniQuizAnswer === undefined && !userQuestion.trim() ? "Answer Quiz to Proceed" : "Next Step"}
               </Button>
            )}
            {currentStep.isLastStep && (

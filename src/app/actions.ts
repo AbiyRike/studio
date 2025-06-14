@@ -353,7 +353,7 @@ export async function generateFlashcardsFromKBItem(
 
 // ---- Interactive Tutor Actions ----
 export async function startInteractiveTutorSession(
-  kbItem: KnowledgeBaseItem // Changed from kbItemId to full KnowledgeBaseItem
+  kbItem: KnowledgeBaseItem
 ): Promise<ActiveInteractiveTutorSessionData | { error: string }> {
   try {
     if (!kbItem || (!kbItem.documentContent && !kbItem.mediaDataUri)) {
@@ -361,28 +361,24 @@ export async function startInteractiveTutorSession(
     }
 
     const firstStepInput: AIInteractiveTutorInput = {
-        documentContent: kbItem.documentContent || "",
+        documentContent: kbItem.documentContent || "", // Ensure it's not undefined
         photoDataUri: kbItem.mediaDataUri,
-        currentStep: 0,
+        currentStep: 0, // First step is 0-indexed
         totalSteps: 5, // Default or could be made configurable
     };
     
     const firstStepResult = await getNextTutorStepFlow(firstStepInput);
-
-    // The getNextTutorStepFlow already returns InteractiveTutorStepData | { error: string }
-    // However, its output schema is InteractiveTutorOutputSchema, which matches InteractiveTutorStepData
-    // So, we just check if 'error' is a property.
+    
     if (typeof (firstStepResult as any).error === 'string') {
         return { error: `Failed to get first tutoring step: ${(firstStepResult as any).error}` };
     }
     
     const validFirstStepResult = firstStepResult as InteractiveTutorStepData;
 
-
     return {
       documentName: kbItem.documentName,
-      documentContent: kbItem.documentContent || "",
-      mediaDataUri: kbItem.mediaDataUri,
+      documentContent: kbItem.documentContent || "", // Store full content
+      mediaDataUri: kbItem.mediaDataUri,         // Store media URI
       currentStepIndex: 0,
       currentStepData: validFirstStepResult,
     };
@@ -395,6 +391,7 @@ export async function startInteractiveTutorSession(
 
 export async function getNextInteractiveTutorStep(
   currentSession: ActiveInteractiveTutorSessionData,
+  targetStepIndex: number, // The step number the AI should generate (0-indexed)
   userInput?: string,
   userQuizAnswer?: string,
 ): Promise<InteractiveTutorStepData | { error: string }> {
@@ -402,12 +399,12 @@ export async function getNextInteractiveTutorStep(
     const nextStepInput: AIInteractiveTutorInput = {
         documentContent: currentSession.documentContent,
         photoDataUri: currentSession.mediaDataUri,
-        currentStep: currentSession.currentStepIndex + 1,
+        currentStep: targetStepIndex, // Use the explicitly passed targetStepIndex
         totalSteps: 5, // Default, or get from session if made configurable
         previousExplanation: currentSession.currentStepData.explanation,
         currentTopic: currentSession.currentStepData.topic,
         userQuery: userInput,
-        userQuizAnswer: userQuizAnswer, // Pass the quiz answer
+        userQuizAnswer: userQuizAnswer,
     };
 
     const nextStepResult = await getNextTutorStepFlow(nextStepInput);
@@ -420,6 +417,12 @@ export async function getNextInteractiveTutorStep(
   } catch (e) {
       console.error("Error getting next interactive tutor step:", e);
       const errorMessage = e instanceof Error ? e.message : "An unknown error occurred.";
-      return { error: `Failed to get next step: ${errorMessage}` };
+      if (errorMessage.includes("rate limit") || errorMessage.includes("quota") || errorMessage.includes("503") || errorMessage.toLowerCase().includes("overloaded")) {
+        return { error: "The AI tutor service is currently busy. Please try again in a few moments." };
+      }
+      if (errorMessage.toLowerCase().includes("safety") || errorMessage.toLowerCase().includes("blocked")) {
+        return { error: "The content could not be processed by the AI tutor due to safety filters. Please try with different content or ask a different question."};
+      }
+      return { error: `AI Tutor processing failed. Details: ${errorMessage}.` };
   }
 }
