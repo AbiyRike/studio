@@ -22,7 +22,7 @@ const ChatMessageSchema = z.object({
   parts: z.array(MessagePartSchema).describe("An array of message parts, typically one text part."),
 });
 
-export const AskMrKnowInputSchema = z.object({
+const AskMrKnowInputSchema = z.object({
   documentContent: z.string().describe('The text content of the document providing context for the chat. Can be empty if photoDataUri is primary context.'),
   photoDataUri: z
     .string()
@@ -35,7 +35,7 @@ export const AskMrKnowInputSchema = z.object({
 });
 export type AskMrKnowInput = z.infer<typeof AskMrKnowInputSchema>;
 
-export const AskMrKnowOutputSchema = z.object({
+const AskMrKnowOutputSchema = z.object({
   response: z.string().describe("Mr. Know's response to the user's query. If the AI cannot provide a meaningful answer based on the context, it should state so politely."),
 });
 export type AskMrKnowOutput = z.infer<typeof AskMrKnowOutputSchema>;
@@ -128,3 +128,4 @@ const mrKnowFlow = ai.defineFlow(
     return output;
   }
 );
+
