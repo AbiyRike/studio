@@ -3,6 +3,7 @@
 
 import { summarizeDocument } from "@/ai/flows/summarize-document";
 import { generateQuestions, type GenerateQuestionsInput as AIQuestionsInput } from "@/ai/flows/generate-questions";
+import { generateFlashcards, type GenerateFlashcardsInput as AIFlashcardsInput } from "@/ai/flows/generate-flashcards";
 import type { SummarizeDocumentInput } from "@/ai/flows/summarize-document";
 import { generateId, type KnowledgeBaseItem } from '@/lib/knowledge-base-store'; 
 
@@ -282,5 +283,69 @@ export async function generateQuizSessionFromKBItem(
         return { error: "Content processing was blocked by AI safety filters. Please try with different content."};
     }
     return { error: `AI processing failed for quiz generation. Details: ${errorMessage}.` };
+  }
+}
+
+
+// ---- Flashcard Related Actions ----
+export interface Flashcard {
+  term: string;
+  definition: string;
+}
+
+export interface FlashcardSessionData {
+  documentName: string;
+  flashcards: Flashcard[];
+}
+
+export interface GenerateFlashcardsFromKBItemInput {
+  documentName: string;
+  documentContent: string;
+  mediaDataUri?: string;
+}
+
+export async function generateFlashcardsFromKBItem(
+  input: GenerateFlashcardsFromKBItemInput
+): Promise<FlashcardSessionData | { error: string }> {
+  try {
+    const { documentName, documentContent, mediaDataUri } = input;
+
+    if (!documentName || (!documentContent && !mediaDataUri)) {
+      return { error: "Invalid knowledge base item data provided for flashcards." };
+    }
+
+    const aiFlashcardsInput: AIFlashcardsInput = {
+      documentContent,
+      ...(mediaDataUri && { photoDataUri: mediaDataUri }),
+      numberOfFlashcards: 10, // Default to 10 flashcards
+    };
+
+    const flashcardsResult = await generateFlashcards(aiFlashcardsInput);
+    let createdFlashcards = flashcardsResult.flashcards;
+
+    if (!createdFlashcards || createdFlashcards.length === 0) {
+       // Provide sample flashcards if AI fails
+      createdFlashcards = [
+        { term: "Sample Term 1", definition: "This is a sample definition for when AI flashcard generation fails." },
+        { term: "Sample Term 2", definition: "Ensure your document content is suitable for flashcard creation." }
+      ];
+      console.warn("AI failed to generate flashcards from KB item. Using sample flashcards.");
+    }
+
+    return {
+      documentName,
+      flashcards: createdFlashcards,
+    };
+
+  } catch (e) {
+    console.error("Error in generateFlashcardsFromKBItem:", e);
+    const errorMessage = e instanceof Error ? e.message : "An unknown error occurred during AI processing.";
+    if (errorMessage.includes("rate limit") || errorMessage.includes("quota") || errorMessage.includes("503") || errorMessage.toLowerCase().includes("overloaded")) {
+        return { error: "The AI service is currently busy for flashcard generation. Please try again later." };
+    }
+    if (errorMessage.toLowerCase().includes("safety") || errorMessage.toLowerCase().includes("blocked")) {
+        return { error: "Content processing for flashcards was blocked by AI safety filters. Please try with different content."};
+    }
+    return { error: `AI processing failed for flashcard generation. Details: ${errorMessage}.` };
   }
 }
