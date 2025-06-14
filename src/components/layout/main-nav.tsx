@@ -1,15 +1,16 @@
+
 "use client";
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { Home, BookOpenText, History, Settings, LogOut } from "lucide-react";
+import { LayoutDashboard, BookOpenText, History, LogOut, Brain } from "lucide-react"; // Added Brain for New Session
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
 
 const navItems = [
-  { href: "/dashboard", label: "Dashboard", icon: Home },
-  { href: "/tutor", label: "New Session", icon: BookOpenText },
+  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/quiz-session/new", label: "New Quiz Session", icon: Brain },
   { href: "/history", label: "Learning History", icon: History },
 ];
 
@@ -29,10 +30,10 @@ export function MainNav() {
       {navItems.map((item) => (
         <Button
           key={item.href}
-          variant={pathname === item.href ? "secondary" : "ghost"}
+          variant={pathname.startsWith(item.href) && (item.href !== "/dashboard" || pathname === "/dashboard") ? "secondary" : "ghost"}
           className={cn(
             "w-full justify-start",
-            pathname === item.href ? "bg-sidebar-accent text-sidebar-accent-foreground" : "hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+            pathname.startsWith(item.href) && (item.href !== "/dashboard" || pathname === "/dashboard") ? "bg-sidebar-accent text-sidebar-accent-foreground" : "hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
           )}
           asChild
         >
