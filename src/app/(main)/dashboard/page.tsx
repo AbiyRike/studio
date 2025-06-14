@@ -55,6 +55,7 @@ interface TopicAnalytics {
 }
 
 export default function EnhancedDashboardPage() {
+  const [userName, setUserName] = useState("AI Learner");
   const [metrics, setMetrics] = useState<Metrics>({
     overallAccuracy: 0,
     quizzesTaken: 0,
@@ -71,6 +72,13 @@ export default function EnhancedDashboardPage() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const storedName = localStorage.getItem("userName");
+      if (storedName) {
+        setUserName(storedName);
+      }
+    }
+
     const loadedHistory = getLearningHistory();
     const kbItems = getKnowledgeBaseItems();
 
@@ -154,7 +162,7 @@ export default function EnhancedDashboardPage() {
                 <AvatarFallback><UserCircle className="w-10 h-10" /></AvatarFallback>
               </Avatar>
               <div>
-                <CardTitle className="text-3xl font-headline text-primary">Welcome Back, AI Learner!</CardTitle>
+                <CardTitle className="text-3xl font-headline text-primary">Welcome Back, {userName}!</CardTitle>
                 <CardDescription className="text-lg text-muted-foreground">Ready to dive into your next learning adventure?</CardDescription>
               </div>
             </div>
@@ -364,4 +372,3 @@ export default function EnhancedDashboardPage() {
     </ClientAuthGuard>
   );
 }
-

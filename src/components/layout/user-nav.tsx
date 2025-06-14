@@ -1,3 +1,4 @@
+
 "use client";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -14,13 +15,31 @@ import {
 import { LogOut, UserCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { useEffect, useState } from "react";
 
 export function UserNav() {
   const router = useRouter();
+  const [userName, setUserName] = useState("AI Learner");
+  const [userEmail, setUserEmail] = useState("learner@example.com");
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const storedName = localStorage.getItem("userName");
+      if (storedName) {
+        setUserName(storedName);
+      }
+      const storedEmail = localStorage.getItem("userEmail");
+      if (storedEmail) {
+        setUserEmail(storedEmail);
+      }
+    }
+  }, []);
 
   const handleLogout = () => {
      if (typeof window !== 'undefined') {
       localStorage.removeItem("isLoggedIn");
+      localStorage.removeItem("userName");
+      localStorage.removeItem("userEmail");
     }
     router.push("/login");
   };
@@ -40,9 +59,9 @@ export function UserNav() {
       <DropdownMenuContent className="w-56" align="end" forceMount>
         <DropdownMenuLabel className="font-normal">
           <div className="flex flex-col space-y-1">
-            <p className="text-sm font-medium leading-none">AI Learner</p>
+            <p className="text-sm font-medium leading-none">{userName}</p>
             <p className="text-xs leading-none text-muted-foreground">
-              learner@example.com
+              {userEmail}
             </p>
           </div>
         </DropdownMenuLabel>

@@ -1,3 +1,4 @@
+
 "use client";
 
 import Link from "next/link";
@@ -35,6 +36,10 @@ export function SignupForm() {
   const onSubmit = async (data: SignupFormValues) => {
     // Simulate API call
     await new Promise(resolve => setTimeout(resolve, 1000));
+    if (typeof window !== 'undefined') {
+      localStorage.setItem("userName", data.name); // Store user's name
+      localStorage.setItem("userEmail", data.email); // Store user's email
+    }
     toast({
       title: "Account Created Successfully",
       description: "Redirecting to login...",

@@ -27,6 +27,8 @@ export function MainNav() {
   const handleLogout = () => {
     if (typeof window !== 'undefined') {
       localStorage.removeItem("isLoggedIn");
+      localStorage.removeItem("userName");
+      localStorage.removeItem("userEmail");
     }
     router.push("/login");
   };
@@ -60,4 +62,3 @@ export function MainNav() {
     </nav>
   );
 }
-
