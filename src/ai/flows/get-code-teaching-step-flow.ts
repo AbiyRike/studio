@@ -63,25 +63,29 @@ Evaluate this input. If it's incorrect or needs improvement, provide constructiv
 {{/if}}
 
 Task: Generate the content for the NEXT teaching step.
-1.  'topic': A very specific, concise title for THIS learning segment (e.g., "JavaScript: Declaring 'let' variables", "Python: Basic 'print()' function").
-2.  'explanation': Provide a clear, beginner-friendly explanation of this specific concept. Include simple syntax examples directly within this explanation. Assume the user is new to programming.
+1.  'topic': A very specific, concise title for THIS learning segment (e.g., "JavaScript: Declaring 'let' variables", "Python: Basic 'print()' function", "HTML: The DOCTYPE Declaration").
+2.  'explanation': Provide a clear, beginner-friendly explanation of this specific concept.
+    - Include simple syntax examples directly within this explanation.
+    - IMPORTANT: When explaining HTML structure or tags (like for language 'HTML'), use the actual HTML tags (e.g., \`<html>\`, \`<head>\`, \`<body>\`, \`<!DOCTYPE html>\`) directly in the explanation text, NOT as backticked placeholders like \`\`html\`\`.
+    - For other programming language syntax (like JavaScript, Python), you can use backticks for inline code, for example \`let x = 10;\`.
+    - Assume the user is new to programming.
 3.  'codeExample' (optional): Provide a distinct, short, runnable code snippet that clearly demonstrates ONLY the concept being explained. This snippet will be displayed in a code block.
-4.  'challenge': Create a simple, direct question or a very small coding task related to THIS explanation. Examples: "What keyword is used to declare a constant variable in {{{language}}}?", "Write a single line of {{{language}}} code to store your name in a variable called 'myName'."
+4.  'challenge': Create a simple, direct question or a very small coding task related to THIS explanation. Examples: "What keyword is used to declare a constant variable in {{{language}}}?", "Write a single line of {{{language}}} code to store your name in a variable called 'myName'.", "What tag is used to define the main content of an HTML page?"
 5.  'feedbackOnPrevious' (optional): If 'userAnswerOrCode' was provided, give specific feedback on it here.
-6.  'nextTopicSuggestion': Suggest the next logical topic to cover. Ensure a gradual progression from syntax basics, to variables, data types, operators, control flow (if/else, loops), functions, etc.
+6.  'nextTopicSuggestion': Suggest the next logical topic to cover. Ensure a gradual progression from syntax basics, to variables, data types, operators, control flow (if/else, loops), functions, etc. For HTML, this could be progressing through common tags and attributes.
 7.  'isLastStepInTopic': Set to true if this explanation completes the current broader '{{{currentTopic}}}' and the 'nextTopicSuggestion' is a new, different broader topic.
 
 Example for JavaScript, currentTopic "Variables", after user incorrectly tried 'var name = "Test";' for a constant:
 - topic: "JavaScript: 'const' for constants"
 - explanation: "In JavaScript, when you want a variable whose value cannot be reassigned, you use the 'const' keyword. For example: \`const PI = 3.14;\`. Once PI is set, you can't change it later. This is different from 'let', which allows reassignment. You previously used 'var', which is an older way to declare variables; 'let' and 'const' are preferred in modern JavaScript."
-- codeExample: "const MY_CITY = \"New York\";\nconsole.log(MY_CITY);"
+- codeExample: "const MY_CITY = \\"New York\\";\\nconsole.log(MY_CITY);"
 - challenge: "Declare a constant variable named 'MAX_USERS' and assign it the value 100."
 - feedbackOnPrevious: "You used 'var' which is for variables that can change. For values that shouldn't change, 'const' is the correct keyword."
 - nextTopicSuggestion: "Data Types"
 - isLastStepInTopic: true (assuming 'Variables' topic covers let, const)
 
 Ensure the output is a valid JSON object strictly matching the GetCodeTeachingStepOutputSchema.
-Start with absolute basics if currentTopic is "Syntax Basics".
+Start with absolute basics if currentTopic is "Syntax Basics". For HTML, this would mean starting with the basic document structure (\`<!DOCTYPE html>\`, \`<html>\`, \`<head>\`, \`<body>\`).
 Focus on one small concept per step.
 `,
 });
