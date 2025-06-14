@@ -9,7 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { getLearningHistory, type HistoryItem } from '@/lib/session-store';
 import { getKnowledgeBaseItems } from '@/lib/knowledge-base-store';
-import { Brain, Layers, UserCircle, TrendingUp, BookCopy, Target, AlertTriangle, PieChart, CheckSquare, Activity, DatabaseZap, Edit3, GraduationCap } from 'lucide-react';
+import { Brain, Layers, UserCircle, TrendingUp, BookCopy, Target, AlertTriangle, PieChart, CheckSquare, Activity, DatabaseZap, Edit3, GraduationCap, CheckCircle2, XCircle, HelpCircle } from 'lucide-react';
 import Image from 'next/image';
 
 const ClientAuthGuard = ({ children }: { children: React.ReactNode }) => {
@@ -42,6 +42,9 @@ interface Metrics {
   topicsStudiedCount: number;
   averageScore: number;
   knowledgeBaseSize: number;
+  totalCorrectAnswers: number;
+  totalQuestionsAttempted: number;
+  totalIncorrectAnswers: number;
 }
 
 interface TopicAnalytics {
@@ -57,6 +60,9 @@ export default function EnhancedDashboardPage() {
     topicsStudiedCount: 0,
     averageScore: 0,
     knowledgeBaseSize: 0,
+    totalCorrectAnswers: 0,
+    totalQuestionsAttempted: 0,
+    totalIncorrectAnswers: 0,
   });
   const [strongestTopics, setStrongestTopics] = useState<TopicAnalytics[]>([]);
   const [weakestTopics, setWeakestTopics] = useState<TopicAnalytics[]>([]);
@@ -66,13 +72,13 @@ export default function EnhancedDashboardPage() {
     const loadedHistory = getLearningHistory();
     const kbItems = getKnowledgeBaseItems();
 
-    let totalCorrectAnswers = 0;
-    let totalQuestionsAttemptedInHistory = 0;
+    let calculatedTotalCorrectAnswers = 0;
+    let calculatedTotalQuestionsAttempted = 0;
     const topicPerformance: { [key: string]: { totalScore: number; totalQuestions: number; quizCount: number } } = {};
 
     loadedHistory.forEach(item => {
-      totalCorrectAnswers += item.score;
-      totalQuestionsAttemptedInHistory += item.questions.length;
+      calculatedTotalCorrectAnswers += item.score;
+      calculatedTotalQuestionsAttempted += item.questions.length;
 
       if (!topicPerformance[item.documentName]) {
         topicPerformance[item.documentName] = { totalScore: 0, totalQuestions: 0, quizCount: 0 };
@@ -84,7 +90,7 @@ export default function EnhancedDashboardPage() {
 
     const quizzesTaken = loadedHistory.length;
     const topicsStudied = Array.from(new Set(loadedHistory.map(item => item.documentName)));
-    const overallAccuracy = totalQuestionsAttemptedInHistory > 0 ? Math.round((totalCorrectAnswers / totalQuestionsAttemptedInHistory) * 100) : 0;
+    const overallAccuracy = calculatedTotalQuestionsAttempted > 0 ? Math.round((calculatedTotalCorrectAnswers / calculatedTotalQuestionsAttempted) * 100) : 0;
     
     let sumOfQuizPercentages = 0;
     loadedHistory.forEach(item => {
@@ -93,6 +99,7 @@ export default function EnhancedDashboardPage() {
       }
     });
     const averageScore = quizzesTaken > 0 ? Math.round(sumOfQuizPercentages / quizzesTaken) : 0;
+    const totalIncorrectAnswers = calculatedTotalQuestionsAttempted - calculatedTotalCorrectAnswers;
 
     setMetrics({
       overallAccuracy: overallAccuracy,
@@ -100,6 +107,9 @@ export default function EnhancedDashboardPage() {
       topicsStudiedCount: topicsStudied.length,
       averageScore: averageScore,
       knowledgeBaseSize: kbItems.length,
+      totalCorrectAnswers: calculatedTotalCorrectAnswers,
+      totalQuestionsAttempted: calculatedTotalQuestionsAttempted,
+      totalIncorrectAnswers: totalIncorrectAnswers,
     });
 
     const topicAverages = Object.entries(topicPerformance).map(([name, data]) => {
@@ -191,11 +201,11 @@ export default function EnhancedDashboardPage() {
         <section>
           <h2 className="text-2xl font-semibold font-headline mb-6 text-center text-foreground/90">Performance Snapshot</h2>
           {isLoading ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6">
-              {[...Array(5)].map((_, i) => <Card key={i} className="h-36 animate-pulse bg-muted/50"></Card>)}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+              {[...Array(8)].map((_, i) => <Card key={i} className="h-36 animate-pulse bg-muted/50"></Card>)}
             </div>
           ) : metrics.quizzesTaken > 0 || metrics.knowledgeBaseSize > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
               <Card className="shadow-md hover:shadow-lg transition-shadow">
                 <CardHeader><CardTitle className="text-lg flex items-center"><PieChart className="mr-2 h-5 w-5 text-primary" /> Accuracy</CardTitle></CardHeader>
                 <CardContent><p className="text-4xl font-bold text-primary">{metrics.overallAccuracy}%</p></CardContent>
@@ -216,9 +226,21 @@ export default function EnhancedDashboardPage() {
                 <CardHeader><CardTitle className="text-lg flex items-center"><DatabaseZap className="mr-2 h-5 w-5 text-primary" /> KB Items</CardTitle></CardHeader>
                 <CardContent><p className="text-4xl font-bold text-primary">{metrics.knowledgeBaseSize}</p></CardContent>
               </Card>
+              <Card className="shadow-md hover:shadow-lg transition-shadow">
+                <CardHeader><CardTitle className="text-lg flex items-center"><CheckCircle2 className="mr-2 h-5 w-5 text-green-500" /> Correct</CardTitle></CardHeader>
+                <CardContent><p className="text-4xl font-bold text-green-500">{metrics.totalCorrectAnswers}</p></CardContent>
+              </Card>
+              <Card className="shadow-md hover:shadow-lg transition-shadow">
+                <CardHeader><CardTitle className="text-lg flex items-center"><HelpCircle className="mr-2 h-5 w-5 text-blue-500" /> Attempted</CardTitle></CardHeader>
+                <CardContent><p className="text-4xl font-bold text-blue-500">{metrics.totalQuestionsAttempted}</p></CardContent>
+              </Card>
+              <Card className="shadow-md hover:shadow-lg transition-shadow">
+                <CardHeader><CardTitle className="text-lg flex items-center"><XCircle className="mr-2 h-5 w-5 text-red-500" /> Incorrect</CardTitle></CardHeader>
+                <CardContent><p className="text-4xl font-bold text-red-500">{metrics.totalIncorrectAnswers}</p></CardContent>
+              </Card>
             </div>
           ) : (
-            <Card className="text-center py-10 shadow-md col-span-1 md:col-span-2 lg:col-span-3 xl:col-span-5">
+            <Card className="text-center py-10 shadow-md col-span-1 md:col-span-2 lg:col-span-3 xl:col-span-4">
                 <CardContent>
                     <TrendingUp className="mx-auto h-16 w-16 text-muted-foreground mb-4" />
                     <p className="text-xl text-muted-foreground">No learning data yet.</p>
@@ -274,5 +296,3 @@ export default function EnhancedDashboardPage() {
     </ClientAuthGuard>
   );
 }
-
-    
