@@ -135,14 +135,15 @@ export default function InteractiveTutorSessionPage() {
     processAndSetNextStep(userQuestion, undefined); 
   };
   
-  // Placeholder functions
   const toggleTTS = () => {
     setIsPlayingTTS(!isPlayingTTS);
-    toast({ title: "TTS Placeholder", description: isPlayingTTS ? "TTS Paused" : "TTS Playing..."});
+    // Actual TTS implementation would go here
+    // For now, we just toggle the state
   }
   const toggleVoiceInput = () => {
       setIsRecordingVoice(!isRecordingVoice);
-      toast({ title: "Voice Input Placeholder", description: isRecordingVoice ? "Voice Recording Stopped" : "Listening..."});
+      // Actual voice input implementation would go here
+      // For now, we just toggle the state
   }
 
   if (isLoading) {
@@ -291,3 +292,5 @@ export default function InteractiveTutorSessionPage() {
     </ClientAuthGuard>
   );
 }
+
+    

@@ -34,7 +34,7 @@ const InteractiveTutorInputSchema = z.object({
   userQuery: z.string().optional().describe("A question or input from the user regarding the current topic or a previous explanation."),
   userQuizAnswer: z.string().optional().describe("The user's answer to the previous mini-quiz, if any. The AI should evaluate this if present and can provide feedback implicitly in the next explanation or as part of a new quiz if relevant."),
   currentStep: z.number().describe("The current step number in the tutoring session (0-indexed). This is the step number THE AI IS GENERATING."),
-  totalSteps: z.number().optional().default(5).describe("The desired total number of steps for this topic, helps in pacing. The AI should aim to complete the tutoring within this many steps if possible."),
+  // totalSteps is removed to allow for dynamic session length
 });
 export type InteractiveTutorInput = z.infer<typeof InteractiveTutorInputSchema>;
 
@@ -43,7 +43,7 @@ const InteractiveTutorOutputSchema = z.object({
   explanation: z.string().describe('A clear and concise explanation of the current topic/concept, derived from the document content. If the user asked a question, it should be addressed here. If the user answered a quiz, feedback can be woven in or a new point made.'),
   explanationAudioUri: z.string().optional().describe('Placeholder for a URI to a TTS audio of the explanation. The AI should not generate this URI; it is for system use.'),
   miniQuiz: MiniQuizSchema.optional().describe('An optional mini-quiz question to check understanding of the current explanation. If a quiz is provided, it must include a question and type. For MCQs, provide 3-4 options.'),
-  isLastStep: z.boolean().describe('Indicates if this is the last step in the tutoring session for the given content, or if the AI has reached the desired totalSteps.'),
+  isLastStep: z.boolean().describe('Indicates if this is the last step in the tutoring session for the given content. Set to true ONLY when all meaningful and distinct sub-topics from the provided content have been covered.'),
 });
 export type InteractiveTutorOutput = z.infer<typeof InteractiveTutorOutputSchema>;
 
@@ -69,7 +69,7 @@ const prompt = ai.definePrompt({
   name: 'interactiveTutorPrompt',
   input: { schema: InteractiveTutorInputSchema },
   output: { schema: InteractiveTutorOutputSchema },
-  prompt: `You are an AI Tutor. Your goal is to break down the provided document content into understandable, sequential steps for a user.
+  prompt: `You are an AI Tutor. Your goal is to break down the provided document content into understandable, sequential steps for a user, covering the entire document.
 You will create a series of explanations, each followed by an optional mini-quiz.
 
 Document Content to Tutor:
@@ -85,32 +85,29 @@ Image Associated with Content (use this to inform your explanations and quizzes)
 {{/if}}
 
 Current Tutoring State:
-- Step Number You Are Generating: {{{currentStep}}} (0-indexed, out of a planned {{{totalSteps}}}).
+- Step Number You Are Generating: {{{currentStep}}} (0-indexed).
 {{#if currentTopic}}- Previous Topic Focus: {{{currentTopic}}}{{/if}}
 {{#if previousExplanation}}- Previous Explanation Given: {{{previousExplanation}}}{{/if}}
 {{#if userQuery}}- User's Question/Input: {{{userQuery}}} (Address this in your new 'explanation' for step {{{currentStep}}}. If it's a question, answer it. If it's a statement, acknowledge it. The topic should be relevant to this query.) {{/if}}
 {{#if userQuizAnswer}}- User's Answer to Last Mini-Quiz: {{{userQuizAnswer}}} (If the user provided an answer, assess it. Your 'explanation' for the current step can subtly guide them or build upon their understanding. For instance, if they were wrong, the new explanation could clarify the concept they misunderstood.) {{/if}}
 
 Task for generating step {{{currentStep}}}:
-1.  Determine the next logical 'topic' from the document content. 
-    - If this is step 0, start with an introductory topic.
-    - If a 'userQuery' is present, the 'topic' and 'explanation' MUST be relevant to addressing this query for the current step {{{currentStep}}}.
-    - Otherwise, pick the next logical sub-topic from the document.
+1.  Determine the next logical 'topic' from the document content.
+    - If this is step 0, start with an introductory topic that provides an overview or the first key concept.
+    - If a 'userQuery' is present, the 'topic' and 'explanation' MUST be relevant to addressing this query for the current step {{{currentStep}}}. Your primary goal in this case is to answer the user's question thoroughly.
+    - Otherwise, pick the next logical sub-topic from the document that has not yet been covered. Continue sequentially through the document.
 2.  Provide a clear and concise 'explanation' for this 'topic'. This explanation MUST be based on the "Document Content to Tutor" and/or "Image Associated with Content" provided above. If 'userQuery' is present, the explanation must primarily address it.
 3.  Optionally, create a 'miniQuiz' object to test understanding of THIS 'explanation'.
     -   'question': The quiz question text.
     -   'type': 'mcq' or 'short_answer'.
     -   'options' (if 'mcq'): An array of 3-4 strings for multiple-choice options. Ensure one is clearly the best answer based on your explanation.
     -   'answer' and 'explanation' fields in the miniQuiz are for your internal reference.
-4.  Set 'isLastStep' to true ONLY if:
-    a)  currentStep is equal to totalSteps - 1 (i.e., you are generating the last planned step), OR
-    b)  You have genuinely exhausted ALL meaningful, distinct sub-topics from the provided "Document Content to Tutor" and/or "Image Associated with Content" AND cannot break it down further, even if currentStep < totalSteps - 1.
-    Critically evaluate if there are distinct sub-topics or concepts remaining that can be explained in subsequent steps, up to the 'totalSteps' limit. Do not set 'isLastStep' to true prematurely if meaningful, distinct sub-topics are still available and currentStep < totalSteps - 1.
+4.  Set 'isLastStep' to true ONLY if you have genuinely exhausted ALL meaningful, distinct sub-topics from the provided "Document Content to Tutor" and/or "Image Associated with Content" AND cannot break it down further. Do not set 'isLastStep' to true prematurely if meaningful, distinct sub-topics are still available to be explained. The tutoring session should be comprehensive.
 
 Important Instructions:
 -   Your primary source of information is the "Document Content to Tutor" and the "Image Associated with Content". Do not invent information.
 -   If no document content AND no image is provided, set 'topic' to "Unable to Proceed", 'explanation' to "No content was provided for tutoring.", and 'isLastStep' to true.
--   Pacing: Aim to cover distinct concepts in each step.
+-   Pacing: Aim to cover distinct concepts in each step. The session should continue until the entire document is covered.
 -   Quiz Relevance: Any 'miniQuiz' must be directly related to the 'explanation' you just provided for the current step.
 -   Conciseness: Keep explanations and quiz questions focused.
 
@@ -143,3 +140,5 @@ const interactiveTutorFlow = ai.defineFlow(
     return output;
   }
 );
+
+    

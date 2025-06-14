@@ -361,10 +361,9 @@ export async function startInteractiveTutorSession(
     }
 
     const firstStepInput: AIInteractiveTutorInput = {
-        documentContent: kbItem.documentContent || "", // Ensure it's not undefined
+        documentContent: kbItem.documentContent || "", 
         photoDataUri: kbItem.mediaDataUri,
-        currentStep: 0, // First step is 0-indexed
-        totalSteps: 5, // Default or could be made configurable
+        currentStep: 0, 
     };
     
     const firstStepResult = await getNextTutorStepFlow(firstStepInput);
@@ -377,8 +376,8 @@ export async function startInteractiveTutorSession(
 
     return {
       documentName: kbItem.documentName,
-      documentContent: kbItem.documentContent || "", // Store full content
-      mediaDataUri: kbItem.mediaDataUri,         // Store media URI
+      documentContent: kbItem.documentContent || "", 
+      mediaDataUri: kbItem.mediaDataUri,         
       currentStepIndex: 0,
       currentStepData: validFirstStepResult,
     };
@@ -391,7 +390,7 @@ export async function startInteractiveTutorSession(
 
 export async function getNextInteractiveTutorStep(
   currentSession: ActiveInteractiveTutorSessionData,
-  targetStepIndex: number, // The step number the AI should generate (0-indexed)
+  targetStepIndex: number, 
   userInput?: string,
   userQuizAnswer?: string,
 ): Promise<InteractiveTutorStepData | { error: string }> {
@@ -399,8 +398,7 @@ export async function getNextInteractiveTutorStep(
     const nextStepInput: AIInteractiveTutorInput = {
         documentContent: currentSession.documentContent,
         photoDataUri: currentSession.mediaDataUri,
-        currentStep: targetStepIndex, // Use the explicitly passed targetStepIndex
-        totalSteps: 5, // Default, or get from session if made configurable
+        currentStep: targetStepIndex, 
         previousExplanation: currentSession.currentStepData.explanation,
         currentTopic: currentSession.currentStepData.topic,
         userQuery: userInput,
@@ -426,3 +424,5 @@ export async function getNextInteractiveTutorStep(
       return { error: `AI Tutor processing failed. Details: ${errorMessage}.` };
   }
 }
+
+    
