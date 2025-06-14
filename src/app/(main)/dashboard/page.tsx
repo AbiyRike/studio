@@ -9,8 +9,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { getLearningHistory, type HistoryItem } from '@/lib/session-store';
 import { getKnowledgeBaseItems } from '@/lib/knowledge-base-store';
-import { Brain, Layers, UserCircle, TrendingUp, BookCopy, Target, AlertTriangle, PieChart, CheckSquare, Activity, DatabaseZap, Edit3, GraduationCap, CheckCircle2, XCircle, HelpCircle, MessageCircleQuestion, Code2 } from 'lucide-react';
+import { Brain, Layers, UserCircle, TrendingUp, BookCopy, Target, AlertTriangle, PieChart, CheckSquare, Activity, DatabaseZap, Edit3, GraduationCap, CheckCircle2, XCircle, HelpCircle, MessageCircleQuestion, Code2, BookOpenCheck } from 'lucide-react';
 import Image from 'next/image';
+import { format } from 'date-fns';
 
 const ClientAuthGuard = ({ children }: { children: React.ReactNode }) => {
   const router = useRouter();
@@ -66,11 +67,14 @@ export default function EnhancedDashboardPage() {
   });
   const [strongestTopics, setStrongestTopics] = useState<TopicAnalytics[]>([]);
   const [weakestTopics, setWeakestTopics] = useState<TopicAnalytics[]>([]);
+  const [recentActivity, setRecentActivity] = useState<HistoryItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     const loadedHistory = getLearningHistory();
     const kbItems = getKnowledgeBaseItems();
+
+    setRecentActivity(loadedHistory.slice(0, 3)); // Get last 3 activities
 
     let calculatedTotalCorrectAnswers = 0;
     let calculatedTotalQuestionsAttempted = 0;
@@ -260,6 +264,56 @@ export default function EnhancedDashboardPage() {
                     <p className="text-xl text-muted-foreground">No learning data yet.</p>
                     <p className="text-sm text-muted-foreground mt-1">Add to your knowledge base or complete a quiz to see your stats!</p>
                 </CardContent>
+            </Card>
+          )}
+        </section>
+
+        <section>
+          <h2 className="text-2xl font-semibold font-headline mb-6 text-center text-foreground/90">Recent Learning Activity</h2>
+          {isLoading ? (
+            <Card className="h-48 animate-pulse bg-muted/50"></Card>
+          ) : recentActivity.length > 0 ? (
+            <Card className="shadow-md">
+              <CardContent className="p-4 space-y-3">
+                <ul className="space-y-3">
+                  {recentActivity.map((item) => (
+                    <li key={item.id} className="flex items-center justify-between p-3 border rounded-md hover:bg-muted/50 transition-colors">
+                      <div className="flex items-center space-x-3">
+                        <BookOpenCheck className="h-6 w-6 text-primary flex-shrink-0" />
+                        <div>
+                          <p className="font-medium text-foreground">{item.documentName}</p>
+                          <p className="text-xs text-muted-foreground">
+                            Completed: {format(new Date(item.completedAt), "PP")}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-semibold text-primary">
+                          {item.score}/{item.questions.length}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          ({item.questions.length > 0 ? Math.round((item.score / item.questions.length) * 100) : 0}%)
+                        </p>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+                {metrics.quizzesTaken > 3 && (
+                   <div className="text-center mt-4">
+                    <Button variant="link" asChild>
+                        <Link href="/history">View All History</Link>
+                    </Button>
+                   </div>
+                )}
+              </CardContent>
+            </Card>
+          ) : (
+            <Card className="text-center py-10 shadow-md">
+              <CardContent>
+                <Activity className="mx-auto h-16 w-16 text-muted-foreground mb-4" />
+                <p className="text-xl text-muted-foreground">No recent activity found.</p>
+                <p className="text-sm text-muted-foreground mt-1">Complete a quiz to see your recent activities here.</p>
+              </CardContent>
             </Card>
           )}
         </section>
