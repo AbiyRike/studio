@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getActiveFlashcardSession, FlashcardSessionData, setActiveFlashcardSession } from '@/lib/session-store';
 import { Skeleton } from '@/components/ui/skeleton';
-import { AlertTriangle, Layers, ArrowLeft } from 'lucide-react';
+import { AlertTriangle, Layers, ArrowLeft, ChevronLeft, ChevronRight, Home } from 'lucide-react';
 import { FlashcardDisplay } from '@/components/flashcard-display';
 import { redirect } from 'next/navigation';
 
@@ -23,6 +23,8 @@ export default function FlashcardSessionPage() {
   const [sessionData, setSessionData] = useState<FlashcardSessionData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [currentCardIndex, setCurrentCardIndex] = useState(0);
+  const [isFlipped, setIsFlipped] = useState(false);
 
   useEffect(() => {
     const data = getActiveFlashcardSession();
@@ -31,7 +33,7 @@ export default function FlashcardSessionPage() {
         setSessionData(data);
       } else {
         setError("No flashcards were generated for this content. Please try a different document from your knowledge base.");
-        setActiveFlashcardSession(null); // Clear invalid session
+        setActiveFlashcardSession(null); 
       }
     } else {
       setError("No active flashcard session found. Please start by selecting content from your knowledge base.");
@@ -44,22 +46,50 @@ export default function FlashcardSessionPage() {
     router.push('/flashcards');
   };
 
+  const handleReturnToDashboard = () => {
+    setActiveFlashcardSession(null);
+    router.push('/dashboard');
+  }
+
+  const handleFlip = () => {
+    setIsFlipped(!isFlipped);
+  };
+
+  const handleNext = () => {
+    if (sessionData && currentCardIndex < sessionData.flashcards.length - 1) {
+      setCurrentCardIndex(currentCardIndex + 1);
+      setIsFlipped(false);
+    }
+  };
+
+  const handlePrevious = () => {
+    if (currentCardIndex > 0) {
+      setCurrentCardIndex(currentCardIndex - 1);
+      setIsFlipped(false);
+    }
+  };
+
+
   if (isLoading) {
     return (
       <ClientAuthGuard>
         <div className="container mx-auto py-8 space-y-6">
           <Skeleton className="h-12 w-3/4 mx-auto" />
-          <Skeleton className="h-64 w-full max-w-lg mx-auto" />
-          <div className="flex justify-center gap-4">
-            <Skeleton className="h-10 w-24" />
-            <Skeleton className="h-10 w-24" />
+          <Skeleton className="h-96 w-full max-w-xl mx-auto" /> {/* Adjusted height for flashcard */}
+          <div className="flex justify-between gap-4 max-w-xl mx-auto">
+            <Skeleton className="h-10 w-28" />
+            <Skeleton className="h-10 w-28" />
+          </div>
+          <div className="flex justify-center gap-4 mt-4">
+            <Skeleton className="h-10 w-40" />
+            <Skeleton className="h-10 w-40" />
           </div>
         </div>
       </ClientAuthGuard>
     );
   }
 
-  if (error || !sessionData) {
+  if (error || !sessionData || sessionData.flashcards.length === 0) {
     return (
       <ClientAuthGuard>
         <div className="container mx-auto py-8 flex flex-col items-center justify-center min-h-[60vh]">
@@ -69,7 +99,7 @@ export default function FlashcardSessionPage() {
               <CardTitle className="text-destructive mt-2">Session Error</CardTitle>
             </CardHeader>
             <CardContent>
-              <p>{error || "Could not load flashcard session data."}</p>
+              <p>{error || "Could not load flashcard session data or no flashcards available."}</p>
               <Button onClick={() => router.push('/flashcards')} className="mt-4">
                 <ArrowLeft className="mr-2 h-4 w-4" /> Back to Flashcard Selection
               </Button>
@@ -80,6 +110,8 @@ export default function FlashcardSessionPage() {
     );
   }
   
+  const currentCard = sessionData.flashcards[currentCardIndex];
+
   return (
     <ClientAuthGuard>
       <div className="container mx-auto py-8 flex flex-col items-center space-y-8">
@@ -88,11 +120,31 @@ export default function FlashcardSessionPage() {
             <h1 className="text-3xl font-bold font-headline">Flashcards: {sessionData.documentName}</h1>
         </div>
         
-        <FlashcardDisplay flashcards={sessionData.flashcards} />
+        <FlashcardDisplay 
+          card={currentCard}
+          isFlipped={isFlipped}
+          onFlip={handleFlip}
+          currentCardNumber={currentCardIndex + 1}
+          totalCards={sessionData.flashcards.length}
+        />
 
-        <Button onClick={handleEndSession} variant="outline" size="lg">
-            <ArrowLeft className="mr-2 h-5 w-5" /> End Session & Return
-        </Button>
+        <div className="w-full max-w-xl mx-auto flex items-center justify-between mt-2">
+          <Button onClick={handlePrevious} disabled={currentCardIndex === 0} variant="outline" size="lg" className="shadow-md">
+            <ChevronLeft className="mr-2 h-5 w-5" /> Previous
+          </Button>
+          <Button onClick={handleNext} disabled={currentCardIndex === sessionData.flashcards.length - 1} variant="outline" size="lg" className="shadow-md">
+            Next <ChevronRight className="ml-2 h-5 w-5" />
+          </Button>
+        </div>
+
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mt-6 w-full max-w-xl">
+            <Button onClick={handleEndSession} variant="secondary" size="lg" className="w-full sm:w-auto shadow-md">
+                <ArrowLeft className="mr-2 h-5 w-5" /> End Session
+            </Button>
+            <Button onClick={handleReturnToDashboard} variant="default" size="lg" className="w-full sm:w-auto shadow-md">
+                 <Home className="mr-2 h-5 w-5" /> Return to Dashboard
+            </Button>
+        </div>
       </div>
     </ClientAuthGuard>
   );
