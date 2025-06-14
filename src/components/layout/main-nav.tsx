@@ -4,13 +4,14 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { LayoutDashboard, BookOpenText, History, LogOut, Brain } from "lucide-react"; // Added Brain for New Session
+import { LayoutDashboard, BookOpenText, History, LogOut, Brain, DatabaseZap, FileQuestion } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
 
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/quiz-session/new", label: "New Quiz Session", icon: Brain },
+  { href: "/knowledge-base/new", label: "Build Knowledge Base", icon: DatabaseZap },
+  { href: "/quiz-session/new", label: "Quiz Me", icon: Brain },
   { href: "/history", label: "Learning History", icon: History },
 ];
 
@@ -26,7 +27,7 @@ export function MainNav() {
   };
 
   return (
-    <nav className="flex flex-col gap-2">
+    <nav className="flex flex-col gap-2 h-full">
       {navItems.map((item) => (
         <Button
           key={item.href}

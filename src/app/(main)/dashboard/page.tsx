@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { getLearningHistory, type HistoryItem } from '@/lib/session-store';
-import { Brain, Layers, GraduationCap, UserCircle, TrendingUp, BookCopy, Target, AlertTriangle, PieChart, CheckSquare, Activity } from 'lucide-react';
+import { Brain, Layers, GraduationCap, UserCircle, TrendingUp, BookCopy, Target, AlertTriangle, PieChart, CheckSquare, Activity, DatabaseZap } from 'lucide-react';
 import { redirect } from 'next/navigation';
 import Image from 'next/image';
 
@@ -48,8 +48,8 @@ export default function NewDashboardPage() {
       setMetrics({
         overallAccuracy: totalQuestionsAttempted > 0 ? Math.round((totalScore / totalQuestionsAttempted) * 100) : 0,
         quizzesTaken: quizzesTaken,
-        topicsStudied: topics.slice(0, 5), // Show up to 5 recent topics
-        averageScore: quizzesTaken > 0 ? Math.round(totalScore / quizzesTaken) : 0,
+        topicsStudied: topics.slice(0, 5), 
+        averageScore: quizzesTaken > 0 ? Math.round((totalQuestionsAttempted > 0 ? (totalScore / totalQuestionsAttempted * 100) : 0) / quizzesTaken) : 0, // Average score as a percentage
       });
     }
     setIsLoading(false);
@@ -91,12 +91,19 @@ export default function NewDashboardPage() {
 
         <section>
           <h2 className="text-2xl font-semibold font-headline mb-6 text-center text-foreground/90">Start Your Learning Journey</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             <FeatureButton
+              href="/knowledge-base/new"
+              icon={DatabaseZap}
+              title="Build Knowledge Base"
+              description="Upload content (PDF, text, image, audio) to create summaries and store them."
+              className="bg-gradient-to-br from-green-500/5 via-transparent to-green-500/5 hover:from-green-500/10 hover:to-green-500/10"
+            />
+             <FeatureButton
               href="/quiz-session/new"
               icon={Brain}
               title="Quiz Me"
-              description="Upload content, get a summary, and test your knowledge with interactive quizzes."
+              description="Select from knowledge base or upload new content for interactive quizzes."
               className="bg-gradient-to-br from-primary/5 via-transparent to-primary/5 hover:from-primary/10 hover:to-primary/10"
             />
             <FeatureButton
@@ -133,8 +140,8 @@ export default function NewDashboardPage() {
                 <CardContent><p className="text-4xl font-bold text-primary">{metrics.quizzesTaken}</p></CardContent>
               </Card>
                <Card className="shadow-md hover:shadow-lg transition-shadow">
-                <CardHeader><CardTitle className="text-lg flex items-center"><Activity className="mr-2 h-5 w-5 text-primary" /> Average Score</CardTitle></CardHeader>
-                <CardContent><p className="text-4xl font-bold text-primary">{metrics.averageScore} <span className="text-xl">pts</span></p></CardContent>
+                <CardHeader><CardTitle className="text-lg flex items-center"><Activity className="mr-2 h-5 w-5 text-primary" /> Avg. Quiz Score</CardTitle></CardHeader>
+                <CardContent><p className="text-4xl font-bold text-primary">{metrics.averageScore}%</p></CardContent>
               </Card>
               <Card className="shadow-md hover:shadow-lg transition-shadow col-span-1 md:col-span-2 lg:col-span-1">
                 <CardHeader><CardTitle className="text-lg flex items-center"><BookCopy className="mr-2 h-5 w-5 text-primary" /> Recent Topics</CardTitle></CardHeader>
