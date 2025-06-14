@@ -7,12 +7,11 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { getKnowledgeBaseItems, type KnowledgeBaseItem } from '@/lib/knowledge-base-store';
+import { getKnowledgeBaseItems, type KnowledgeBaseItem, getKnowledgeBaseItemById } from '@/lib/knowledge-base-store';
 import { setActiveInteractiveTutorSession } from '@/lib/session-store';
 import { startInteractiveTutorSession } from '@/app/actions';
 import { useToast } from "@/hooks/use-toast";
 import { GraduationCap, Loader2, AlertTriangle, FileText, Image as ImageIcon, Mic } from 'lucide-react';
-import { redirect } from 'next/navigation';
 import { format } from 'date-fns';
 
 const ClientAuthGuard = ({ children }: { children: React.ReactNode }) => {
@@ -47,11 +46,34 @@ export default function SelectTutorContentPage() {
     setIsLoading(false);
   }, []);
 
-  const handleStartTutoring = async (item: KnowledgeBaseItem) => {
-    setProcessingItemId(item.id);
+  const handleStartTutoring = async (itemFromList: KnowledgeBaseItem) => {
+    setProcessingItemId(itemFromList.id);
     setActiveInteractiveTutorSession(null); 
 
-    const result = await startInteractiveTutorSession(item.id);
+    // Retrieve the full item from localStorage to ensure we have the latest, complete data
+    const fullKbItem = getKnowledgeBaseItemById(itemFromList.id);
+
+    if (!fullKbItem) {
+        toast({
+            title: "Error Starting Tutoring Session",
+            description: "Could not retrieve the knowledge base item. Please try again.",
+            variant: "destructive",
+        });
+        setProcessingItemId(null);
+        return;
+    }
+    if (!fullKbItem.documentContent && !fullKbItem.mediaDataUri) {
+      toast({
+        title: "Cannot Start Tutoring",
+        description: "The selected knowledge base item does not have any text content or associated media to tutor.",
+        variant: "destructive",
+      });
+      setProcessingItemId(null);
+      return;
+    }
+
+
+    const result = await startInteractiveTutorSession(fullKbItem); // Pass the full item
     setProcessingItemId(null);
 
     if ('error' in result) {
@@ -64,7 +86,7 @@ export default function SelectTutorContentPage() {
       setActiveInteractiveTutorSession(result);
       toast({
         title: "Tutoring Session Ready!",
-        description: `Starting interactive tutoring for "${item.documentName}".`,
+        description: `Starting interactive tutoring for "${fullKbItem.documentName}".`,
       });
       router.push('/interactive-tutor/session');
     }

@@ -101,28 +101,26 @@ export const getActiveFlashcardSession = (): FlashcardSessionData | null => {
 // For Interactive Tutor Session
 export interface InteractiveTutorMiniQuiz {
   question: string;
-  type: 'mcq' | 'short_answer'; // Add more types like 'fill_in_blank' later
-  options?: string[]; // For MCQ
-  answer?: number | string; // Index for MCQ, string for short_answer
+  type: 'mcq' | 'short_answer';
+  options?: string[]; 
+  answer?: number | string; 
   explanation?: string;
 }
 
 export interface InteractiveTutorStepData {
   topic: string;
   explanation: string;
-  explanationAudioUri?: string; // Placeholder for TTS audio URL
+  explanationAudioUri?: string; 
   miniQuiz?: InteractiveTutorMiniQuiz;
   isLastStep: boolean;
 }
 
 export interface ActiveInteractiveTutorSessionData {
-  kbItemId: string;
   documentName: string;
+  documentContent: string; // Store full content for AI context
+  mediaDataUri?: string;   // Store media URI for AI context
   currentStepIndex: number;
   currentStepData: InteractiveTutorStepData;
-  // We might store the full document content here if needed for context by the AI on each step
-  // documentContent?: string; 
-  // mediaDataUri?: string;
 }
 
 const ACTIVE_INTERACTIVE_TUTOR_SESSION_KEY = 'activeInteractiveTutorSession';

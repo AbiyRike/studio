@@ -14,7 +14,7 @@ import { getNextInteractiveTutorStep } from '@/app/actions';
 import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from '@/components/ui/skeleton';
 import { AlertTriangle, GraduationCap, MessageSquare, Mic, PlayCircle, StopCircle, Loader2, ArrowLeft, Home, Send } from 'lucide-react';
-import { redirect } from 'next/navigation';
+import { ScrollArea } from "@/components/ui/scroll-area"; // Added import
 
 const ClientAuthGuard = ({ children }: { children: React.ReactNode }) => {
   const router = useRouter();
@@ -44,9 +44,11 @@ export default function InteractiveTutorSessionPage() {
   const [error, setError] = useState<string | null>(null);
   
   const [userQuestion, setUserQuestion] = useState("");
-  const [isRecordingVoice, setIsRecordingVoice] = useState(false); // Placeholder
-  const [isPlayingTTS, setIsPlayingTTS] = useState(false); // Placeholder
-  const [miniQuizAnswer, setMiniQuizAnswer] = useState<string | number | null>(null);
+  const [isRecordingVoice, setIsRecordingVoice] = useState(false); 
+  const [isPlayingTTS, setIsPlayingTTS] = useState(false); 
+  const [miniQuizAnswer, setMiniQuizAnswer] = useState<string | undefined>(undefined);
+  const [submittedQuizAnswerForFeedback, setSubmittedQuizAnswerForFeedback] = useState<string | undefined>(undefined);
+
 
   useEffect(() => {
     const data = getActiveInteractiveTutorSession();
@@ -54,7 +56,7 @@ export default function InteractiveTutorSessionPage() {
       setSessionData(data);
       setCurrentStep(data.currentStepData);
     } else {
-      setError("No active tutoring session found or session is invalid. Please start a new session.");
+      setError("No active tutoring session found or session is invalid. Please start a new session from the 'Tutor Me' page.");
       setActiveInteractiveTutorSession(null);
     }
     setIsLoading(false);
@@ -70,37 +72,58 @@ export default function InteractiveTutorSessionPage() {
     router.push('/dashboard');
   }
 
-  const handleNextStep = async (userInputForNextStep?: string) => {
+  const processNextStep = async (userQueryInput?: string, quizAnswerInput?: string) => {
     if (!sessionData) return;
     setIsFetchingNext(true);
-    const result = await getNextInteractiveTutorStep(sessionData, userInputForNextStep);
+
+    // Pass the current full session data, the user's question, and their quiz answer
+    const result = await getNextInteractiveTutorStep(sessionData, userQueryInput, quizAnswerInput);
     setIsFetchingNext(false);
 
     if ('error' in result) {
       toast({ title: "Error fetching next step", description: result.error, variant: "destructive" });
-      if (result.error.toLowerCase().includes("no more steps")) {
-         setError("Congratulations! You've completed all tutoring steps for this topic.");
-         // Potentially save progress here if needed
+      if (result.error.toLowerCase().includes("no more steps") || result.error.toLowerCase().includes("unable to proceed") || result.error.toLowerCase().includes("session on")) {
+         setError(`Tutoring session ended: ${result.error}`);
+         setCurrentStep(prev => prev ? {...prev, isLastStep: true} : null); // Mark as last step visually
       }
     } else {
-      const updatedSessionData = { ...sessionData, currentStepIndex: sessionData.currentStepIndex + 1, currentStepData: result };
+      const updatedSessionData: ActiveInteractiveTutorSessionData = { 
+        ...sessionData, 
+        currentStepIndex: sessionData.currentStepIndex + 1, 
+        currentStepData: result 
+      };
       setSessionData(updatedSessionData);
       setCurrentStep(result);
       setActiveInteractiveTutorSession(updatedSessionData);
-      setUserQuestion(""); // Clear user question input
-      setMiniQuizAnswer(null); // Clear mini quiz answer
+      setUserQuestion(""); 
+      setMiniQuizAnswer(undefined); 
+      setSubmittedQuizAnswerForFeedback(undefined); // Clear submitted quiz answer
+      if (result.isLastStep) {
+        toast({ title: "Tutoring Complete!", description: result.explanation || "You've reached the end of this topic."});
+      }
+    }
+  }
+  
+  const handleNextStepOrSubmitQuiz = () => {
+    // If there's a quiz and an answer, submit the answer with the request for the next step.
+    // The AI's next explanation can then incorporate feedback based on the answer.
+    if (currentStep?.miniQuiz && miniQuizAnswer !== undefined) {
+        setSubmittedQuizAnswerForFeedback(miniQuizAnswer); // For display if needed, though AI handles feedback
+        processNextStep(undefined, miniQuizAnswer); // Pass quiz answer
+    } else {
+        // If no quiz, or quiz not answered, just proceed to next step
+        processNextStep();
     }
   };
+
 
   const handleUserQuestionSubmit = () => {
     if (!userQuestion.trim()) {
       toast({ title: "Please enter a question", variant: "default" });
       return;
     }
-    // For now, we'll treat submitting a question as a trigger to get a new step
-    // In a real implementation, this would send the question to an AI for an answer
-    toast({ title: "Question Submitted (Placeholder)", description: "AI would answer your question here. Proceeding to next logical step or clarification." });
-    handleNextStep(userQuestion); 
+    // Pass the user's question to get the next step, which should address it.
+    processNextStep(userQuestion, undefined); 
   };
   
   // Placeholder functions
@@ -135,7 +158,7 @@ export default function InteractiveTutorSessionPage() {
           <Card className="w-full max-w-md text-center p-6 shadow-lg">
             <CardHeader>
               <AlertTriangle className="mx-auto h-12 w-12 text-destructive" />
-              <CardTitle className="text-destructive mt-2">Session Error</CardTitle>
+              <CardTitle className="text-destructive mt-2">Session Status</CardTitle>
             </CardHeader>
             <CardContent>
               <p>{error || "Could not load tutoring session data."}</p>
@@ -168,7 +191,7 @@ export default function InteractiveTutorSessionPage() {
             <ScrollArea className="h-48 p-4 border rounded-md bg-muted/30">
               <p className="text-foreground/90 whitespace-pre-wrap">{currentStep.explanation}</p>
             </ScrollArea>
-            <Button onClick={toggleTTS} variant="outline" className="w-full sm:w-auto">
+            <Button onClick={toggleTTS} variant="outline" className="w-full sm:w-auto" disabled={isFetchingNext}>
               {isPlayingTTS ? <StopCircle className="mr-2 h-5 w-5" /> : <PlayCircle className="mr-2 h-5 w-5" />}
               {isPlayingTTS ? "Stop TTS" : "Play Explanation (TTS)"}
             </Button>
@@ -182,10 +205,10 @@ export default function InteractiveTutorSessionPage() {
             </CardHeader>
             <CardContent>
               {currentStep.miniQuiz.type === 'mcq' && currentStep.miniQuiz.options && (
-                <RadioGroup value={miniQuizAnswer?.toString()} onValueChange={(val) => setMiniQuizAnswer(val)} className="space-y-2">
+                <RadioGroup value={miniQuizAnswer} onValueChange={(val) => setMiniQuizAnswer(val)} className="space-y-2" disabled={isFetchingNext || !!submittedQuizAnswerForFeedback}>
                   {currentStep.miniQuiz.options.map((opt, idx) => (
-                    <Label key={idx} htmlFor={`quiz-opt-${idx}`} className="flex items-center p-3 border rounded-md hover:bg-accent cursor-pointer">
-                      <RadioGroupItem value={idx.toString()} id={`quiz-opt-${idx}`} className="mr-2" />
+                    <Label key={idx} htmlFor={`quiz-opt-${idx}`} className="flex items-center p-3 border rounded-md hover:bg-accent cursor-pointer has-[input:disabled]:opacity-70 has-[input:disabled]:cursor-not-allowed">
+                      <RadioGroupItem value={opt} id={`quiz-opt-${idx}`} className="mr-2" />
                       {opt}
                     </Label>
                   ))}
@@ -195,48 +218,57 @@ export default function InteractiveTutorSessionPage() {
                 <Input 
                   type="text" 
                   placeholder="Your answer..." 
-                  value={miniQuizAnswer as string || ""}
+                  value={miniQuizAnswer || ""}
                   onChange={(e) => setMiniQuizAnswer(e.target.value)}
+                  disabled={isFetchingNext || !!submittedQuizAnswerForFeedback}
                 />
               )}
-              {/* Placeholder for quiz feedback */}
-              {miniQuizAnswer !== null && <p className="text-sm text-muted-foreground mt-2">Answer submitted (feedback placeholder).</p>}
+               {submittedQuizAnswerForFeedback && <p className="text-sm text-muted-foreground mt-3">Your answer has been considered. The tutor will address it in the next step if needed.</p>}
             </CardContent>
           </Card>
         )}
         
-        <Card className="w-full max-w-3xl shadow-lg">
-          <CardHeader>
-            <CardTitle className="text-xl">Ask a Question</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <Textarea 
-              placeholder="Type your question about the current topic..." 
-              value={userQuestion}
-              onChange={(e) => setUserQuestion(e.target.value)}
-              rows={3}
-            />
-            <div className="flex flex-col sm:flex-row gap-2">
-              <Button onClick={handleUserQuestionSubmit} className="flex-grow" disabled={isFetchingNext}>
-                <Send className="mr-2 h-5 w-5" /> Submit Question
-              </Button>
-              <Button onClick={toggleVoiceInput} variant="outline" className="sm:w-auto">
-                <Mic className="mr-2 h-5 w-5" /> {isRecordingVoice ? "Stop Recording" : "Ask with Voice"} 
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+        {!currentStep.isLastStep && (
+          <Card className="w-full max-w-3xl shadow-lg">
+            <CardHeader>
+              <CardTitle className="text-xl">Ask a Question</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <Textarea 
+                placeholder="Type your question about the current topic..." 
+                value={userQuestion}
+                onChange={(e) => setUserQuestion(e.target.value)}
+                rows={3}
+                disabled={isFetchingNext}
+              />
+              <div className="flex flex-col sm:flex-row gap-2">
+                <Button onClick={handleUserQuestionSubmit} className="flex-grow" disabled={isFetchingNext || !userQuestion.trim()}>
+                  <Send className="mr-2 h-5 w-5" /> Submit Question
+                </Button>
+                <Button onClick={toggleVoiceInput} variant="outline" className="sm:w-auto" disabled={isFetchingNext}>
+                  <Mic className="mr-2 h-5 w-5" /> {isRecordingVoice ? "Stop Recording" : "Ask with Voice"} 
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
 
         <div className="w-full max-w-3xl flex flex-col sm:flex-row items-center justify-between gap-4 mt-4">
-          <Button 
-            onClick={() => handleNextStep(miniQuizAnswer?.toString() || undefined)} 
-            disabled={isFetchingNext || currentStep.isLastStep} 
-            size="lg" 
-            className="w-full sm:w-auto shadow-md"
-          >
-            {isFetchingNext ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : null}
-            {currentStep.isLastStep ? "Tutoring Complete" : "Next Step"}
-          </Button>
+           {!currentStep.isLastStep && (
+             <Button 
+                onClick={handleNextStepOrSubmitQuiz} 
+                disabled={isFetchingNext || (!!currentStep.miniQuiz && miniQuizAnswer === undefined) }
+                size="lg" 
+                className="w-full sm:w-auto shadow-md"
+              >
+                {isFetchingNext ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : null}
+                {currentStep.miniQuiz && miniQuizAnswer === undefined ? "Answer Quiz to Proceed" : "Next Step"}
+              </Button>
+           )}
+           {currentStep.isLastStep && (
+            <p className="text-lg font-semibold text-primary">Tutoring session complete!</p>
+           )}
         </div>
          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mt-6 w-full max-w-3xl">
             <Button onClick={handleEndSession} variant="secondary" size="lg" className="w-full sm:w-auto shadow-md">
