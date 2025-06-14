@@ -10,11 +10,11 @@ import { useRouter } from "next/navigation";
 
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/knowledge-base/new", label: "Build Knowledge Base", icon: DatabaseZap },
-  { href: "/quiz-session/new", label: "Upload & Quiz", icon: Brain },
-  { href: "/quiz-from-kb", label: "Quiz from Knowledge Base", icon: Edit3 },
+  { href: "/knowledge-base/new", label: "Add to Knowledge", icon: DatabaseZap },
+  { href: "/quiz-session/new", label: "New Quiz", icon: Brain },
+  { href: "/quiz-from-kb", label: "Quiz from KB", icon: Edit3 },
   { href: "/history", label: "Learning History", icon: History },
-  { href: "/flashcards", label: "Flash Me (from KB)", icon: Layers },
+  { href: "/flashcards", label: "Flashcards", icon: Layers },
 ];
 
 export function MainNav() {
@@ -57,3 +57,5 @@ export function MainNav() {
     </nav>
   );
 }
+
+    
