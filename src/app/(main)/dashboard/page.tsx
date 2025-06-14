@@ -158,7 +158,7 @@ export default function EnhancedDashboardPage() {
           <CardHeader className="bg-gradient-to-r from-primary/10 to-accent/10 p-6">
             <div className="flex items-center space-x-4">
               <Avatar className="w-20 h-20 border-4 border-background shadow-md">
-                <AvatarImage src="https://placehold.co/150x150.png" alt="User Avatar" data-ai-hint="professional avatar" />
+                <AvatarImage src="data:image/png;base64,DASHBOARD_AVATAR_DATA" alt="User Avatar" />
                 <AvatarFallback><UserCircle className="w-10 h-10" /></AvatarFallback>
               </Avatar>
               <div>

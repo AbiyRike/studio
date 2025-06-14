@@ -49,7 +49,7 @@ export function UserNav() {
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" className="relative w-10 h-10 rounded-full">
           <Avatar className="w-9 h-9">
-            <AvatarImage src="https://placehold.co/100x100.png" alt="User Avatar" data-ai-hint="user avatar" />
+            <AvatarImage src="data:image/png;base64,USER_NAV_AVATAR_DATA" alt="User Avatar" />
             <AvatarFallback>
               <UserCircle className="w-6 h-6" />
             </AvatarFallback>
