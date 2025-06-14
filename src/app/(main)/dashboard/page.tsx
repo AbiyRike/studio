@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { getLearningHistory, type HistoryItem } from '@/lib/session-store';
-import { Brain, Layers, GraduationCap, UserCircle, TrendingUp, BookCopy, Target, AlertTriangle, PieChart, CheckSquare, Activity, DatabaseZap, Edit3 } from 'lucide-react';
+import { Brain, Layers, UserCircle, TrendingUp, BookCopy, Target, AlertTriangle, PieChart, CheckSquare, Activity, DatabaseZap, Edit3 } from 'lucide-react';
 import { redirect } from 'next/navigation';
 import Image from 'next/image';
 
@@ -53,7 +53,6 @@ export default function NewDashboardPage() {
       
       const overallAccuracy = totalQuestionsAttemptedInHistory > 0 ? Math.round((totalCorrectAnswers / totalQuestionsAttemptedInHistory) * 100) : 0;
       
-      // Average score is the average of individual quiz percentages
       let sumOfQuizPercentages = 0;
       loadedHistory.forEach(item => {
         if (item.questions.length > 0) {
@@ -119,32 +118,24 @@ export default function NewDashboardPage() {
              <FeatureButton
               href="/quiz-session/new"
               icon={Brain}
-              title="Quiz Me (New)"
-              description="Upload new content. It's added to KB & a quiz starts."
+              title="Upload & Quiz"
+              description="Upload new content. It's added to KB & a quiz starts immediately."
               className="bg-gradient-to-br from-primary/5 via-transparent to-primary/5 hover:from-primary/10 hover:to-primary/10"
             />
              <FeatureButton
               href="/quiz-from-kb"
               icon={Edit3} 
-              title="Tutor Me (KB Quiz)"
+              title="Quiz from Knowledge Base"
               description="Select from your knowledge base to start an interactive quiz."
               className="bg-gradient-to-br from-orange-500/5 via-transparent to-orange-500/5 hover:from-orange-500/10 hover:to-orange-500/10"
             />
             <FeatureButton
               href="/flashcards"
               icon={Layers}
-              title="Flash Me"
-              description="Create or use AI-generated flashcards for focused study sessions. (Coming Soon)"
+              title="Flash Me (from KB)"
+              description="Create or use flashcards from your knowledge base. (Coming Soon)"
               className="bg-gradient-to-br from-accent/5 via-transparent to-accent/5 hover:from-accent/10 hover:to-accent/10"
             />
-            {/* Placeholder for the original "Tutor Me" live explanation feature */}
-            {/* <FeatureButton
-              href="/live-tutor"
-              icon={GraduationCap}
-              title="Live Tutor (Future)"
-              description="Engage with an AI tutor for live explanations and guided learning. (Coming Soon)"
-              className="bg-gradient-to-br from-secondary/10 via-transparent to-secondary/10 hover:from-secondary/20 hover:to-secondary/20"
-            /> */}
           </div>
         </section>
 
@@ -184,7 +175,7 @@ export default function NewDashboardPage() {
                 <CardContent>
                     <TrendingUp className="mx-auto h-16 w-16 text-muted-foreground mb-4" />
                     <p className="text-xl text-muted-foreground">No quiz history yet.</p>
-                    <p className="text-sm text-muted-foreground mt-1">Complete a "Quiz Me" session to see your stats!</p>
+                    <p className="text-sm text-muted-foreground mt-1">Complete a quiz session to see your stats!</p>
                 </CardContent>
             </Card>
           )}

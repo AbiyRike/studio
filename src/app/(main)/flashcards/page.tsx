@@ -21,14 +21,14 @@ export default function FlashcardsPage() {
         <Card className="w-full max-w-lg text-center shadow-xl">
           <CardHeader>
             <Layers className="mx-auto h-16 w-16 text-primary mb-4" />
-            <CardTitle className="text-3xl font-headline">Flashcards Feature</CardTitle>
+            <CardTitle className="text-3xl font-headline">Flashcards (from Knowledge Base)</CardTitle>
             <CardDescription className="text-lg text-muted-foreground mt-2">
               This exciting feature is currently under development.
             </CardDescription>
           </CardHeader>
           <CardContent>
             <p className="mb-6">
-              Soon, you'll be able to create and study with AI-powered flashcards to supercharge your learning!
+              Soon, you'll be able to create and study with AI-powered flashcards generated from content in your knowledge base!
             </p>
             <Button asChild size="lg">
               <Link href="/dashboard">

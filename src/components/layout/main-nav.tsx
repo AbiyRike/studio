@@ -4,18 +4,17 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { LayoutDashboard, History, LogOut, Brain, DatabaseZap, Edit3, Layers } from "lucide-react"; // Added Edit3, Layers
+import { LayoutDashboard, History, LogOut, Brain, DatabaseZap, Edit3, Layers } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
 
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/knowledge-base/new", label: "Build Knowledge Base", icon: DatabaseZap },
-  { href: "/quiz-session/new", label: "Quiz Me (New Upload)", icon: Brain },
-  { href: "/quiz-from-kb", label: "Tutor Me (KB Quiz)", icon: Edit3 },
+  { href: "/quiz-session/new", label: "Upload & Quiz", icon: Brain },
+  { href: "/quiz-from-kb", label: "Quiz from Knowledge Base", icon: Edit3 },
   { href: "/history", label: "Learning History", icon: History },
-  { href: "/flashcards", label: "Flash Me (Soon)", icon: Layers },
-  // { href: "/live-tutor", label: "Live Tutor (Soon)", icon: GraduationCap }, // Example for future
+  { href: "/flashcards", label: "Flash Me (from KB)", icon: Layers },
 ];
 
 export function MainNav() {
