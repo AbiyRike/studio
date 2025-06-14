@@ -63,7 +63,9 @@ Evaluate this input. If it's incorrect or needs improvement, provide constructiv
 {{/if}}
 
 Task: Generate the content for the NEXT teaching step.
-1.  'topic': A very specific, concise title for THIS learning segment (e.g., "JavaScript: Declaring 'let' variables", "Python: Basic 'print()' function", "HTML: The DOCTYPE Declaration").
+Your main goal for each step is to provide a clear 'explanation', a relevant 'codeExample' (if applicable to the concept), and a concise 'challenge'. After these, suggest the 'nextTopicSuggestion'.
+
+1.  'topic': A very specific, concise title for THIS learning segment (e.g., "JavaScript: Declaring 'let' variables", "Python: Basic 'print()' function", "HTML: The DOCTYPE Declaration"). This 'topic' should be a granular part of the broader '{{{currentTopic}}}'.
 2.  'explanation': Provide a clear, beginner-friendly explanation of this specific concept using only natural language.
     - Feedback on previous user input can be woven into this explanation.
     - For brief mentions of keywords or syntax *within* the explanation, use inline backticks (e.g., \`let x = 10;\`).
