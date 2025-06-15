@@ -10,7 +10,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { getLearningHistory, type HistoryItem } from '@/lib/session-store';
 import { getKnowledgeBaseItems } from '@/lib/knowledge-base-store';
 import { Brain, Layers, UserCircle, TrendingUp, BookCopy, Target, AlertTriangle, PieChart, CheckSquare, Activity, DatabaseZap, Edit3, GraduationCap, CheckCircle2, XCircle, HelpCircle, MessageCircleQuestion, Code2, BookOpenCheck } from 'lucide-react';
-import Image from 'next/image';
+// Removed unused next/image import
 import { format } from 'date-fns';
 
 const ClientAuthGuard = ({ children }: { children: React.ReactNode }) => {
@@ -56,6 +56,7 @@ interface TopicAnalytics {
 
 export default function EnhancedDashboardPage() {
   const [userName, setUserName] = useState("AI Learner");
+  const [userProfilePic, setUserProfilePic] = useState<string | null>(null);
   const [metrics, setMetrics] = useState<Metrics>({
     overallAccuracy: 0,
     quizzesTaken: 0,
@@ -71,69 +72,79 @@ export default function EnhancedDashboardPage() {
   const [recentActivity, setRecentActivity] = useState<HistoryItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
+  const loadUserData = () => {
     if (typeof window !== 'undefined') {
       const storedName = localStorage.getItem("userName");
-      if (storedName) {
-        setUserName(storedName);
-      }
+      if (storedName) setUserName(storedName);
+      const storedPic = localStorage.getItem("userProfilePic");
+      setUserProfilePic(storedPic);
+
+      const loadedHistory = getLearningHistory();
+      const kbItems = getKnowledgeBaseItems();
+
+      setRecentActivity(loadedHistory.slice(0, 3)); 
+
+      let calculatedTotalCorrectAnswers = 0;
+      let calculatedTotalQuestionsAttempted = 0;
+      const topicPerformance: { [key: string]: { totalScore: number; totalQuestions: number; quizCount: number } } = {};
+
+      loadedHistory.forEach(item => {
+        calculatedTotalCorrectAnswers += item.score;
+        calculatedTotalQuestionsAttempted += item.questions.length;
+
+        if (!topicPerformance[item.documentName]) {
+          topicPerformance[item.documentName] = { totalScore: 0, totalQuestions: 0, quizCount: 0 };
+        }
+        topicPerformance[item.documentName].totalScore += item.score;
+        topicPerformance[item.documentName].totalQuestions += item.questions.length;
+        topicPerformance[item.documentName].quizCount += 1;
+      });
+
+      const quizzesTaken = loadedHistory.length;
+      const topicsStudied = Array.from(new Set(loadedHistory.map(item => item.documentName)));
+      const overallAccuracy = calculatedTotalQuestionsAttempted > 0 ? Math.round((calculatedTotalCorrectAnswers / calculatedTotalQuestionsAttempted) * 100) : 0;
+      
+      let sumOfQuizPercentages = 0;
+      loadedHistory.forEach(item => {
+        if (item.questions.length > 0) {
+          sumOfQuizPercentages += (item.score / item.questions.length) * 100;
+        }
+      });
+      const averageScore = quizzesTaken > 0 ? Math.round(sumOfQuizPercentages / quizzesTaken) : 0;
+      const totalIncorrectAnswers = calculatedTotalQuestionsAttempted - calculatedTotalCorrectAnswers;
+
+      setMetrics({
+        overallAccuracy: overallAccuracy,
+        quizzesTaken: quizzesTaken,
+        topicsStudiedCount: topicsStudied.length,
+        averageScore: averageScore,
+        knowledgeBaseSize: kbItems.length,
+        totalCorrectAnswers: calculatedTotalCorrectAnswers,
+        totalQuestionsAttempted: calculatedTotalQuestionsAttempted,
+        totalIncorrectAnswers: totalIncorrectAnswers,
+      });
+
+      const topicAverages = Object.entries(topicPerformance).map(([name, data]) => {
+        const average = data.totalQuestions > 0 ? Math.round((data.totalScore / data.totalQuestions) * 100) : 0;
+        return { name, average, quizCount: data.quizCount };
+      });
+
+      setStrongestTopics([...topicAverages].sort((a, b) => b.average - a.average || b.quizCount - a.quizCount).slice(0, 3));
+      setWeakestTopics([...topicAverages].sort((a, b) => a.average - b.average || b.quizCount - a.quizCount).filter(t => t.quizCount > 0).slice(0, 3));
+      
+      setIsLoading(false);
     }
+  };
 
-    const loadedHistory = getLearningHistory();
-    const kbItems = getKnowledgeBaseItems();
-
-    setRecentActivity(loadedHistory.slice(0, 3)); // Get last 3 activities
-
-    let calculatedTotalCorrectAnswers = 0;
-    let calculatedTotalQuestionsAttempted = 0;
-    const topicPerformance: { [key: string]: { totalScore: number; totalQuestions: number; quizCount: number } } = {};
-
-    loadedHistory.forEach(item => {
-      calculatedTotalCorrectAnswers += item.score;
-      calculatedTotalQuestionsAttempted += item.questions.length;
-
-      if (!topicPerformance[item.documentName]) {
-        topicPerformance[item.documentName] = { totalScore: 0, totalQuestions: 0, quizCount: 0 };
-      }
-      topicPerformance[item.documentName].totalScore += item.score;
-      topicPerformance[item.documentName].totalQuestions += item.questions.length;
-      topicPerformance[item.documentName].quizCount += 1;
-    });
-
-    const quizzesTaken = loadedHistory.length;
-    const topicsStudied = Array.from(new Set(loadedHistory.map(item => item.documentName)));
-    const overallAccuracy = calculatedTotalQuestionsAttempted > 0 ? Math.round((calculatedTotalCorrectAnswers / calculatedTotalQuestionsAttempted) * 100) : 0;
-    
-    let sumOfQuizPercentages = 0;
-    loadedHistory.forEach(item => {
-      if (item.questions.length > 0) {
-        sumOfQuizPercentages += (item.score / item.questions.length) * 100;
-      }
-    });
-    const averageScore = quizzesTaken > 0 ? Math.round(sumOfQuizPercentages / quizzesTaken) : 0;
-    const totalIncorrectAnswers = calculatedTotalQuestionsAttempted - calculatedTotalCorrectAnswers;
-
-    setMetrics({
-      overallAccuracy: overallAccuracy,
-      quizzesTaken: quizzesTaken,
-      topicsStudiedCount: topicsStudied.length,
-      averageScore: averageScore,
-      knowledgeBaseSize: kbItems.length,
-      totalCorrectAnswers: calculatedTotalCorrectAnswers,
-      totalQuestionsAttempted: calculatedTotalQuestionsAttempted,
-      totalIncorrectAnswers: totalIncorrectAnswers,
-    });
-
-    const topicAverages = Object.entries(topicPerformance).map(([name, data]) => {
-      const average = data.totalQuestions > 0 ? Math.round((data.totalScore / data.totalQuestions) * 100) : 0;
-      return { name, average, quizCount: data.quizCount };
-    });
-
-    setStrongestTopics([...topicAverages].sort((a, b) => b.average - a.average || b.quizCount - a.quizCount).slice(0, 3));
-    setWeakestTopics([...topicAverages].sort((a, b) => a.average - b.average || b.quizCount - a.quizCount).filter(t => t.quizCount > 0).slice(0, 3));
-    
-    setIsLoading(false);
+  useEffect(() => {
+    loadUserData();
+    // Listen for storage changes to update user data if changed on profile page
+    window.addEventListener('storage', loadUserData);
+    return () => {
+      window.removeEventListener('storage', loadUserData);
+    };
   }, []);
+
 
   const FeatureButton = ({ href, icon: Icon, title, description, className }: { href: string, icon: React.ElementType, title: string, description: string, className?: string }) => (
     <Button
@@ -158,7 +169,13 @@ export default function EnhancedDashboardPage() {
           <CardHeader className="bg-gradient-to-r from-primary/10 to-accent/10 p-6">
             <div className="flex items-center space-x-4">
               <Avatar className="w-20 h-20 border-4 border-background shadow-md">
-                <AvatarImage src="https://placehold.co/100x100.png" alt="User Avatar" width={100} height={100} data-ai-hint="person avatar" />
+                <AvatarImage 
+                  src={userProfilePic || "https://placehold.co/100x100.png"} 
+                  alt={userName} 
+                  width={100} height={100} 
+                  data-ai-hint="profile avatar"
+                  className="object-cover"
+                />
                 <AvatarFallback><UserCircle className="w-10 h-10" /></AvatarFallback>
               </Avatar>
               <div>

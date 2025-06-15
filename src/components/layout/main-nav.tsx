@@ -4,12 +4,13 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { LayoutDashboard, History, LogOut, Brain, DatabaseZap, Edit3, Layers, GraduationCap, MessageCircleQuestion, Code2 } from "lucide-react";
+import { LayoutDashboard, History, LogOut, Brain, DatabaseZap, Edit3, Layers, GraduationCap, MessageCircleQuestion, Code2, User } from "lucide-react"; // Added User icon
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
 
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/profile", label: "My Profile", icon: User }, // Added Profile link
   { href: "/knowledge-base/new", label: "Add to Knowledge", icon: DatabaseZap },
   { href: "/quiz-session/new", label: "New Quiz", icon: Brain },
   { href: "/quiz-from-kb", label: "Quiz from KB", icon: Edit3 },
@@ -29,8 +30,18 @@ export function MainNav() {
       localStorage.removeItem("isLoggedIn");
       localStorage.removeItem("userName");
       localStorage.removeItem("userEmail");
+      localStorage.removeItem("userDepartment");
+      localStorage.removeItem("userInstitution");
+      localStorage.removeItem("userBirthday");
+      localStorage.removeItem("userProfilePic");
+      // Clear other session-specific data
+      localStorage.removeItem('activeTutorSession');
+      localStorage.removeItem('activeFlashcardSession');
+      localStorage.removeItem('activeInteractiveTutorSession');
+      localStorage.removeItem('activeAskMrKnowSession');
+      localStorage.removeItem('activeCodeTeachingSession');
     }
-    router.push("/login");
+    router.push("/"); // Redirect to homepage after logout
   };
 
   return (
