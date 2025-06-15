@@ -1,15 +1,16 @@
 
 import type { Question, Flashcard } from '@/app/actions'; 
 
+// ---- Quiz Session (Old Tutor) ----
 export interface TutorSessionData {
   documentName: string;
   summary: string;
   questions: Question[];
-  documentContent?: string;
-  mediaDataUri?: string;
+  documentContent?: string; // Original content used to generate quiz
+  mediaDataUri?: string;  // Original media URI
 }
 
-const ACTIVE_TUTOR_SESSION_KEY = 'activeTutorSession';
+const ACTIVE_TUTOR_SESSION_KEY = 'activeTutorSession'; // For quiz feature
 
 export const setActiveTutorSession = (data: TutorSessionData | null): void => {
   if (typeof window === 'undefined') return;
@@ -26,25 +27,25 @@ export const getActiveTutorSession = (): TutorSessionData | null => {
   try {
     return storedData ? JSON.parse(storedData) : null;
   } catch (e) {
-    console.error("Error parsing active tutor session from localStorage", e);
+    console.error("Error parsing active quiz session from localStorage", e);
     return null;
   }
 };
 
 
-// For learning history (persisted)
+// ---- Learning History (Persisted for Quizzes) ----
 const HISTORY_STORAGE_KEY = 'geminiAITutorHistory';
 
 export interface HistoryItem {
-  id: string;
+  id: string; // Unique ID for the history entry
   documentName: string;
-  summary: string;
-  questions: Question[]; 
-  documentContent?: string;
-  mediaDataUri?: string;
-  userAnswers: (number | null)[]; 
-  score: number; 
-  completedAt: string; 
+  summary: string; // Summary at the time of the quiz
+  questions: Question[]; // Questions asked in that session
+  documentContent?: string; // Full content (optional, for review context)
+  mediaDataUri?: string;   // Media URI (optional, for review context)
+  userAnswers: (number | null)[]; // User's answers (index or null if not answered)
+  score: number; // Number of correct answers
+  completedAt: string; // ISO date string
 }
 
 export const getLearningHistory = (): HistoryItem[] => {
@@ -63,14 +64,15 @@ export const addToLearningHistory = (item: HistoryItem): void => {
   const history = getLearningHistory();
   const existingIndex = history.findIndex(h => h.id === item.id);
   if (existingIndex > -1) {
-    history[existingIndex] = item;
+    history[existingIndex] = item; // Update if ID exists (e.g. re-quiz)
   } else {
-    history.unshift(item);
+    history.unshift(item); // Add new item to the beginning
   }
+  // Limit history to a reasonable number, e.g., 50 items
   localStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify(history.slice(0, 50)));
 };
 
-// For active flashcard session
+// ---- Active Flashcard Session ----
 export interface FlashcardSessionData {
   documentName: string;
   flashcards: Flashcard[];
@@ -98,57 +100,51 @@ export const getActiveFlashcardSession = (): FlashcardSessionData | null => {
   }
 };
 
-// For Interactive Tutor Session
-export interface InteractiveTutorMiniQuiz {
-  question: string;
-  type: 'mcq' | 'short_answer';
-  options?: string[]; 
-  answer?: number | string; 
-  explanation?: string;
+// ---- Active Interactive Tavus Video Tutor Session ----
+export interface ChatHistoryMessage { // For Tavus tutor chat log
+  role: 'user' | 'model';
+  text: string;
+  timestamp: string;
 }
-
-export interface InteractiveTutorStepData {
-  topic: string;
-  explanation: string;
-  explanationAudioUri?: string; 
-  miniQuiz?: InteractiveTutorMiniQuiz;
-  isLastStep: boolean;
-}
-
-export interface ActiveInteractiveTutorSessionData {
+export interface ActiveInteractiveTavusTutorSessionData {
+  kbItemId: string; // ID of the knowledge base item being tutored
   documentName: string;
   documentContent: string; 
   mediaDataUri?: string;   
-  currentStepIndex: number;
-  currentStepData: InteractiveTutorStepData;
+  conversationId: string; // Tavus conversation ID
+  clientSecret: string;   // Tavus client secret
+  chatHistory: ChatHistoryMessage[];
+  initialVideoUrl?: string; // Video URL for the tutor's greeting
+  initialAiText?: string;   // Text for the tutor's greeting
+  tavusPersonaSystemPrompt: string; // The system prompt used to init Tavus persona context
 }
 
-const ACTIVE_INTERACTIVE_TUTOR_SESSION_KEY = 'activeInteractiveTutorSession';
+const ACTIVE_INTERACTIVE_TAVUS_TUTOR_SESSION_KEY = 'activeInteractiveTavusTutorSession';
 
-export const setActiveInteractiveTutorSession = (data: ActiveInteractiveTutorSessionData | null): void => {
+export const setActiveInteractiveTavusTutorSession = (data: ActiveInteractiveTavusTutorSessionData | null): void => {
   if (typeof window === 'undefined') return;
   if (data === null) {
-    localStorage.removeItem(ACTIVE_INTERACTIVE_TUTOR_SESSION_KEY);
+    localStorage.removeItem(ACTIVE_INTERACTIVE_TAVUS_TUTOR_SESSION_KEY);
   } else {
-    localStorage.setItem(ACTIVE_INTERACTIVE_TUTOR_SESSION_KEY, JSON.stringify(data));
+    localStorage.setItem(ACTIVE_INTERACTIVE_TAVUS_TUTOR_SESSION_KEY, JSON.stringify(data));
   }
 };
 
-export const getActiveInteractiveTutorSession = (): ActiveInteractiveTutorSessionData | null => {
+export const getActiveInteractiveTavusTutorSession = (): ActiveInteractiveTavusTutorSessionData | null => {
   if (typeof window === 'undefined') return null;
-  const storedData = localStorage.getItem(ACTIVE_INTERACTIVE_TUTOR_SESSION_KEY);
+  const storedData = localStorage.getItem(ACTIVE_INTERACTIVE_TAVUS_TUTOR_SESSION_KEY);
   try {
     return storedData ? JSON.parse(storedData) : null;
   } catch (e) {
-    console.error("Error parsing active interactive tutor session from localStorage", e);
+    console.error("Error parsing active interactive Tavus tutor session from localStorage", e);
     return null;
   }
 };
 
-// For "Ask Mr. Know" Chat Session
+
+// ---- Active "Ask Mr. Know" Chat Session ----
 export interface AskMrKnowMessagePart {
   text?: string;
-  // Future: inlineData for images/files from user or AI
 }
 export interface AskMrKnowMessage {
   role: 'user' | 'model';
@@ -157,7 +153,7 @@ export interface AskMrKnowMessage {
 }
 
 export interface ActiveAskMrKnowSessionData {
-  kbItemId: string; // To know which KB item is the context
+  kbItemId: string; 
   documentName: string;
   documentContent: string;
   mediaDataUri?: string;
@@ -187,7 +183,7 @@ export const getActiveAskMrKnowSession = (): ActiveAskMrKnowSessionData | null =
 };
 
 
-// For "Code with Me" Session
+// ---- Active "Code with Me" Session ----
 export interface CodeTeachingStepData {
   topic: string;
   explanation: string;
@@ -205,9 +201,9 @@ export interface CodeTeachingSessionHistoryItem {
 
 export interface ActiveCodeTeachingSessionData {
   language: string;
-  currentTopic: string; // The broader topic, managed by AI's nextTopicSuggestion
+  currentTopic: string; 
   currentStepData: CodeTeachingStepData;
-  history: CodeTeachingSessionHistoryItem[]; // To provide context for feedback
+  history: CodeTeachingSessionHistoryItem[]; 
 }
 
 const ACTIVE_CODE_TEACHING_SESSION_KEY = 'activeCodeTeachingSession';
@@ -231,3 +227,5 @@ export const getActiveCodeTeachingSession = (): ActiveCodeTeachingSessionData | 
     return null;
   }
 };
+
+    

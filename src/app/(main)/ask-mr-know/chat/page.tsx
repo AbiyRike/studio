@@ -50,7 +50,7 @@ export default function AskMrKnowChatPage() {
     if (data && data.chatHistory) {
       setSessionData(data);
     } else {
-      setError("No active chat session found or session is invalid. Please start a new session by selecting content.");
+      setError("No active chat session found or session is invalid. Please start a new session with Ask Mr. Know."); // Updated text
       setActiveAskMrKnowSession(null);
     }
     setIsLoading(false);
@@ -95,7 +95,7 @@ export default function AskMrKnowChatPage() {
     setIsSending(false);
 
     if ('error' in aiResponse) {
-      toast({ title: "StudyEthiopia AI+ Error", description: aiResponse.error, variant: "destructive" });
+      toast({ title: "Ask Mr. Know Error", description: aiResponse.error, variant: "destructive" }); // Updated text
     } else {
       const updatedSessionWithAiMsg: ActiveAskMrKnowSessionData = {
         ...updatedSessionWithUserMsg,
@@ -130,9 +130,9 @@ export default function AskMrKnowChatPage() {
               <CardTitle className="text-destructive mt-2">Session Error</CardTitle>
             </CardHeader>
             <CardContent>
-              <p>{error || "Could not load chat session data."}</p>
+              <p>{error || "Could not load Ask Mr. Know chat session data."}</p> {/* Updated text */}
               <Button onClick={() => router.push('/ask-mr-know/select')} className="mt-4">
-                <ArrowLeft className="mr-2 h-4 w-4" /> Back to Content Selection
+                <ArrowLeft className="mr-2 h-4 w-4" /> Back to Ask Mr. Know Selection {/* Updated text */}
               </Button>
             </CardContent>
           </Card>
@@ -149,7 +149,7 @@ export default function AskMrKnowChatPage() {
         <Card className="w-full max-w-3xl mx-auto shadow-xl flex flex-col flex-grow">
           <CardHeader className="text-center border-b">
             <MessageCircleQuestion className="mx-auto h-10 w-10 text-primary mb-2" />
-            <CardTitle className="text-2xl font-headline">Chat with StudyEthiopia AI+</CardTitle>
+            <CardTitle className="text-2xl font-headline">Chat with Ask Mr. Know</CardTitle> {/* Updated text */}
             <CardDescription>Chatting about: {sessionData.documentName}</CardDescription>
           </CardHeader>
 
@@ -218,7 +218,7 @@ export default function AskMrKnowChatPage() {
           <CardFooter className="p-4 border-t">
             <div className="flex w-full items-center space-x-2">
               <Textarea
-                placeholder="Ask StudyEthiopia AI+ about the content..."
+                placeholder="Ask Mr. Know about the content..." /* Updated text */
                 value={userMessage}
                 onChange={(e) => setUserMessage(e.target.value)}
                 onKeyDown={(e) => {
@@ -252,3 +252,4 @@ export default function AskMrKnowChatPage() {
   );
 }
 
+    

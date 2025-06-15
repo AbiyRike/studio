@@ -9,7 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { getLearningHistory, type HistoryItem } from '@/lib/session-store';
 import { getKnowledgeBaseItems } from '@/lib/knowledge-base-store';
-import { Brain, Layers, UserCircle, TrendingUp, BookCopy, Target, AlertTriangle, PieChart, CheckSquare, Activity, DatabaseZap, Edit3, GraduationCap, CheckCircle2, XCircle, HelpCircle, MessageCircleQuestion, Code2, BookOpenCheck, Briefcase } from 'lucide-react';
+import { Brain, Layers, UserCircle, TrendingUp, BookCopy, Target, AlertTriangle, PieChart, CheckSquare, Activity, DatabaseZap, Edit3, GraduationCap, CheckCircle2, XCircle, HelpCircle, MessageCircleQuestion, Code2, BookOpenCheck, Briefcase, Video } from 'lucide-react';
 import { format } from 'date-fns';
 
 const ClientAuthGuard = ({ children }: { children: React.ReactNode }) => {
@@ -137,7 +137,7 @@ export default function EnhancedDashboardPage() {
 
   useEffect(() => {
     loadUserData();
-    window.addEventListener('storage', loadUserData); // Listen for changes from profile page
+    window.addEventListener('storage', loadUserData); 
     return () => {
       window.removeEventListener('storage', loadUserData);
     };
@@ -217,15 +217,15 @@ export default function EnhancedDashboardPage() {
             />
             <FeatureButton
               href="/interactive-tutor/select"
-              icon={GraduationCap}
-              title="Interactive Tutor"
-              description="Select from KB for a step-by-step AI tutoring session with StudyEthiopia AI+."
+              icon={Video} // Changed from GraduationCap
+              title="Interactive Video Tutor"
+              description="Select from KB for a step-by-step AI video tutoring session with StudyEthiopia AI+."
               className="bg-gradient-to-br from-purple-500/5 via-transparent to-purple-500/5 hover:from-purple-500/10 hover:to-purple-500/10"
             />
              <FeatureButton
-              href="/ask-mr-know/select" // Path remains for now, label reflects change
+              href="/ask-mr-know/select"
               icon={MessageCircleQuestion}
-              title="Chat with StudyEthiopia AI"
+              title="Ask Mr. Know" 
               description="Chat with StudyEthiopia AI+ about content selected from your knowledge base."
               className="bg-gradient-to-br from-sky-500/5 via-transparent to-sky-500/5 hover:from-sky-500/10 hover:to-sky-500/10"
             />

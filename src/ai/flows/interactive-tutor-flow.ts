@@ -1,7 +1,7 @@
 
 'use server';
 /**
- * @fileOverview Interactive tutoring AI agent, StudyEthiopia AI+.
+ * @fileOverview Interactive tutoring AI agent, StudyEthiopia AI+. (Legacy step-based, potentially for non-video interactions or reference)
  *
  * - getNextInteractiveTutorStep - A function that determines the next step in a tutoring session.
  * - InteractiveTutorInput - The input type for the function.
@@ -10,7 +10,6 @@
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
-import type { InteractiveTutorStepData } from '@/lib/session-store'; // Assuming type is there
 
 // Define Zod schemas based on InteractiveTutorStepData and its nested types
 const MiniQuizSchema = z.object({
@@ -65,11 +64,16 @@ export async function getNextInteractiveTutorStep(input: InteractiveTutorInput):
   } catch (e) {
     console.error("Error in getNextInteractiveTutorStep flow execution:", e);
     const errorMessage = e instanceof Error ? e.message : "An unknown error occurred in the tutor flow.";
+    // Specific error handling based on error message content
     if (errorMessage.includes("rate limit") || errorMessage.includes("quota") || errorMessage.includes("503") || errorMessage.toLowerCase().includes("overloaded")) {
         return { error: "It seems my systems are a bit busy at the moment. Let's take a short break and try again in a few moments, okay?" };
     }
     if (errorMessage.toLowerCase().includes("safety") || errorMessage.toLowerCase().includes("blocked")) {
         return { error: "It seems some part of our current topic or your response triggered a safety filter. Let's try rephrasing or moving to a slightly different aspect of the subject."};
+    }
+    // Check for the specific Handlebars parsing error message
+    if (errorMessage.includes("Parse error") && errorMessage.includes("currentStep")) {
+        return { error: `I encountered an issue while preparing the next step. Details: ${errorMessage}. This seems to be a template problem. Let's try that again?` };
     }
     return { error: `I encountered an issue while preparing the next step. Details: ${errorMessage}. Maybe we can try that again?` };
   }
@@ -106,7 +110,13 @@ Tutoring Session Context:
 - Step Number You Are Generating: {{{currentStep}}} (0-indexed).
 {{#if currentTopic}}- Previous Topic Focus: {{{currentTopic}}}{{/if}}
 {{#if previousExplanation}}- Previous Explanation You Gave: {{{previousExplanation}}}{{/if}}
-{{#if userQuizAnswer}}- User's Answer to Last Mini-Quiz: {{{userQuizAnswer}}} (Evaluate this. If it's incorrect or shows misunderstanding, your new 'explanation' should gently clarify or re-approach the concept. If correct, acknowledge and build upon it.) {{else if currentStep > 0}} (No quiz answer submitted for the previous step, or there was no quiz.) {{/if}}
+{{#if userQuizAnswer}}
+- User's Answer to Last Mini-Quiz: {{{userQuizAnswer}}} (Evaluate this. If it's incorrect or shows misunderstanding, your new 'explanation' should gently clarify or re-approach the concept. If correct, acknowledge and build upon it.)
+{{else}}
+  {{#if currentStep}} {{! This is only true if currentStep is not 0, i.e., > 0 }}
+  (No quiz answer submitted for the previous step, or there was no quiz.)
+  {{/if}}
+{{/if}}
 
 Task for generating step {{{currentStep}}}:
 1.  'topic': Determine the next logical topic or sub-topic from the document content. If step 0, provide an introductory topic. If {{{currentTopic}}} was "Congratulations..." then this is truly the end.
@@ -142,11 +152,9 @@ const interactiveTutorFlow = ai.defineFlow(
     const {output} = await prompt(input);
     if (!output) {
         console.warn("AI returned null output for interactive tutor step.");
-        return {
-            topic: "Let's Try That Again",
-            explanation: "I had a little trouble generating the next step. Could we try proceeding again, or perhaps you'd like to rephrase your last response if you provided one?",
-            isLastStep: false, // Assume not last step on error, to allow retry
-        };
+        // This specific error message is for the UI, the actual error for the flow might be more generic
+        // The wrapper function `getNextInteractiveTutorStep` handles more specific error messages for the client.
+        throw new Error("AI tutor did not generate a valid step.");
     }
     // Ensure quiz structure is valid if present
     if (output.miniQuiz) {
