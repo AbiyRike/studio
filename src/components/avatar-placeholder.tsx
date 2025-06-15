@@ -29,12 +29,12 @@ export function AvatarPlaceholder({ feedbackType = 'neutral', message, subMessag
       <CardContent className="p-6 flex flex-col items-center space-y-3">
         <div className="rounded-full overflow-hidden border-4 border-background shadow-md">
           <Image
-            src="data:image/png;base64,AI_TUTOR_AVATAR_DATA"
+            src="https://placehold.co/150x150.png"
             alt="AI Tutor Avatar"
             width={150}
             height={150}
             className="object-cover"
-            
+            data-ai-hint="robot friendly"
           />
         </div>
         <p className="text-center text-foreground font-semibold text-lg">{avatarMessage}</p>
