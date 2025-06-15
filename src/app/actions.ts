@@ -537,7 +537,7 @@ export async function startCodeTeachingSession(
   try {
     const firstStepInput: AIGetCodeTeachingStepInput = {
       language: input.language,
-      currentTopic: "Syntax Basics", // Initial topic
+      currentTopic: "Syntax Basics", 
     };
     const firstStepResult = await getCodeTeachingStepFlow(firstStepInput);
 
@@ -548,7 +548,7 @@ export async function startCodeTeachingSession(
 
     return {
       language: input.language,
-      currentTopic: validFirstStepResult.topic, // Use topic from AI
+      currentTopic: validFirstStepResult.topic, 
       currentStepData: validFirstStepResult,
       history: [],
     };
@@ -566,7 +566,7 @@ export async function getNextCodeTeachingStep(
   try {
     const nextStepInput: AIGetCodeTeachingStepInput = {
       language: currentSession.language,
-      currentTopic: currentSession.currentStepData.nextTopicSuggestion || currentSession.currentTopic, // Use AI's suggestion or fallback
+      currentTopic: currentSession.currentStepData.nextTopicSuggestion || currentSession.currentTopic,
       previousExplanation: currentSession.currentStepData.explanation,
       userAnswerOrCode: userAnswerOrCode,
     };
@@ -582,4 +582,62 @@ export async function getNextCodeTeachingStep(
     const errorMessage = e instanceof Error ? e.message : "Unknown error.";
     return { error: `Failed to get next step: ${errorMessage}` };
   }
+}
+
+// ---- Tavus Live Tutor Actions ----
+export interface TavusConversationDetails {
+  conversation_id: string;
+  client_secret: string;
+  // Add any other relevant fields from Tavus API response
+}
+
+// Simulates initiating a Tavus conversation.
+// In a real application, this would make a POST request to https://tavusapi.com/v2/conversations
+// with the API key in headers and persona_id in the body.
+export async function initiateTavusLiveSession(personaId: string): Promise<TavusConversationDetails | { error: string }> {
+  const apiKey = process.env.TAVUS_API_KEY;
+  if (!apiKey) {
+    console.error("Tavus API key is not set in .env file.");
+    return { error: "Tavus API key is not configured. Please contact support." };
+  }
+  if (!personaId) {
+    return { error: "Persona ID is required to start a Tavus session." };
+  }
+
+  // --- SIMULATED API CALL ---
+  // console.log(`Simulating Tavus API call to create conversation for persona: ${personaId} with key ${apiKey}`);
+  // Replace this with the actual fetch call in a real backend/secure environment
+  try {
+    // const response = await fetch('https://tavusapi.com/v2/conversations', {
+    //   method: 'POST',
+    //   headers: {
+    //     "Content-Type": "application/json",
+    //     "x-api-key": apiKey 
+    //   },
+    //   body: JSON.stringify({ persona_id: personaId }),
+    // });
+    // if (!response.ok) {
+    //   const errorData = await response.json();
+    //   console.error("Tavus API Error:", errorData);
+    //   return { error: `Tavus API error: ${errorData.message || response.statusText}` };
+    // }
+    // const data = await response.json();
+    // return { conversation_id: data.conversation_id, client_secret: data.client_secret };
+    
+    // Simulated success for now:
+    await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate network delay
+    const simulatedConversationId = `conv_sim_${Date.now()}`;
+    const simulatedClientSecret = `sec_sim_${Math.random().toString(36).substring(2)}`;
+    console.log(`Simulated Tavus Session: ID - ${simulatedConversationId}, Secret - ${simulatedClientSecret}`);
+    return {
+      conversation_id: simulatedConversationId,
+      client_secret: simulatedClientSecret,
+    };
+
+  } catch (error) {
+    console.error('Error initiating Tavus conversation:', error);
+    const errorMessage = error instanceof Error ? error.message : "An unknown error occurred while initiating Tavus session.";
+    return { error: errorMessage };
+  }
+  // --- END SIMULATED API CALL ---
 }
