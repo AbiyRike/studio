@@ -1,9 +1,11 @@
 
 'use server';
 /**
- * @fileOverview Interactive tutoring AI agent, StudyEthiopia AI+. (Legacy step-based, potentially for non-video interactions or reference)
+ * @fileOverview Interactive tutoring AI agent, StudyEthiopia AI+. (Legacy step-based, for non-video interactions or reference)
+ * This flow generates text-based tutoring steps with explanations and optional mini-quizzes.
+ * It is NOT used for the Tavus video tutor, which has its own persona and text generation flows.
  *
- * - getNextInteractiveTutorStep - A function that determines the next step in a tutoring session.
+ * - getNextInteractiveTutorStep (exported as getNextTextTutorStepFlow from actions.ts) - A function that determines the next step in a text-based tutoring session.
  * - InteractiveTutorInput - The input type for the function.
  * - InteractiveTutorOutput - The return type (a single tutoring step).
  */
@@ -38,7 +40,7 @@ export type InteractiveTutorInput = z.infer<typeof InteractiveTutorInputSchema>;
 
 const InteractiveTutorOutputSchema = z.object({
   topic: z.string().describe('The specific topic or sub-topic for this tutoring step. Should be a concise title for the explanation to follow.'),
-  explanation: z.string().describe('A clear and concise explanation of the current topic/concept, derived from the document content. If the user answered a quiz, feedback can be woven in or a new point made. Language should be warm, patient, and empowering. Use culturally relevant analogies for Ethiopian students if possible.'),
+  explanation: z.string().describe('A clear and concise explanation of the current topic/concept, derived from the document content. If the user gave a quiz answer, feedback can be woven in or a new point made. Language should be warm, patient, and empowering. Use culturally relevant analogies for Ethiopian students if possible.'),
   explanationAudioUri: z.string().optional().describe('Placeholder for a URI to a TTS audio of the explanation. The AI should not generate this URI; it is for system use.'),
   miniQuiz: MiniQuizSchema.optional().describe('An optional mini-quiz question to check understanding of the current explanation. If a quiz is provided, it must include a question and type. For MCQs, provide 3-4 options. Questions should be encouraging.'),
   isLastStep: z.boolean().describe('Indicates if this is the last step in the tutoring session for the given content. Set to true ONLY when all meaningful and distinct sub-topics from the provided content have been covered and the student is ready to conclude.'),
@@ -64,16 +66,11 @@ export async function getNextInteractiveTutorStep(input: InteractiveTutorInput):
   } catch (e) {
     console.error("Error in getNextInteractiveTutorStep flow execution:", e);
     const errorMessage = e instanceof Error ? e.message : "An unknown error occurred in the tutor flow.";
-    // Specific error handling based on error message content
     if (errorMessage.includes("rate limit") || errorMessage.includes("quota") || errorMessage.includes("503") || errorMessage.toLowerCase().includes("overloaded")) {
         return { error: "It seems my systems are a bit busy at the moment. Let's take a short break and try again in a few moments, okay?" };
     }
     if (errorMessage.toLowerCase().includes("safety") || errorMessage.toLowerCase().includes("blocked")) {
         return { error: "It seems some part of our current topic or your response triggered a safety filter. Let's try rephrasing or moving to a slightly different aspect of the subject."};
-    }
-    // Check for the specific Handlebars parsing error message
-    if (errorMessage.includes("Parse error") && errorMessage.includes("currentStep")) {
-        return { error: `I encountered an issue while preparing the next step. Details: ${errorMessage}. This seems to be a template problem. Let's try that again?` };
     }
     return { error: `I encountered an issue while preparing the next step. Details: ${errorMessage}. Maybe we can try that again?` };
   }
@@ -113,7 +110,7 @@ Tutoring Session Context:
 {{#if userQuizAnswer}}
 - User's Answer to Last Mini-Quiz: {{{userQuizAnswer}}} (Evaluate this. If it's incorrect or shows misunderstanding, your new 'explanation' should gently clarify or re-approach the concept. If correct, acknowledge and build upon it.)
 {{else}}
-  {{#if currentStep}} {{! This is only true if currentStep is not 0, i.e., > 0 }}
+  {{#if currentStep}} {{! This condition checks if currentStep is truthy (i.e., not 0) }}
   (No quiz answer submitted for the previous step, or there was no quiz.)
   {{/if}}
 {{/if}}
@@ -152,9 +149,7 @@ const interactiveTutorFlow = ai.defineFlow(
     const {output} = await prompt(input);
     if (!output) {
         console.warn("AI returned null output for interactive tutor step.");
-        // This specific error message is for the UI, the actual error for the flow might be more generic
-        // The wrapper function `getNextInteractiveTutorStep` handles more specific error messages for the client.
-        throw new Error("AI tutor did not generate a valid step.");
+        throw new Error("AI tutor did not generate a valid step. The AI's response was empty.");
     }
     // Ensure quiz structure is valid if present
     if (output.miniQuiz) {
@@ -167,5 +162,3 @@ const interactiveTutorFlow = ai.defineFlow(
     return output;
   }
 );
-
-    

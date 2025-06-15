@@ -4,17 +4,17 @@
 import { summarizeDocument } from "@/ai/flows/summarize-document";
 import { generateQuestions, type GenerateQuestionsInput as AIQuestionsInput } from "@/ai/flows/generate-questions";
 import { generateFlashcards, type GenerateFlashcardsInput as AIFlashcardsInput } from "@/ai/flows/generate-flashcards";
-// Removed import for old interactive tutor flow: import { getNextInteractiveTutorStep as getNextTutorStepFlow, type InteractiveTutorInput as AIInteractiveTutorInput } from "@/ai/flows/interactive-tutor-flow";
-import { chatWithStudyEthiopiaAI, type AskStudyEthiopiaAIInput as AIAskStudyEthiopiaAIInput, type AskStudyEthiopiaAIOutput } from "@/ai/flows/ask-mr-know-flow.ts";
+import { getNextInteractiveTutorStep as getNextTextTutorStepFlow, type InteractiveTutorInput as TextTutorInput, type InteractiveTutorOutput as TextTutorOutput } from "@/ai/flows/interactive-tutor-flow"; // Aliased
+import { chatWithStudyEthiopiaAI, type AskStudyEthiopiaAIInput as AIAskStudyEthiopiaAIInput, type AskStudyEthiopiaAIOutput } from "@/ai/flows/ask-mr-know-flow";
 import { getProgrammingLanguages as getProgrammingLanguagesFlow, type GetProgrammingLanguagesInput as AIGetProgrammingLanguagesInput } from "@/ai/flows/get-programming-languages-flow.ts";
-import { getCodeTeachingStep as getCodeTeachingStepFlow, type GetCodeTeachingStepInput as AIGetCodeTeachingStepInput } from "@/ai/flows/get-code-teaching-step-flow.ts";
-import { generateTavusTutorPersonaContextFlow, type GenerateTavusTutorPersonaContextInput, type GenerateTavusTutorPersonaContextOutput } from "@/ai/flows/generate-tavus-tutor-persona-context-flow";
-import { getNextTavusTutorTextFlow, type GetNextTavusTutorTextInput, type GetNextTavusTutorTextOutput } from "@/ai/flows/get-next-tavus-tutor-text-flow";
+import { getCodeTeachingStep as getCodeTeachingStepFlow, type GetCodeTeachingStepInput as AIGetCodeTeachingStepInput, type GetCodeTeachingStepOutput as AIGetCodeTeachingStepOutput } from "@/ai/flows/get-code-teaching-step-flow.ts";
+import { generateTavusTutorPersonaContext, type GenerateTavusTutorPersonaContextInput } from "@/ai/flows/generate-tavus-tutor-persona-context-flow";
+import { getNextTavusTutorText as getNextTavusTutorTextFlow, type GetNextTavusTutorTextInput } from "@/ai/flows/get-next-tavus-tutor-text-flow";
 
 
 import type { SummarizeDocumentInput } from "@/ai/flows/summarize-document";
 import { generateId, type KnowledgeBaseItem } from '@/lib/knowledge-base-store'; 
-import type { AskMrKnowMessage, ActiveAskMrKnowSessionData, CodeTeachingStepData, ActiveCodeTeachingSessionData, ActiveInteractiveTavusTutorSessionData, ChatHistoryMessage } from '@/lib/session-store'; // Added new Tavus session types
+import type { AskMrKnowMessage, ActiveAskMrKnowSessionData, CodeTeachingStepData, ActiveCodeTeachingSessionData, ActiveInteractiveTavusTutorSessionData, ChatHistoryMessage as TavusChatMessage } from '@/lib/session-store'; 
 
 
 export interface Question {
@@ -84,7 +84,6 @@ export async function processContentForTutor(
         }
       ];
        console.warn("AI failed to generate initial questions. Using sample questions.");
-       // toast is not available in server actions, logging is appropriate
     }
     
     const questionsWithExplanation = initialQuestions.map(q => ({
@@ -227,7 +226,7 @@ export async function summarizeAndGetDataForStorage(
 
 export interface GenerateQuizFromKBItemInput {
   documentName: string;
-  documentContent: string;
+  documentContent?: string; // Made optional as media can be primary
   mediaDataUri?: string;
   summary: string; 
 }
@@ -239,11 +238,11 @@ export async function generateQuizSessionFromKBItem(
     const { documentName, documentContent, mediaDataUri, summary } = input;
 
     if (!documentName || (!documentContent && !mediaDataUri)) {
-      return { error: "Invalid knowledge base item data provided." };
+      return { error: "Invalid knowledge base item data provided. Document name and content (text or media) are required." };
     }
 
     const aiInitialQuestionsInput: AIQuestionsInput = {
-      documentContent,
+      documentContent: documentContent || "", // Pass empty string if not available
       ...(mediaDataUri && { photoDataUri: mediaDataUri }),
       numberOfQuestions: 5,
       previousQuestionTexts: [],
@@ -273,7 +272,7 @@ export async function generateQuizSessionFromKBItem(
       documentName,
       summary: summary, 
       questions: questionsWithExplanation,
-      documentContent: documentContent,
+      documentContent: documentContent || "",
       mediaDataUri: mediaDataUri,
     };
 
@@ -304,7 +303,7 @@ export interface FlashcardSessionData {
 
 export interface GenerateFlashcardsFromKBItemInput {
   documentName: string;
-  documentContent: string;
+  documentContent?: string; // Made optional
   mediaDataUri?: string;
 }
 
@@ -319,7 +318,7 @@ export async function generateFlashcardsFromKBItem(
     }
 
     const aiFlashcardsInput: AIFlashcardsInput = {
-      documentContent,
+      documentContent: documentContent || "",
       ...(mediaDataUri && { photoDataUri: mediaDataUri }),
       numberOfFlashcards: 10, 
     };
@@ -350,13 +349,14 @@ export async function generateFlashcardsFromKBItem(
   }
 }
 
+
 // ---- Tavus-based Interactive Video Tutor Actions ----
-export async function startInteractiveTavusTutorSession(
+export async function startInteractiveTutorSession( 
   kbItem: KnowledgeBaseItem
 ): Promise<ActiveInteractiveTavusTutorSessionData | { error: string }> {
   try {
     if (!kbItem || (!kbItem.documentContent && !kbItem.mediaDataUri)) {
-      return { error: "Knowledge base item is missing content. Cannot start Tavus tutor session." };
+      return { error: "Knowledge base item is missing content. Cannot start video tutor session." };
     }
 
     const personaInput: GenerateTavusTutorPersonaContextInput = {
@@ -365,54 +365,90 @@ export async function startInteractiveTavusTutorSession(
         mediaDataUri: kbItem.mediaDataUri,
     };
     
-    const personaContextResult = await generateTavusTutorPersonaContextFlow(personaInput);
+    const personaContextResult = await generateTavusTutorPersonaContext(personaInput);
     
-    if ('error' in personaContextResult) {
-        return { error: `Failed to get first tutoring step: ${personaContextResult.error}` };
+    if ('error' in personaContextResult || !personaContextResult.conversation_name || !personaContextResult.conversational_context || !personaContextResult.custom_greeting) {
+        return { error: `Failed to generate tutor persona: ${personaContextResult.error || "Incomplete persona data returned."}` };
     }
     
-    // Simulate initial greeting from Tavus based on custom_greeting
-    const initialAiText = personaContextResult.custom_greeting || `Hello! I'm StudyEthiopia AI+, your tutor for ${kbItem.documentName}. What would you like to explore first regarding '${kbItem.documentName}'?`;
-    // Placeholder for the actual video URL that Tavus would provide for the greeting
-    const initialVideoUrl = "https://storage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4"; 
-
-    // Simulate Tavus API call to create conversation
     const tavusApiKey = process.env.TAVUS_API_KEY;
     if (!tavusApiKey) {
-      console.error("TAVUS_API_KEY not found in .env for startInteractiveTavusTutorSession");
+      console.error("TAVUS_API_KEY not found in .env for startInteractiveTutorSession (Video Tutor)");
       return { error: "Video Tutor configuration error (API Key). Please contact support." };
     }
 
-    const simulatedConversationId = `tavus_conv_${generateId()}`;
-    const simulatedClientSecret = `tavus_secret_${generateId()}`;
-    console.log(`Simulated Tavus Conversation Creation for: ${kbItem.documentName}, Persona Context: ${personaContextResult.conversational_context}`);
+    console.log(`SIMULATING Tavus Conversation Creation for Video Tutor:
+      Replica ID: r_generic_tutor_replica (Placeholder)
+      Conversation Name: ${personaContextResult.conversation_name}
+      Conversational Context (System Prompt for Tavus): ${personaContextResult.conversational_context}
+      Custom Greeting: ${personaContextResult.custom_greeting}
+      Properties: max_call_duration: 3600, enable_recording: true, etc.
+    `);
 
+    // Simulate actual API call
+    // const options = {
+    //   method: 'POST',
+    //   headers: {'x-api-key': tavusApiKey, 'Content-Type': 'application/json'},
+    //   body: JSON.stringify({
+    //     replica_id: "r_generic_tutor_replica", // Replace with actual generic replica if available
+    //     persona_id: "p_generic_tutor_persona", // Replace with actual generic persona if available
+    //     conversation_name: personaContextResult.conversation_name,
+    //     conversational_context: personaContextResult.conversational_context,
+    //     custom_greeting: personaContextResult.custom_greeting,
+    //     properties: { 
+    //       max_call_duration: 3600, enable_recording: true, enable_closed_captions: true, language: "english" 
+    //     }
+    //   })
+    // };
+    // try {
+    //   const response = await fetch('https://tavusapi.com/v2/conversations', options);
+    //   if (!response.ok) {
+    //     const errorData = await response.json();
+    //     console.error("Tavus API error (create conversation):", errorData);
+    //     return { error: `Tavus API error: ${errorData.message || response.statusText}`};
+    //   }
+    //   const tavusData = await response.json();
+    //   const conversationId = tavusData.conversation_id;
+    //   const clientSecret = tavusData.client_secret;
+    //   // The initial video/text might come from a webhook or first message if not part of creation response.
+    //   // For now, we'll use the custom_greeting as the initial AI text.
+    // } catch (fetchError) {
+    //   console.error("Fetch error calling Tavus API:", fetchError);
+    //   return { error: "Network error connecting to Tavus API for video tutor." };
+    // }
+
+
+    const simulatedConversationId = `tavus_tutor_conv_${generateId()}`;
+    const simulatedClientSecret = `tavus_tutor_secret_${generateId()}`;
+    
+    // Simulate initial video URL from Tavus based on custom_greeting
+    // This would normally be the first video Tavus sends back after conversation creation or first interaction
+    const initialVideoUrl = "https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerFun.mp4"; // Placeholder
 
     const sessionData: ActiveInteractiveTavusTutorSessionData = {
       kbItemId: kbItem.id,
       documentName: kbItem.documentName,
       documentContent: kbItem.documentContent || "",
       mediaDataUri: kbItem.mediaDataUri,
-      conversationId: simulatedConversationId, // From simulated Tavus API
-      clientSecret: simulatedClientSecret,   // From simulated Tavus API
-      chatHistory: [{ role: 'model', text: initialAiText, timestamp: new Date().toISOString() }],
-      initialVideoUrl: initialVideoUrl, // URL for the greeting video
-      initialAiText: initialAiText,     // Text of the greeting
-      tavusPersonaSystemPrompt: personaContextResult.conversational_context, // Store for potential future use if Tavus API structure allows modifying context mid-session
+      conversationId: simulatedConversationId, 
+      clientSecret: simulatedClientSecret,  
+      chatHistory: [{ role: 'model', text: personaContextResult.custom_greeting, timestamp: new Date().toISOString() }],
+      initialVideoUrl: initialVideoUrl, 
+      initialAiText: personaContextResult.custom_greeting,
+      tavusPersonaSystemPrompt: personaContextResult.conversational_context,
     };
     return sessionData;
 
   } catch (e) {
-    console.error("Error in startInteractiveTavusTutorSession:", e);
+    console.error("Error in startInteractiveTutorSession (Video Tutor):", e);
     const errorMessage = e instanceof Error ? e.message : "An unknown error occurred.";
     if (errorMessage.includes("rate limit") || errorMessage.includes("quota") || errorMessage.includes("503") || errorMessage.toLowerCase().includes("overloaded")) {
-      return { error: "The AI tutor service is currently busy. Please try again in a few moments." };
+      return { error: "The AI video tutor service is currently busy. Please try again in a few moments." };
     }
     if (errorMessage.toLowerCase().includes("safety") || errorMessage.toLowerCase().includes("blocked")) {
-      return { error: "The content could not be processed by the AI tutor due to safety filters. Please try with different content."};
+      return { error: "The content could not be processed by the video tutor due to safety filters. Please try with different content."};
     }
-    // This will catch errors from generateTavusTutorPersonaContextFlow if they are not handled inside it
-    return { error: `Failed to start Tavus tutoring session: ${errorMessage}` };
+    return { error: `Failed to start video tutoring session: ${errorMessage}` };
   }
 }
 
@@ -429,7 +465,7 @@ export async function getTavusTutorVideoResponse(
         documentName: currentSession.documentName,
         documentContent: currentSession.documentContent,
         photoDataUri: currentSession.mediaDataUri,
-        chatHistory: currentSession.chatHistory.map(m => ({ role: m.role, text: m.text })), // Map to simpler structure for AI
+        chatHistory: currentSession.chatHistory.map(m => ({ role: m.role, text: m.text })),
         userQuery: userText,
     };
 
@@ -439,13 +475,21 @@ export async function getTavusTutorVideoResponse(
         return { error: textResult.error || "The tutor could not generate a text response." };
     }
 
-    // Simulate sending textResult.tutorTextResponse to Tavus for video generation
-    // and getting a video URL back.
-    console.log(`Simulating Tavus video generation for conversation ${currentSession.conversationId} with text: "${textResult.tutorTextResponse}"`);
-    await new Promise(resolve => setTimeout(resolve, 1000 + Math.random() * 1500)); // Simulate API latency
+    const tavusApiKey = process.env.TAVUS_API_KEY;
+    if (!tavusApiKey) {
+      console.error("TAVUS_API_KEY not found for getTavusTutorVideoResponse");
+      return { error: "Video Tutor configuration error (API Key).", aiTextResponse: textResult.tutorTextResponse };
+    }
 
-    // Use a different placeholder video for subsequent responses
-    const simulatedVideoUrl = "https://storage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4"; 
+    console.log(`SIMULATING Tavus video generation for VIDEO TUTOR conversation ${currentSession.conversationId} with text: "${textResult.tutorTextResponse}"`);
+    // In a real Tavus integration, you would send textResult.tutorTextResponse to Tavus API
+    // (e.g., POST /v2/conversations/{conversation_id}/generate_video or via SDK methods)
+    // and then receive a video URL.
+    
+    // Simulate API call latency
+    await new Promise(resolve => setTimeout(resolve, 1000 + Math.random() * 1500)); 
+
+    const simulatedVideoUrl = "https://storage.googleapis.com/gtv-videos-bucket/sample/Sintel.mp4"; // Placeholder for subsequent videos
     
     return {
         videoUrl: simulatedVideoUrl,
@@ -472,26 +516,25 @@ export async function endTavusTutorSession(conversationId: string): Promise<{ su
         return { success: false, error: "Video Tutor configuration error (API Key). Cannot end session formally." };
     }
 
-    console.log(`Simulating ending Tavus conversation: ${conversationId}`);
-    // In a real scenario:
-    // const response = await fetch(`https://tavusapi.com/v2/conversations/${conversationId}/end`, {
-    //   method: 'POST',
-    //   headers: { 'x-api-key': tavusApiKey }
-    // });
-    // if (!response.ok) { 
-    //   const errorData = await response.json().catch(() => ({}));
-    //   return { success: false, error: `Failed to end Tavus session: ${errorData.message || response.statusText}` };
+    console.log(`SIMULATING ending Tavus conversation: ${conversationId}`);
+    // Real API call: POST https://tavusapi.com/v2/conversations/{conversation_id}/end
+    // const options = {method: 'POST', headers: {'x-api-key': tavusApiKey}};
+    // try {
+    //   const response = await fetch(`https://tavusapi.com/v2/conversations/${conversationId}/end`, options);
+    //   if (!response.ok) {
+    //     const errorData = await response.json();
+    //     return { success: false, error: `Failed to end Tavus session: ${errorData.message || response.statusText}` };
+    //   }
+    // } catch (fetchError) {
+    //   console.error("Fetch error ending Tavus session:", fetchError);
+    //   return { success: false, error: "Network error connecting to Tavus API to end session." };
     // }
-    // const data = await response.json().catch(() => ({}));
-    // return { success: true, message: data.message || "Session ended successfully." };
-    
-    // Simulated success:
     await new Promise(resolve => setTimeout(resolve, 200));
     return { success: true, message: "Tavus tutoring session ended successfully (simulated)." };
 }
 
 
-// ---- Ask Mr. Know (now Chat with StudyEthiopia AI+ for persona) Actions ----
+// ---- Ask Mr. Know (Chat with StudyEthiopia AI+) Actions ----
 export async function startAskMrKnowSession(
   kbItem: KnowledgeBaseItem
 ): Promise<ActiveAskMrKnowSessionData | { error: string }> {
@@ -536,7 +579,7 @@ export async function getNextAskMrKnowResponse(
       photoDataUri: currentSession.mediaDataUri,
       chatHistory: currentSession.chatHistory.map(msg => ({ 
         role: msg.role,
-        parts: msg.parts.map(p => ({ text: p.text })), // Ensure parts is an array of objects with text
+        parts: msg.parts.map(p => ({ text: p.text })),
       })), 
       userQuery: userMessage,
     };
@@ -547,10 +590,9 @@ export async function getNextAskMrKnowResponse(
         return { error: aiResponseOrError.error };
     }
     
-    const aiResponse = aiResponseOrError as AskStudyEthiopiaAIOutput; // Type assertion
+    const aiResponse = aiResponseOrError as AskStudyEthiopiaAIOutput;
 
     if (!aiResponse.response) {
-        // Fallback if AI gives an empty response, which can happen with stricter output schemas or safety filters
         return { error: "I couldn't formulate a response to that. Could you try rephrasing or asking something else about the material?" };
     }
     
@@ -587,7 +629,6 @@ export async function getProgrammingLanguages(
   try {
     const aiInput: AIGetProgrammingLanguagesInput = { category: input.category };
     const result = await getProgrammingLanguagesFlow(aiInput);
-    // Ensure languages is always an array, even if AI returns null/undefined
     return { languages: result.languages || [] }; 
   } catch (e) {
     console.error("Error fetching programming languages:", e);
@@ -606,20 +647,21 @@ export async function startCodeTeachingSession(
   try {
     const firstStepInput: AIGetCodeTeachingStepInput = {
       language: input.language,
-      currentTopic: "Syntax Basics", // Initial topic for any language
+      currentTopic: "Syntax Basics", 
     };
-    const firstStepResult = await getCodeTeachingStepFlow(firstStepInput);
+    const firstStepResultOrError = await getCodeTeachingStepFlow(firstStepInput);
 
-    if (typeof (firstStepResult as any).error === 'string') {
-      return { error: `Failed to get first coding step: ${(firstStepResult as any).error}` };
+    if ('error' in firstStepResultOrError) {
+      return { error: `Failed to get first coding step: ${firstStepResultOrError.error}` };
     }
-    const validFirstStepResult = firstStepResult as CodeTeachingStepData;
+    const firstStepResult = firstStepResultOrError as AIGetCodeTeachingStepOutput;
+
 
     return {
       language: input.language,
-      currentTopic: validFirstStepResult.topic, // The AI suggests the specific sub-topic
-      currentStepData: validFirstStepResult,
-      history: [], // Initialize history
+      currentTopic: firstStepResult.topic, 
+      currentStepData: firstStepResult,
+      history: [], 
     };
   } catch (e) {
     console.error("Error starting code teaching session:", e);
@@ -627,7 +669,6 @@ export async function startCodeTeachingSession(
      if (errorMessage.includes("rate limit") || errorMessage.includes("quota") || errorMessage.includes("503") || errorMessage.toLowerCase().includes("overloaded")) {
         return { error: "The AI Code Tutor service is currently busy. Please try again in a few moments." };
     }
-    // Catch specific errors from the flow if not handled inside
     return { error: `Failed to start coding session: ${errorMessage}` };
   }
 }
@@ -637,7 +678,6 @@ export async function getNextCodeTeachingStep(
   userAnswerOrCode?: string
 ): Promise<CodeTeachingStepData | { error: string }> {
   try {
-    // Determine the next topic based on the AI's suggestion from the *previous* step.
     const nextTopic = currentSession.currentStepData.nextTopicSuggestion || currentSession.currentTopic;
 
     const nextStepInput: AIGetCodeTeachingStepInput = {
@@ -646,12 +686,12 @@ export async function getNextCodeTeachingStep(
       previousExplanation: currentSession.currentStepData.explanation,
       userAnswerOrCode: userAnswerOrCode,
     };
-    const nextStepResult = await getCodeTeachingStepFlow(nextStepInput);
+    const nextStepResultOrError = await getCodeTeachingStepFlow(nextStepInput);
     
-    if (typeof (nextStepResult as any).error === 'string') {
-      return { error: `Failed to get next coding step: ${(nextStepResult as any).error}` };
+    if ('error' in nextStepResultOrError) {
+      return { error: `Failed to get next coding step: ${nextStepResultOrError.error}` };
     }
-    return nextStepResult as CodeTeachingStepData; // Type assertion
+    return nextStepResultOrError as CodeTeachingStepData;
   } catch (e)
    {
     console.error("Error getting next code teaching step:", e);
@@ -667,12 +707,11 @@ export async function getNextCodeTeachingStep(
 export interface TavusConversationDetails {
   conversation_id: string;
   client_secret: string;
-  initial_video_url?: string; // Added for the initial greeting video
-  initial_ai_text?: string;   // Added for the initial greeting text
+  initial_video_url?: string; 
+  initial_ai_text?: string;   
 }
 
-// Persona ID for Jane Smith, Case Interviewer
-const TAVUS_PERSONA_ID_JANE_SMITH = "pc55154f229a";
+const TAVUS_PERSONA_ID_JANE_SMITH = "pc55154f229a"; 
 
 export async function initiateTavusLiveSession(personaId: string): Promise<TavusConversationDetails | { error: string }> {
   const apiKey = process.env.TAVUS_API_KEY;
@@ -684,21 +723,50 @@ export async function initiateTavusLiveSession(personaId: string): Promise<Tavus
     return { error: "Persona ID is required to start a session." };
   }
 
-  // SIMULATED API CALL for initiating a conversation
   console.log(`Simulating Tavus API call to v2/conversations for persona_id: ${personaId}`);
-  await new Promise(resolve => setTimeout(resolve, 750)); // Simulate network delay
+  await new Promise(resolve => setTimeout(resolve, 750)); 
 
   const simulatedConversationId = `sim_conv_${Date.now()}`;
   const simulatedClientSecret = `sim_sec_${Math.random().toString(36).substring(2)}`;
   
   let initialAiText = "Hello! I'm ready for our session.";
-  let initialVideoUrl = "https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerFun.mp4"; // Generic placeholder
+  let initialVideoUrl = "https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerFun.mp4"; 
 
   if (personaId === TAVUS_PERSONA_ID_JANE_SMITH) {
     initialAiText = "Hi there, I'm Jane Smith, a Principal at Morrison & Blackwell. It's great to connect with you today. Before we dive into the case, could you tell me a little bit about your background and what brings you to Morrison & Blackwell?";
-    initialVideoUrl = "https://storage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4"; // Jane's intro video placeholder
+    initialVideoUrl = "https://storage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4";
   }
   
+  // Real API call to Tavus:
+  // const tavusOptions = {
+  //     method: 'POST',
+  //     headers: {'x-api-key': apiKey, 'Content-Type': 'application/json'},
+  //     body: JSON.stringify({
+  //       replica_id: "r79e1c033f", // Example replica_id from user docs
+  //       persona_id: personaId,
+  //       conversation_name: personaId === TAVUS_PERSONA_ID_JANE_SMITH ? "Mock Interview with Jane Smith" : "Tavus Live Session",
+  //       conversational_context: personaId === TAVUS_PERSONA_ID_JANE_SMITH ? "You are Jane Smith conducting a case interview." : "You are a helpful AI assistant.", // Simplified, full context from persona config
+  //       custom_greeting: personaId === TAVUS_PERSONA_ID_JANE_SMITH ? initialAiText : undefined, // Use persona's default or this
+  //       properties: { max_call_duration:3600, enable_recording:true, enable_closed_captions:true, language:"english" }
+  //     })
+  //   };
+  // try {
+  //   const response = await fetch('https://tavusapi.com/v2/conversations', tavusOptions);
+  //   if (!response.ok) {
+  //     const errorData = await response.json();
+  //     console.error("Tavus API error (create conversation):", errorData);
+  //     return { error: `Tavus API error: ${errorData.message || response.statusText}`};
+  //   }
+  //   const tavusData = await response.json();
+  //   // Real data extraction:
+  //   // const conversationId = tavusData.conversation_id;
+  //   // const clientSecret = tavusData.client_secret;
+  //   // initialVideoUrl and initialAiText might come from a webhook or a follow-up GET /conversations/{id} or first message event
+  // } catch (fetchError) {
+  //     console.error("Fetch error calling Tavus API:", fetchError);
+  //     return { error: "Network error connecting to Tavus API." };
+  // }
+
   return {
     conversation_id: simulatedConversationId,
     client_secret: simulatedClientSecret,
@@ -710,31 +778,40 @@ export async function initiateTavusLiveSession(personaId: string): Promise<Tavus
 export async function sendTavusMessageAndGetVideo(
   conversationId: string,
   text: string,
-  personaId: string // Added to determine AI's response style if needed for simulation
+  personaId: string 
 ): Promise<{ videoUrl?: string; aiTextResponse?: string; error?: string }> {
   const apiKey = process.env.TAVUS_API_KEY;
   if (!apiKey) {
     console.error("Tavus API key is not set in .env file (TAVUS_API_KEY).");
-    return { error: "Mock Interview feature is not fully configured. API Key missing." };
+    return { error: "Feature is not fully configured. API Key missing." };
   }
 
-  // SIMULATED API CALL for sending a message and getting a video response
-  console.log(`Simulating Tavus API call to send message in conversation ${conversationId}. User text: "${text}"`);
-  await new Promise(resolve => setTimeout(resolve, 1000 + Math.random() * 1500)); // Simulate processing and video generation
+  console.log(`Simulating Tavus API call to send message in conversation ${conversationId}. User text: "${text}" for persona ${personaId}`);
+  await new Promise(resolve => setTimeout(resolve, 1000 + Math.random() * 1500)); 
 
   let aiResponseText = "That's an interesting point. Let's explore that further. (Simulated video response)";
   if (personaId === TAVUS_PERSONA_ID_JANE_SMITH) {
-    // Simulate a more contextual response for Jane
     if (text.toLowerCase().includes("background") || text.toLowerCase().includes("about me")) {
         aiResponseText = "Thank you for sharing that. Now, let's dive into the case. SodaPop Inc. is considering launching 'Light Bolt', a low-sugar, electrolyte-focused sports drink. How would you approach analyzing this market opportunity for them? (Simulated video response)";
     } else if (text.toLowerCase().includes("market size") || text.toLowerCase().includes("profitability")) {
         aiResponseText = "Good question. For the purpose of this initial discussion, let's assume the sports drink market is substantial and growing. What key factors would you consider to assess the potential profitability of Light Bolt? (Simulated video response)";
-    } else {
-        aiResponseText = "Okay, interesting. And what would be your next step in thinking about this? (Simulated video response)";
+    } else if (text.toLowerCase().includes("strategy") || text.toLowerCase().includes("capture market share")) {
+        aiResponseText = "That's a valid consideration. What specific strategies could SodaPop Inc. employ to effectively capture market share for 'Light Bolt' against established players? (Simulated video response)";
+    } else if (text.toLowerCase().includes("risks") || text.toLowerCase().includes("challenges")) {
+        aiResponseText = "Identifying risks is crucial. What are some potential challenges or risks SodaPop Inc. might face with this new product launch? (Simulated video response)";
+    } else if (text.toLowerCase().includes("thank you") || text.toLowerCase().includes("appreciate it")) {
+        aiResponseText = "You're welcome. Do you have any questions for me about Morrison & Blackwell or the role? (Simulated video response)";
+    }
+     else {
+        aiResponseText = "Okay, interesting. And what would be your next step in thinking about this? Or do you have any clarifying questions about the case so far? (Simulated video response)";
     }
   }
-
-  const simulatedVideoUrl = "https://storage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4"; // Different placeholder
+  
+  // Simulate actual video generation by Tavus. This would involve:
+  // POST /v2/conversations/{conversation_id}/generate_video with { "text": aiResponseText, "controls": { "end_call": false } }
+  // Then polling GET /v2/videos/{video_id} or waiting for a webhook.
+  // For this simulation, we return a placeholder video.
+  const simulatedVideoUrl = "https://storage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4"; 
 
   return {
     videoUrl: simulatedVideoUrl,
@@ -746,29 +823,47 @@ export async function endTavusLiveSession(conversationId: string): Promise<{ suc
     const tavusApiKey = process.env.TAVUS_API_KEY;
     if (!tavusApiKey) {
         console.error("TAVUS_API_KEY not found in .env for endTavusLiveSession");
-        return { success: false, error: "Mock Interview feature is not fully configured. API Key missing." };
+        return { success: false, error: "Feature is not fully configured. API Key missing." };
     }
 
     console.log(`Simulating ending Tavus conversation: ${conversationId}`);
-    // In a real scenario:
-    // const response = await fetch(`https://tavusapi.com/v2/conversations/${conversationId}/end`, {
-    //   method: 'POST',
-    //   headers: { 'x-api-key': tavusApiKey }
-    // });
-    // ... handle response ...
-    
-    await new Promise(resolve => setTimeout(resolve, 200)); // Simulate API call
+    // Real API call: POST https://tavusapi.com/v2/conversations/{conversation_id}/end
+    // const options = {method: 'POST', headers: {'x-api-key': tavusApiKey}};
+    // try {
+    //   const response = await fetch(`https://tavusapi.com/v2/conversations/${conversationId}/end`, options);
+    //   if (!response.ok) { /* ... error handling ... */ }
+    // } catch (fetchError) { /* ... error handling ... */ }
+    await new Promise(resolve => setTimeout(resolve, 200)); 
     return { success: true, message: "Tavus live session ended successfully (simulated)." };
 }
 
-// Helper to ensure toast is only called on client, not directly in server actions
-// This is a placeholder, actual toast calls should be in client components
-const showClientToast = (options: { title: string, description: string, variant?: "default" | "destructive" }) => {
-  if (typeof window !== 'undefined') {
-    // This function is a stub. In a real app, you might use a global event bus
-    // or a state management solution to trigger toasts from server action responses.
-    console.log(`TOAST (server-side log): ${options.title} - ${options.description}`);
-  }
-};
 
-    
+// ----- Legacy Text-Based Interactive Tutor - Retained for reference or specific use cases -----
+export async function getNextInteractiveTextTutorStep(
+  sessionData: { documentName: string, documentContent: string, mediaDataUri?: string, currentTopic?: string, previousExplanation?: string, currentStep: number },
+  userQuizAnswer?: string
+): Promise<TextTutorOutput | { error: string }> {
+  try {
+    const input: TextTutorInput = {
+      documentName: sessionData.documentName,
+      documentContent: sessionData.documentContent,
+      photoDataUri: sessionData.mediaDataUri,
+      currentTopic: sessionData.currentTopic,
+      previousExplanation: sessionData.previousExplanation,
+      userQuizAnswer: userQuizAnswer,
+      currentStep: sessionData.currentStep,
+    };
+    const result = await getNextTextTutorStepFlow(input);
+    return result;
+  } catch (e) {
+    console.error('Error getting next text tutor step:', e);
+    const errorMessage = e instanceof Error ? e.message : 'Unknown error in text tutor step.';
+    if (errorMessage.includes("rate limit") || errorMessage.includes("quota") || errorMessage.includes("503") || errorMessage.toLowerCase().includes("overloaded")) {
+        return { error: "The AI tutor is currently very busy. Please try again in a few moments." };
+    }
+    if (errorMessage.toLowerCase().includes("safety") || errorMessage.toLowerCase().includes("blocked")) {
+        return { error: "The content or your response could not be processed by the tutor due to safety filters. Let's try a different angle."};
+    }
+    return { error: `AI text tutor encountered an issue: ${errorMessage}` };
+  }
+}
