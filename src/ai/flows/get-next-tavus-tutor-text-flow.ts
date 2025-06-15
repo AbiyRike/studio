@@ -23,7 +23,7 @@ const ProcessedChatMessageSchema = ChatMessageSchema.extend({
 });
 
 
-export const GetNextTavusTutorTextInputSchema = z.object({
+const GetNextTavusTutorTextInputSchema = z.object({
   documentName: z.string().describe('The name of the document being tutored.'),
   documentContent: z.string().describe('The full text content of the document. Can be empty if photoDataUri is primary context.'),
   photoDataUri: z
@@ -39,7 +39,7 @@ export const GetNextTavusTutorTextInputSchema = z.object({
 });
 export type GetNextTavusTutorTextInput = z.infer<typeof GetNextTavusTutorTextInputSchema>;
 
-export const GetNextTavusTutorTextOutputSchema = z.object({
+const GetNextTavusTutorTextOutputSchema = z.object({
   tutorTextResponse: z.string().describe("The textual response StudyEthiopia AI+ (the Tavus tutor) should say. This text will be used for Text-to-Speech by Tavus."),
 });
 export type GetNextTavusTutorTextOutput = z.infer<typeof GetNextTavusTutorTextOutputSchema>;
@@ -130,5 +130,3 @@ const getNextTavusTutorTextFlow = ai.defineFlow(
   }
 );
 
-
-    

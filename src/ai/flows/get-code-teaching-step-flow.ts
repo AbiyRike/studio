@@ -98,7 +98,7 @@ Example for JavaScript, currentTopic "Variables", after user incorrectly tried '
 Example for final step in JavaScript:
 - topic: "Fantastic! You've Covered JavaScript Fundamentals!"
 - explanation: "Incredible work! You've journeyed through the fundamental concepts of JavaScript, from syntax and variables to data types, operators, control flow, and functions! You're now equipped with a strong foundation to explore more advanced topics or even start building your own simple projects. This is a big achievement, well done!"
-- codeExample: "// Keep practicing and building! Every line of code you write makes you better.\nfunction celebrate(studentName) {\n  console.log(\"Well done, \" + studentName + \"! You're on your way to becoming a great programmer.\");\n}\ncelebrate(\"Future Developer\");"
+- codeExample: "// Keep practicing and building! Every line of code you write makes you better.\nfunction celebrate(studentName) {\n  console.log(\\"Well done, \\" + studentName + \\"! You're on your way to becoming a great programmer.\\");\n}\ncelebrate(\\"Future Developer\\");"
 - challenge: "What kind of simple project are you most excited to try building with your new JavaScript skills?"
 - feedbackOnPrevious: "Excellent! You've clearly understood how functions work."
 - nextTopicSuggestion: "Next Steps: Exploring JavaScript in Web Pages (DOM Manipulation)"

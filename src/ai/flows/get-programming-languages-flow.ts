@@ -3,7 +3,7 @@
 /**
  * @fileOverview Retrieves a list of programming languages based on a category (frontend/backend), as StudyEthiopia AI+.
  *
- * - getProgrammingLanguagesFlow - A function that fetches programming languages.
+ * - getProgrammingLanguages - A function that fetches programming languages.
  * - GetProgrammingLanguagesInput - The input type for the function.
  * - GetProgrammingLanguagesOutput - The return type for the function.
  */
@@ -56,3 +56,4 @@ const getProgrammingLanguagesFlow = ai.defineFlow(
     return output;
   }
 );
+

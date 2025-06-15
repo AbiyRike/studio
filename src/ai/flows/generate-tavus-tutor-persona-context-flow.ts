@@ -4,14 +4,14 @@
  * @fileOverview Generates conversational context for a Tavus-based AI tutor.
  *
  * - generateTavusTutorPersonaContext - Creates system prompt, conversation name, and greeting.
- * - GenerateTavusTutorPersonaContextInputSchema - The input schema type for the flow.
- * - GenerateTavusTutorPersonaContextOutputSchema - The output schema type for the flow.
+ * - GenerateTavusTutorPersonaContextInput - The input schema type for the flow.
+ * - GenerateTavusTutorPersonaContextOutput - The output schema type for the flow.
  */
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 
-export const GenerateTavusTutorPersonaContextInputSchema = z.object({
+const GenerateTavusTutorPersonaContextInputSchema = z.object({
   documentName: z.string().describe('The name or title of the document/content the tutor will focus on.'),
   documentContent: z.string().describe('The main text content of the document. Can be empty if photoDataUri is primary context.'),
   mediaDataUri: z
@@ -23,7 +23,7 @@ export const GenerateTavusTutorPersonaContextInputSchema = z.object({
 });
 export type GenerateTavusTutorPersonaContextInput = z.infer<typeof GenerateTavusTutorPersonaContextInputSchema>;
 
-export const GenerateTavusTutorPersonaContextOutputSchema = z.object({
+const GenerateTavusTutorPersonaContextOutputSchema = z.object({
   conversation_name: z.string().describe("A suitable name for the Tavus conversation, e.g., 'Tutoring Session: [Document Name]'."),
   conversational_context: z.string().describe("The detailed system prompt for the Tavus persona. This should guide the AI to act as StudyEthiopia AI+ for the specific document."),
   custom_greeting: z.string().describe("A warm, engaging opening line for the tutor, specific to the document."),
@@ -123,3 +123,4 @@ const generateTavusTutorPersonaContextFlowInternal = ai.defineFlow(
     return output;
   }
 );
+

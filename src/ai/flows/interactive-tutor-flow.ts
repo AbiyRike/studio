@@ -110,7 +110,7 @@ Tutoring Session Context:
 {{#if userQuizAnswer}}
 - User's Answer to Last Mini-Quiz: {{{userQuizAnswer}}} (Evaluate this. If it's incorrect or shows misunderstanding, your new 'explanation' should gently clarify or re-approach the concept. If correct, acknowledge and build upon it.)
 {{else}}
-  {{#if currentStep}} {{! This condition checks if currentStep is truthy (i.e., not 0) }}
+  {{#if currentStep}} {{! This condition checks if currentStep is truthy (i.e., not 0 for subsequent steps) }}
   (No quiz answer submitted for the previous step, or there was no quiz.)
   {{/if}}
 {{/if}}
