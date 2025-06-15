@@ -137,7 +137,7 @@ export default function EnhancedDashboardPage() {
 
   useEffect(() => {
     loadUserData();
-    window.addEventListener('storage', loadUserData);
+    window.addEventListener('storage', loadUserData); // Listen for changes from profile page
     return () => {
       window.removeEventListener('storage', loadUserData);
     };
@@ -218,22 +218,22 @@ export default function EnhancedDashboardPage() {
             <FeatureButton
               href="/interactive-tutor/select"
               icon={GraduationCap}
-              title="Tutor Me"
-              description="Select from KB for a step-by-step interactive tutoring session."
+              title="Interactive Tutor"
+              description="Select from KB for a step-by-step AI tutoring session with StudyEthiopia AI+."
               className="bg-gradient-to-br from-purple-500/5 via-transparent to-purple-500/5 hover:from-purple-500/10 hover:to-purple-500/10"
             />
              <FeatureButton
-              href="/ask-mr-know/select"
+              href="/ask-mr-know/select" // Path remains for now, label reflects change
               icon={MessageCircleQuestion}
-              title="Ask Mr. Know"
-              description="Chat with Gemini about content selected from your knowledge base."
+              title="Chat with StudyEthiopia AI"
+              description="Chat with StudyEthiopia AI+ about content selected from your knowledge base."
               className="bg-gradient-to-br from-sky-500/5 via-transparent to-sky-500/5 hover:from-sky-500/10 hover:to-sky-500/10"
             />
              <FeatureButton
               href="/code-with-me/select"
               icon={Code2}
               title="Code with Me"
-              description="Learn programming concepts interactively, starting from syntax basics."
+              description="Learn programming concepts interactively with StudyEthiopia AI+."
               className="bg-gradient-to-br from-rose-500/5 via-transparent to-rose-500/5 hover:from-rose-500/10 hover:to-rose-500/10"
             />
             <FeatureButton

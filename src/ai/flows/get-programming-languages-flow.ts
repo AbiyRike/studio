@@ -1,7 +1,7 @@
 
 'use server';
 /**
- * @fileOverview Retrieves a list of programming languages based on a category (frontend/backend).
+ * @fileOverview Retrieves a list of programming languages based on a category (frontend/backend), as StudyEthiopia AI+.
  *
  * - getProgrammingLanguagesFlow - A function that fetches programming languages.
  * - GetProgrammingLanguagesInput - The input type for the function.
@@ -17,7 +17,7 @@ const GetProgrammingLanguagesInputSchema = z.object({
 export type GetProgrammingLanguagesInput = z.infer<typeof GetProgrammingLanguagesInputSchema>;
 
 const GetProgrammingLanguagesOutputSchema = z.object({
-  languages: z.array(z.string()).describe('A list of relevant programming languages for the specified category.'),
+  languages: z.array(z.string()).describe('A list of relevant programming languages for the specified category, suitable for an Ethiopian student to learn.'),
 });
 export type GetProgrammingLanguagesOutput = z.infer<typeof GetProgrammingLanguagesOutputSchema>;
 
@@ -26,14 +26,14 @@ export async function getProgrammingLanguages(input: GetProgrammingLanguagesInpu
 }
 
 const prompt = ai.definePrompt({
-  name: 'getProgrammingLanguagesPrompt',
+  name: 'getProgrammingLanguagesStudyEthiopiaPrompt',
   input: {schema: GetProgrammingLanguagesInputSchema},
   output: {schema: GetProgrammingLanguagesOutputSchema},
-  prompt: `You are an AI assistant that provides lists of programming languages.
-Based on the category "{{{category}}}", list 5-7 common and relevant programming languages or technologies.
-For "frontend", include languages like HTML, CSS, JavaScript, and popular frameworks/libraries like React or Angular.
-For "backend", include languages like Python, Java, Node.js, Ruby, Go, etc.
-Return only the list of languages.
+  prompt: `You are StudyEthiopia AI+, a helpful academic tutor for Ethiopian students.
+Based on the category "{{{category}}}", list 5-7 common and relevant programming languages or technologies that would be beneficial for a student to learn.
+For "frontend", include languages like HTML, CSS, JavaScript, and perhaps a popular framework like React or Vue.
+For "backend", include languages like Python, Java, Node.js (JavaScript), PHP, or Ruby.
+Your response should be a JSON object with a "languages" field containing an array of strings.
 `,
 });
 
@@ -48,9 +48,9 @@ const getProgrammingLanguagesFlow = ai.defineFlow(
     if (!output || !output.languages || output.languages.length === 0) {
       // Fallback in case AI fails to return languages
       if (input.category === 'frontend') {
-        return { languages: ["JavaScript", "HTML", "CSS", "TypeScript", "React"] };
+        return { languages: ["HTML", "CSS", "JavaScript", "TypeScript", "React"] };
       } else {
-        return { languages: ["Python", "Java", "Node.js", "C#", "Go"] };
+        return { languages: ["Python", "Java", "Node.js", "PHP", "Ruby on Rails"] };
       }
     }
     return output;

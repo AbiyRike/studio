@@ -34,7 +34,7 @@ const ClientAuthGuard = ({ children }: { children: React.ReactNode }) => {
   return <>{children}</>;
 };
 
-export default function SelectAskMrKnowContentPage() {
+export default function SelectStudyEthiopiaAIChatContentPage() {
   const [kbItems, setKbItems] = useState<KnowledgeBaseItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [processingItemId, setProcessingItemId] = useState<string | null>(null);
@@ -54,7 +54,7 @@ export default function SelectAskMrKnowContentPage() {
 
     if (!fullKbItem) {
         toast({
-            title: "Error Starting Chat Session",
+            title: "Error Starting Chat",
             description: "Could not retrieve the knowledge base item. Please try again.",
             variant: "destructive",
         });
@@ -62,11 +62,10 @@ export default function SelectAskMrKnowContentPage() {
         return;
     }
     
-    // For "Ask Mr. Know", we need content. If no text and no image, it's not useful.
     if (!fullKbItem.documentContent && !fullKbItem.mediaDataUri) {
       toast({
         title: "Cannot Start Chat",
-        description: "The selected knowledge base item does not have any text content or associated media to discuss.",
+        description: "The selected item has no text or image content for StudyEthiopia AI+ to discuss.",
         variant: "destructive",
       });
       setProcessingItemId(null);
@@ -86,7 +85,7 @@ export default function SelectAskMrKnowContentPage() {
       setActiveAskMrKnowSession(result);
       toast({
         title: "Chat Session Ready!",
-        description: `Ask Mr. Know about "${fullKbItem.documentName}".`,
+        description: `You can now chat with StudyEthiopia AI+ about "${fullKbItem.documentName}".`,
       });
       router.push('/ask-mr-know/chat');
     }
@@ -96,7 +95,7 @@ export default function SelectAskMrKnowContentPage() {
     if (item.mediaDataUri?.startsWith('data:image')) {
       return <ImageIcon className="h-5 w-5 text-accent" />;
     }
-    if (item.documentName.toLowerCase().includes('audio') || item.documentContent.toLowerCase().includes('audio recording')) {
+    if (item.documentName.toLowerCase().includes('audio') || (item.documentContent || "").toLowerCase().includes('audio recording')) {
       return <Mic className="h-5 w-5 text-accent" />;
     }
     return <FileText className="h-5 w-5 text-accent" />;
@@ -106,7 +105,7 @@ export default function SelectAskMrKnowContentPage() {
     return (
       <ClientAuthGuard>
         <div className="container mx-auto py-8">
-          <h1 className="text-3xl font-bold font-headline mb-8 text-center">Select Content for Mr. Know</h1>
+          <h1 className="text-3xl font-bold font-headline mb-8 text-center">Select Content for StudyEthiopia AI+ Chat</h1>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {[1, 2, 3].map(i => (
               <Card key={i} className="animate-pulse">
@@ -127,9 +126,9 @@ export default function SelectAskMrKnowContentPage() {
         <Card className="mb-8 shadow-lg">
           <CardHeader className="text-center">
             <MessageCircleQuestion className="mx-auto h-16 w-16 text-primary mb-4" />
-            <CardTitle className="text-3xl font-bold font-headline">Ask Mr. Know: Select Context</CardTitle>
+            <CardTitle className="text-3xl font-bold font-headline">Chat with StudyEthiopia AI+: Select Context</CardTitle>
             <CardDescription className="text-lg text-muted-foreground mt-2">
-              Choose an item from your knowledge base to chat about with Mr. Know.
+              Choose an item from your knowledge base to discuss with your AI tutor.
             </CardDescription>
           </CardHeader>
         </Card>
@@ -142,7 +141,7 @@ export default function SelectAskMrKnowContentPage() {
             </CardHeader>
             <CardContent>
               <p className="text-muted-foreground mb-6">
-                Add content to your knowledge base to chat with Mr. Know.
+                Add content to your knowledge base to chat with StudyEthiopia AI+.
               </p>
               <Button asChild size="lg">
                 <Link href="/knowledge-base/new">Add Content to Knowledge Base</Link>
@@ -191,3 +190,4 @@ export default function SelectAskMrKnowContentPage() {
     </ClientAuthGuard>
   );
 }
+

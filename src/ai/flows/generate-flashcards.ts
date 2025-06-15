@@ -2,7 +2,7 @@
 'use server';
 
 /**
- * @fileOverview Generates flashcards (term/definition pairs) based on document content and/or an image.
+ * @fileOverview Generates flashcards (term/definition pairs) based on document content and/or an image, using the StudyEthiopia AI+ persona.
  *
  * - generateFlashcards - A function that generates flashcards.
  * - GenerateFlashcardsInput - The input type for the generateFlashcards function.
@@ -31,8 +31,8 @@ const GenerateFlashcardsInputSchema = z.object({
 export type GenerateFlashcardsInput = z.infer<typeof GenerateFlashcardsInputSchema>;
 
 const FlashcardSchema = z.object({
-  term: z.string().describe('The term, question, or concept for the front of the flashcard.'),
-  definition: z.string().describe('The definition, answer, or explanation for the back of the flashcard.'),
+  term: z.string().describe('The term, question, or concept for the front of the flashcard. Should be clear and concise for an Ethiopian student.'),
+  definition: z.string().describe('The definition, answer, or explanation for the back of the flashcard. Should be clear, conversational, and encouraging.'),
 });
 
 const GenerateFlashcardsOutputSchema = z.object({
@@ -45,11 +45,13 @@ export async function generateFlashcards(input: GenerateFlashcardsInput): Promis
 }
 
 const prompt = ai.definePrompt({
-  name: 'generateFlashcardsPrompt',
+  name: 'generateFlashcardsStudyEthiopiaPrompt',
   input: {schema: GenerateFlashcardsInputSchema},
   output: {schema: GenerateFlashcardsOutputSchema},
-  prompt: `You are an AI assistant that creates concise and informative flashcards from provided text content and/or an image.
+  prompt: `You are StudyEthiopia AI+, a multilingual academic tutor. Your goal is to help Ethiopian students learn effectively.
+  Create concise and informative flashcards from the provided text content and/or an image.
   Each flashcard should have a "term" (a key concept, question, or vocabulary word) and a "definition" (the explanation, answer, or description).
+  The language should be clear, conversational, and motivational, suitable for high school to university level students in Ethiopia.
   Focus on the most important information suitable for learning with flashcards.
 
   {{#if documentContent}}
@@ -60,7 +62,7 @@ const prompt = ai.definePrompt({
   Base your flashcards on the information from the text (if any) AND the image (if any).
   {{else}}
   {{#unless documentContent}}
-  No text or image content was provided. State that you cannot generate flashcards without input.
+  I need some material to create flashcards from! Please provide either text or an image.
   {{/unless}}
   {{/if}}
 
@@ -91,3 +93,4 @@ const generateFlashcardsFlow = ai.defineFlow(
     return { flashcards: output?.flashcards || [] };
   }
 );
+

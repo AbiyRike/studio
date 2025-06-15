@@ -4,7 +4,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { LayoutDashboard, History, LogOut, Brain, DatabaseZap, Edit3, Layers, GraduationCap, MessageCircleQuestion, Code2, User, Briefcase } from "lucide-react"; // Added User, Briefcase icons
+import { LayoutDashboard, History, LogOut, Brain, DatabaseZap, Edit3, Layers, GraduationCap, MessageCircleQuestion, Code2, User, Briefcase } from "lucide-react"; 
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
 
@@ -15,8 +15,8 @@ const navItems = [
   { href: "/quiz-session/new", label: "New Quiz", icon: Brain },
   { href: "/quiz-from-kb", label: "Quiz from KB", icon: Edit3 },
   { href: "/flashcards", label: "Flashcards", icon: Layers },
-  { href: "/interactive-tutor/select", label: "Tutor Me", icon: GraduationCap },
-  { href: "/ask-mr-know/select", label: "Ask Mr. Know", icon: MessageCircleQuestion },
+  { href: "/interactive-tutor/select", label: "Interactive Tutor", icon: GraduationCap },
+  { href: "/ask-mr-know/select", label: "Chat with Document AI", icon: MessageCircleQuestion }, // Updated label
   { href: "/code-with-me/select", label: "Code with Me", icon: Code2 },
   { href: "/mock-interview", label: "Mock Interview", icon: Briefcase },
   { href: "/history", label: "Learning History", icon: History },

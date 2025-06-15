@@ -5,7 +5,7 @@ import { summarizeDocument } from "@/ai/flows/summarize-document";
 import { generateQuestions, type GenerateQuestionsInput as AIQuestionsInput } from "@/ai/flows/generate-questions";
 import { generateFlashcards, type GenerateFlashcardsInput as AIFlashcardsInput } from "@/ai/flows/generate-flashcards";
 import { getNextInteractiveTutorStep as getNextTutorStepFlow, type InteractiveTutorInput as AIInteractiveTutorInput } from "@/ai/flows/interactive-tutor-flow";
-import { chatWithMrKnowMMLFlow, type AskMrKnowInput as AIAskMrKnowInput, AskMrKnowOutput } from "@/ai/flows/ask-mr-know-flow";
+import { chatWithStudyEthiopiaAI, type AskStudyEthiopiaAIInput as AIAskStudyEthiopiaAIInput, type AskStudyEthiopiaAIOutput } from "@/ai/flows/ask-mr-know-flow"; // Renamed flow, kept variable name for consistency
 import { getProgrammingLanguages as getProgrammingLanguagesFlow, type GetProgrammingLanguagesInput as AIGetProgrammingLanguagesInput } from "@/ai/flows/get-programming-languages-flow";
 import { getCodeTeachingStep as getCodeTeachingStepFlow, type GetCodeTeachingStepInput as AIGetCodeTeachingStepInput } from "@/ai/flows/get-code-teaching-step-flow";
 
@@ -67,25 +67,30 @@ export async function processContentForTutor(
     let finalSummary = summaryResult.summary;
     let initialQuestions = questionsResult.questions;
 
-    if (!finalSummary) {
-      finalSummary = "The AI could not generate a summary. This might be because the content was too short, unsuitable for summarization, or an issue occurred. Please try with different content or ensure the provided image (if any) is clear.";
+    if (!finalSummary || finalSummary.trim() === "" || finalSummary.toLowerCase().includes("cannot generate summary")) {
+      finalSummary = "I wasn't able to generate a detailed summary for this content, perhaps it's very concise already or an image that's best explored directly. Let's dive into some questions!";
     }
 
     if (!initialQuestions || initialQuestions.length === 0) {
       initialQuestions = [
         {
-          question: "Sample Question: What is the primary goal of this learning session?",
-          options: ["To understand the material", "To test memory", "To pass time", "To generate summaries"],
-          answer: 0,
-          explanation: "The primary goal is typically to understand the presented material."
+          question: "It seems I couldn't generate specific questions for this content right away. Perhaps we can start with a general question: What is the main topic of this material?",
+          options: ["Topic A", "Topic B", "Topic C", "Let's discuss"],
+          answer: 3, // Placeholder, student might need to discuss
+          explanation: "Sometimes content is very unique! Let's explore it together."
         }
       ];
        console.warn("AI failed to generate initial questions. Using sample questions.");
+       toast({
+        title: "Quiz Update",
+        description: "I couldn't generate specific questions for this content, but we can still explore it!",
+        variant: "default"
+       })
     }
     
     const questionsWithExplanation = initialQuestions.map(q => ({
         ...q,
-        explanation: q.explanation || `The correct answer is "${q.options[q.answer]}" (option ${q.answer + 1}). For actual content, a more detailed AI-generated explanation would ideally appear here.`
+        explanation: q.explanation || `The correct answer is "${q.options[q.answer]}" (option ${q.answer + 1}). Understanding this point is key!`
     }));
 
     return {
@@ -199,8 +204,8 @@ export async function summarizeAndGetDataForStorage(
     const summaryResult = await summarizeDocument(aiSummarizeInput);
     let finalSummary = summaryResult.summary;
 
-    if (!finalSummary) {
-      finalSummary = "The AI could not generate a summary for this content. It might be too short or unsuitable. The content is still saved.";
+    if (!finalSummary || finalSummary.trim() === "" || finalSummary.toLowerCase().includes("cannot generate summary") || finalSummary.toLowerCase().includes("need some material")) {
+      finalSummary = "I wasn't able to generate a detailed summary for this content at the moment, but it has been saved to your knowledge base. You can still use it for quizzes or other features!";
     }
     
     const now = new Date().toISOString();
@@ -256,12 +261,12 @@ export async function generateQuizSessionFromKBItem(
     let initialQuestions = questionsResult.questions;
 
     if (!initialQuestions || initialQuestions.length === 0) {
-      initialQuestions = [
+       initialQuestions = [
         {
-          question: "Sample Question: What is a key concept from this material?",
-          options: ["Concept A", "Concept B", "Concept C", "Concept D"],
-          answer: 0,
-          explanation: "This is a sample question as initial generation failed."
+          question: "It seems I couldn't generate specific questions for this content right away. Perhaps we can start with a general question: What is the main topic of this material?",
+          options: ["Topic A", "Topic B", "Topic C", "Let's discuss"],
+          answer: 3, 
+          explanation: "Sometimes content is very unique! Let's explore it together."
         }
       ];
       console.warn("AI failed to generate initial questions from KB item. Using sample questions.");
@@ -318,7 +323,7 @@ export async function generateFlashcardsFromKBItem(
     const { documentName, documentContent, mediaDataUri } = input;
 
     if (!documentName || (!documentContent && !mediaDataUri)) {
-      return { error: "Invalid knowledge base item data provided for flashcards." };
+      return { error: "Invalid knowledge base item data. I need some content to make flashcards!" };
     }
 
     const aiFlashcardsInput: AIFlashcardsInput = {
@@ -332,7 +337,8 @@ export async function generateFlashcardsFromKBItem(
 
     if (!createdFlashcards || createdFlashcards.length === 0) {
       console.warn(`AI failed to generate flashcards for "${documentName}".`);
-      return { documentName, flashcards: [] };
+      // Return an error object instead of empty flashcards to be handled by UI
+      return { error: `I couldn't create flashcards from "${documentName}". The content might be too short or not well-suited for flashcards. Try with a different document or more detailed text!` };
     }
 
     return {
@@ -363,6 +369,7 @@ export async function startInteractiveTutorSession(
     }
 
     const firstStepInput: AIInteractiveTutorInput = {
+        documentName: kbItem.documentName,
         documentContent: kbItem.documentContent || "", 
         photoDataUri: kbItem.mediaDataUri,
         currentStep: 0,
@@ -375,6 +382,10 @@ export async function startInteractiveTutorSession(
     }
     
     const validFirstStepResult = firstStepResult as InteractiveTutorStepData;
+     if (validFirstStepResult.topic === "Unable to Proceed" || validFirstStepResult.explanation.includes("No content was provided")) {
+      return { error: "The AI Tutor could not start with the provided content. It might be too brief or unsuitable for tutoring." };
+    }
+
 
     return {
       documentName: kbItem.documentName,
@@ -403,6 +414,7 @@ export async function getNextInteractiveTutorStep(
 ): Promise<InteractiveTutorStepData | { error: string }> {
   try {
     const nextStepInput: AIInteractiveTutorInput = {
+        documentName: currentSession.documentName,
         documentContent: currentSession.documentContent,
         photoDataUri: currentSession.mediaDataUri,
         currentStep: targetStepIndex, 
@@ -416,7 +428,11 @@ export async function getNextInteractiveTutorStep(
     if (typeof (nextStepResult as any).error === 'string') { 
         return { error: `Failed to get next tutoring step: ${(nextStepResult as any).error}` };
     }
-    return nextStepResult as InteractiveTutorStepData;
+    const validNextStepResult = nextStepResult as InteractiveTutorStepData;
+    if (validNextStepResult.topic === "Unable to Proceed" || validNextStepResult.explanation.includes("No content was provided")) {
+       return { error: "The AI Tutor feels we've covered the material or cannot proceed further with the current content." };
+    }
+    return validNextStepResult;
 
   } catch (e) {
       console.error("Error getting next interactive tutor step:", e);
@@ -431,8 +447,8 @@ export async function getNextInteractiveTutorStep(
   }
 }
 
-// ---- Ask Mr. Know Actions ----
-export async function startAskMrKnowSession(
+// ---- Ask Mr. Know (now Chat with StudyEthiopia AI+) Actions ----
+export async function startAskMrKnowSession( // Function name kept for session store key consistency
   kbItem: KnowledgeBaseItem
 ): Promise<ActiveAskMrKnowSessionData | { error: string }> {
   try {
@@ -440,7 +456,7 @@ export async function startAskMrKnowSession(
       return { error: "Knowledge base item is required to start a chat session." };
     }
      if (!kbItem.documentContent && !kbItem.mediaDataUri) {
-      return { error: "The selected knowledge base item has no text or image content for Mr. Know to discuss." };
+      return { error: "The selected knowledge base item has no text or image content for me to discuss." };
     }
     return {
       kbItemId: kbItem.id,
@@ -450,27 +466,28 @@ export async function startAskMrKnowSession(
       chatHistory: [
         {
           role: 'model', 
-          parts: [{ text: `Hello! I'm Mr. Know. Ask me anything about "${kbItem.documentName}".` }],
+          parts: [{ text: `Hello! I'm StudyEthiopia AI+. I'm ready to discuss "${kbItem.documentName}". What would you like to know?` }],
           timestamp: new Date().toISOString(),
         }
       ],
     };
   } catch (e) {
-    console.error("Error starting Ask Mr. Know session:", e);
+    console.error("Error starting StudyEthiopia AI+ chat session:", e);
     const errorMessage = e instanceof Error ? e.message : "An unknown error occurred.";
     return { error: `Failed to start chat session: ${errorMessage}` };
   }
 }
 
-export async function getNextAskMrKnowResponse(
+export async function getNextAskMrKnowResponse( // Function name kept for session store key consistency
   currentSession: ActiveAskMrKnowSessionData,
   userMessage: string
 ): Promise<AskMrKnowMessage | { error: string }> {
   try {
     if (!userMessage.trim()) {
-      return { error: "Your message to Mr. Know cannot be empty." };
+      return { error: "Your message cannot be empty. What would you like to ask?" };
     }
-    const aiInput: AIAskMrKnowInput = {
+    const aiInput: AIAskStudyEthiopiaAIInput = {
+      documentName: currentSession.documentName,
       documentContent: currentSession.documentContent,
       photoDataUri: currentSession.mediaDataUri,
       chatHistory: currentSession.chatHistory.map(msg => ({ 
@@ -480,16 +497,16 @@ export async function getNextAskMrKnowResponse(
       userQuery: userMessage,
     };
 
-    const aiResponseOrError = await chatWithMrKnowMMLFlow(aiInput);
+    const aiResponseOrError = await chatWithStudyEthiopiaAI(aiInput);
 
     if ('error' in aiResponseOrError) { 
         return { error: aiResponseOrError.error };
     }
     
-    const aiResponse = aiResponseOrError as AskMrKnowOutput;
+    const aiResponse = aiResponseOrError as AskStudyEthiopiaAIOutput;
 
     if (!aiResponse.response) {
-        return { error: "Mr. Know didn't provide a response. Please try again." };
+        return { error: "I couldn't formulate a response to that. Could you try rephrasing or asking something else about the material?" };
     }
     
     return {
@@ -500,8 +517,14 @@ export async function getNextAskMrKnowResponse(
 
   } catch (e) {
     console.error("Error in getNextAskMrKnowResponse server action:", e);
-    const errorMessage = e instanceof Error ? e.message : "An unknown error occurred contacting Mr. Know.";
-    return { error: `Mr. Know experienced an issue: ${errorMessage}.` };
+    const errorMessage = e instanceof Error ? e.message : "An unknown error occurred contacting StudyEthiopia AI+.";
+    if (errorMessage.includes("rate limit") || errorMessage.includes("quota") || errorMessage.includes("503") || errorMessage.toLowerCase().includes("overloaded")) {
+        return { error: "I'm currently very busy helping other students. Please try again in a few moments." };
+    }
+    if (errorMessage.toLowerCase().includes("safety") || errorMessage.toLowerCase().includes("blocked")) {
+        return { error: "Your message or the provided context could not be processed due to safety filters. Perhaps we can try a different phrasing or focus on another aspect of the material?"};
+    }
+    return { error: `I experienced an issue: ${errorMessage}. Let's try that again, shall we?` };
   }
 }
 
@@ -523,7 +546,7 @@ export async function getProgrammingLanguages(
   } catch (e) {
     console.error("Error fetching programming languages:", e);
     const errorMessage = e instanceof Error ? e.message : "Unknown error.";
-    return { error: `Failed to fetch languages: ${errorMessage}` };
+    return { error: `I had trouble fetching languages: ${errorMessage}` };
   }
 }
 
@@ -555,7 +578,10 @@ export async function startCodeTeachingSession(
   } catch (e) {
     console.error("Error starting code teaching session:", e);
     const errorMessage = e instanceof Error ? e.message : "Unknown error.";
-    return { error: `Failed to start session: ${errorMessage}` };
+     if (errorMessage.includes("rate limit") || errorMessage.includes("quota") || errorMessage.includes("503") || errorMessage.toLowerCase().includes("overloaded")) {
+        return { error: "The AI Code Tutor service is currently busy. Please try again in a few moments." };
+    }
+    return { error: `Failed to start coding session: ${errorMessage}` };
   }
 }
 
@@ -580,7 +606,10 @@ export async function getNextCodeTeachingStep(
    {
     console.error("Error getting next code teaching step:", e);
     const errorMessage = e instanceof Error ? e.message : "Unknown error.";
-    return { error: `Failed to get next step: ${errorMessage}` };
+    if (errorMessage.includes("rate limit") || errorMessage.includes("quota") || errorMessage.includes("503") || errorMessage.toLowerCase().includes("overloaded")) {
+        return { error: "The AI Code Tutor service is currently busy. Please try again in a few moments." };
+    }
+    return { error: `Failed to get next coding step: ${errorMessage}` };
   }
 }
 

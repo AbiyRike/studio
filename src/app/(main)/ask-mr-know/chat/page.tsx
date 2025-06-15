@@ -14,7 +14,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from '@/components/ui/skeleton';
 import { AlertTriangle, MessageCircleQuestion, User, Bot, Send, Loader2, ArrowLeft, Home, Image as ImageIcon } from 'lucide-react';
 import { format } from 'date-fns';
-import NextImage from 'next/image'; // Renamed to avoid conflict with Lucide's Image icon
+import NextImage from 'next/image'; 
 import { cn } from '@/lib/utils';
 
 const ClientAuthGuard = ({ children }: { children: React.ReactNode }) => {
@@ -50,7 +50,7 @@ export default function AskMrKnowChatPage() {
     if (data && data.chatHistory) {
       setSessionData(data);
     } else {
-      setError("No active chat session found or session is invalid. Please start a new session.");
+      setError("No active chat session found or session is invalid. Please start a new session by selecting content.");
       setActiveAskMrKnowSession(null);
     }
     setIsLoading(false);
@@ -95,9 +95,7 @@ export default function AskMrKnowChatPage() {
     setIsSending(false);
 
     if ('error' in aiResponse) {
-      toast({ title: "Error from Mr. Know", description: aiResponse.error, variant: "destructive" });
-      // Optionally remove the user's message if the AI call fails completely, or mark it as failed
-      // For now, we keep the user message and show the error.
+      toast({ title: "StudyEthiopia AI+ Error", description: aiResponse.error, variant: "destructive" });
     } else {
       const updatedSessionWithAiMsg: ActiveAskMrKnowSessionData = {
         ...updatedSessionWithUserMsg,
@@ -134,7 +132,7 @@ export default function AskMrKnowChatPage() {
             <CardContent>
               <p>{error || "Could not load chat session data."}</p>
               <Button onClick={() => router.push('/ask-mr-know/select')} className="mt-4">
-                <ArrowLeft className="mr-2 h-4 w-4" /> Back to Selection
+                <ArrowLeft className="mr-2 h-4 w-4" /> Back to Content Selection
               </Button>
             </CardContent>
           </Card>
@@ -151,7 +149,7 @@ export default function AskMrKnowChatPage() {
         <Card className="w-full max-w-3xl mx-auto shadow-xl flex flex-col flex-grow">
           <CardHeader className="text-center border-b">
             <MessageCircleQuestion className="mx-auto h-10 w-10 text-primary mb-2" />
-            <CardTitle className="text-2xl font-headline">Ask Mr. Know</CardTitle>
+            <CardTitle className="text-2xl font-headline">Chat with StudyEthiopia AI+</CardTitle>
             <CardDescription>Chatting about: {sessionData.documentName}</CardDescription>
           </CardHeader>
 
@@ -204,13 +202,23 @@ export default function AskMrKnowChatPage() {
                   )}
                 </div>
               ))}
+               {isSending && (
+                 <div className="flex items-end space-x-2 justify-start">
+                    <Avatar className="h-8 w-8">
+                      <AvatarFallback><Bot size={18}/></AvatarFallback>
+                    </Avatar>
+                    <div className="p-3 rounded-lg bg-muted text-muted-foreground max-w-[70%]">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                    </div>
+                 </div>
+               )}
             </div>
           </ScrollArea>
 
           <CardFooter className="p-4 border-t">
             <div className="flex w-full items-center space-x-2">
               <Textarea
-                placeholder="Type your message to Mr. Know..."
+                placeholder="Ask StudyEthiopia AI+ about the content..."
                 value={userMessage}
                 onChange={(e) => setUserMessage(e.target.value)}
                 onKeyDown={(e) => {
@@ -243,3 +251,4 @@ export default function AskMrKnowChatPage() {
     </ClientAuthGuard>
   );
 }
+
