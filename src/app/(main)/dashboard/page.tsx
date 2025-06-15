@@ -9,8 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { getLearningHistory, type HistoryItem } from '@/lib/session-store';
 import { getKnowledgeBaseItems } from '@/lib/knowledge-base-store';
-import { Brain, Layers, UserCircle, TrendingUp, BookCopy, Target, AlertTriangle, PieChart, CheckSquare, Activity, DatabaseZap, Edit3, GraduationCap, CheckCircle2, XCircle, HelpCircle, MessageCircleQuestion, Code2, BookOpenCheck } from 'lucide-react';
-// Removed unused next/image import
+import { Brain, Layers, UserCircle, TrendingUp, BookCopy, Target, AlertTriangle, PieChart, CheckSquare, Activity, DatabaseZap, Edit3, GraduationCap, CheckCircle2, XCircle, HelpCircle, MessageCircleQuestion, Code2, BookOpenCheck, Briefcase } from 'lucide-react';
 import { format } from 'date-fns';
 
 const ClientAuthGuard = ({ children }: { children: React.ReactNode }) => {
@@ -138,7 +137,6 @@ export default function EnhancedDashboardPage() {
 
   useEffect(() => {
     loadUserData();
-    // Listen for storage changes to update user data if changed on profile page
     window.addEventListener('storage', loadUserData);
     return () => {
       window.removeEventListener('storage', loadUserData);
@@ -237,6 +235,13 @@ export default function EnhancedDashboardPage() {
               title="Code with Me"
               description="Learn programming concepts interactively, starting from syntax basics."
               className="bg-gradient-to-br from-rose-500/5 via-transparent to-rose-500/5 hover:from-rose-500/10 hover:to-rose-500/10"
+            />
+            <FeatureButton
+              href="/mock-interview"
+              icon={Briefcase}
+              title="Mock Interview"
+              description="Practice a case interview with AI interviewer Jane Smith."
+              className="bg-gradient-to-br from-teal-500/5 via-transparent to-teal-500/5 hover:from-teal-500/10 hover:to-teal-500/10"
             />
           </div>
         </section>
@@ -389,3 +394,5 @@ export default function EnhancedDashboardPage() {
     </ClientAuthGuard>
   );
 }
+
+    

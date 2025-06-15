@@ -7,10 +7,10 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Home, Send, Loader2, Video, Webcam, AlertCircle, Briefcase } from 'lucide-react';
+import { GraduationCap, Home, Send, Loader2, Video, Webcam, AlertCircle, Briefcase } from 'lucide-react';
+import { redirect } from 'next/navigation';
 import { useToast } from "@/hooks/use-toast";
 import { initiateTavusLiveSession, type TavusConversationDetails } from '@/app/actions';
-
 
 const ClientAuthGuard = ({ children }: { children: React.ReactNode }) => {
   const router = useRouter();
@@ -18,7 +18,7 @@ const ClientAuthGuard = ({ children }: { children: React.ReactNode }) => {
   useEffect(() => {
     if (typeof window !== 'undefined') {
       if (!localStorage.getItem('isLoggedIn')) {
-        router.push('/login'); 
+        router.push('/login'); // Use router.push for client-side navigation
       } else {
         setIsVerified(true);
       }
@@ -29,7 +29,7 @@ const ClientAuthGuard = ({ children }: { children: React.ReactNode }) => {
   return <>{children}</>;
 };
 
-const TAVUS_PERSONA_ID_JANE_SMITH = "pc55154f229a"; 
+const TAVUS_PERSONA_ID_JANE_SMITH = "pc55154f229a";
 
 export default function MockInterviewPage() {
   const router = useRouter();
@@ -41,7 +41,6 @@ export default function MockInterviewPage() {
 
   const [messages, setMessages] = useState<{ sender: 'user' | 'ai', text: string }[]>([]);
   const [userInput, setUserInput] = useState("");
-
 
   const handleStartSession = async () => {
     setIsSessionStarting(true);
@@ -73,15 +72,13 @@ export default function MockInterviewPage() {
   const handleSendMessage = () => {
     if (!userInput.trim()) return;
     setMessages(prev => [...prev, { sender: 'user', text: userInput }]);
-    // Simulate AI response based on Jane Smith's persona
+    // Simulate AI response
     setTimeout(() => {
-        // This response should be more contextual based on the persona description
-        // For now, a generic placeholder.
-        setMessages(prev => [...prev, {sender: 'ai', text: "Thank you for sharing that. Now, let's talk about the case study. SodaPop Inc. is considering... (This is a simulated response from Jane - Tavus SDK needed for actual interaction)"}]);
-    }, 1500);
+        setMessages(prev => [...prev, {sender: 'ai', text: "That's interesting. Let's move on to the case. (This is a simulated response from Jane - Tavus SDK needed for actual interaction)"}]);
+    }, 1000);
     setUserInput("");
     // In real integration, send userInput to Tavus via SDK
-  }
+  };
 
   return (
     <ClientAuthGuard>
@@ -127,8 +124,8 @@ export default function MockInterviewPage() {
                     <AlertCircle className="h-4 w-4" />
                     <AlertTitle>Ready for your Mock Interview?</AlertTitle>
                     <AlertDescription>
-                        Click "Start Mock Interview" to connect with Jane Smith. This will simulate initiating a session with the Tavus API.
-                        Full video and audio interaction requires the Tavus SDK for a complete experience.
+                        Click "Start Mock Interview" to connect with Jane Smith. This simulates initiating a session with the Tavus API.
+                        Full video and audio interaction requires the Tavus SDK.
                     </AlertDescription>
                 </Alert>
             )}
@@ -137,7 +134,7 @@ export default function MockInterviewPage() {
                 <div className="mt-4 border rounded-md p-4 h-64 overflow-y-auto flex flex-col space-y-2 bg-background">
                     {messages.map((msg, index) => (
                         <div key={index} className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
-                            <div className={`p-3 rounded-lg max-w-[75%] shadow-sm ${msg.sender === 'user' ? 'bg-primary text-primary-foreground ml-auto' : 'bg-accent text-accent-foreground mr-auto'}`}>
+                            <div className={`p-2 rounded-lg max-w-[70%] ${msg.sender === 'user' ? 'bg-primary text-primary-foreground' : 'bg-accent text-accent-foreground'}`}>
                                 {msg.text}
                             </div>
                         </div>
@@ -153,11 +150,10 @@ export default function MockInterviewPage() {
                         onChange={(e) => setUserInput(e.target.value)}
                         placeholder="Respond to Jane..." 
                         className="flex-grow"
-                        onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendMessage(); } }}
+                        onKeyDown={(e) => { if (e.key === 'Enter') handleSendMessage(); }}
                     />
                     <Button onClick={handleSendMessage} size="icon" disabled={!userInput.trim()}>
                         <Send className="h-4 w-4" />
-                        <span className="sr-only">Send message</span>
                     </Button>
                 </div>
             )}
@@ -167,7 +163,7 @@ export default function MockInterviewPage() {
             {!tavusSessionDetails && (
               <Button onClick={handleStartSession} disabled={isSessionStarting} size="lg" className="w-full sm:w-auto">
                 {isSessionStarting ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <Webcam className="mr-2 h-5 w-5" />}
-                {isSessionStarting ? "Starting Interview..." : "Start Mock Interview"}
+                {isSessionStarting ? "Starting Interview..." : "Start Mock Interview with Jane"}
               </Button>
             )}
              <Button variant="outline" onClick={() => router.push('/dashboard')} size="lg" className="w-full sm:w-auto">

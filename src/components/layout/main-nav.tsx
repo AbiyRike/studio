@@ -4,13 +4,13 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { LayoutDashboard, History, LogOut, Brain, DatabaseZap, Edit3, Layers, GraduationCap, MessageCircleQuestion, Code2, User } from "lucide-react"; // Added User icon
+import { LayoutDashboard, History, LogOut, Brain, DatabaseZap, Edit3, Layers, GraduationCap, MessageCircleQuestion, Code2, User, Briefcase } from "lucide-react"; // Added User, Briefcase icons
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
 
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/profile", label: "My Profile", icon: User }, // Added Profile link
+  { href: "/profile", label: "My Profile", icon: User },
   { href: "/knowledge-base/new", label: "Add to Knowledge", icon: DatabaseZap },
   { href: "/quiz-session/new", label: "New Quiz", icon: Brain },
   { href: "/quiz-from-kb", label: "Quiz from KB", icon: Edit3 },
@@ -18,6 +18,7 @@ const navItems = [
   { href: "/interactive-tutor/select", label: "Tutor Me", icon: GraduationCap },
   { href: "/ask-mr-know/select", label: "Ask Mr. Know", icon: MessageCircleQuestion },
   { href: "/code-with-me/select", label: "Code with Me", icon: Code2 },
+  { href: "/mock-interview", label: "Mock Interview", icon: Briefcase },
   { href: "/history", label: "Learning History", icon: History },
 ];
 
@@ -73,3 +74,5 @@ export function MainNav() {
     </nav>
   );
 }
+
+    
