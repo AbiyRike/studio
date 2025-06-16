@@ -71,17 +71,19 @@ const prompt = ai.definePrompt({
   {{/unless}}
   {{/if}}
 
-  Generate exactly {{{numberOfQuestions}}} multiple-choice questions. Each question MUST have exactly 4 options.
+  Generate up to {{{numberOfQuestions}}} multiple-choice questions. Each question MUST have exactly 4 options.
   Clearly indicate the correct answer's index (0, 1, 2, or 3) in the options array.
   Provide a brief explanation for why the answer is correct for each question. This explanation should be encouraging and help the student learn.
 
   {{#if previousQuestionTexts}}
-  IMPORTANT: You have already generated questions with the following texts. Ensure the new questions you generate are SUBSTANTIALLY DIFFERENT and cover NEW aspects, details, or question styles from the provided content. Do NOT repeat these questions or variations of them. Focus on variety.
+  IMPORTANT: You have already generated questions with the following texts. Ensure the new questions you generate are SUBSTANTIALLY DIFFERENT and cover NEW aspects, details, or question styles from the provided content. Do NOT repeat these questions or variations of them. Focus on variety and testing previously unaddressed concepts.
   Previously generated question texts to avoid:
   {{#each previousQuestionTexts}}
   - "{{this}}"
   {{/each}}
   {{/if}}
+
+  CRITICAL INSTRUCTION: If you cannot generate {{{numberOfQuestions}}} genuinely new and distinct questions that cover different aspects of the content than those listed in 'previousQuestionTexts' (if provided), generate as many distinct new questions as you can, up to {{{numberOfQuestions}}}. If no genuinely new and distinct questions can be generated because all suitable key concepts from the provided material have been covered by previous questions, you MUST return an empty "questions" array. Do NOT rephrase or create slight variations of previously generated questions if new material cannot be tested. Prioritize returning an empty array over returning rephrased or very similar questions.
 
   The output MUST be a JSON object with a "questions" field. The "questions" field must be an array of objects, where each object has the following structure:
   {
@@ -91,7 +93,6 @@ const prompt = ai.definePrompt({
     "explanation": "Brief, clear, and encouraging explanation for the correct answer."
   }
   If no content is provided to base questions on, return an empty "questions" array.
-  If you cannot generate {{{numberOfQuestions}}} distinct new questions based on the content and previous questions, generate as many new distinct questions as you can, up to {{{numberOfQuestions}}}. If no new distinct questions can be generated, return an empty "questions" array.
   `,
 });
 
