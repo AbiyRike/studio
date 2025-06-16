@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useEffect, useState, useRef, type ChangeEvent } from 'react';
+import { useEffect, useState, useRef, type ChangeEvent, useCallback } from 'react'; // Added useCallback
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
@@ -15,7 +15,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { format, parseISO } from "date-fns";
 import { cn } from "@/lib/utils";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"; // Added this line
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 
 const ClientAuthGuard = ({ children }: { children: React.ReactNode }) => {
@@ -77,16 +77,16 @@ export default function ProfilePage() {
     }
   }, []);
 
-  const handleInputChange = (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+  const handleInputChange = useCallback((e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setProfileData(prev => ({ ...prev, [name]: value }));
-  };
+  }, [setProfileData]); // Added setProfileData to dependency array
 
-  const handleDateChange = (date: Date | undefined) => {
+  const handleDateChange = useCallback((date: Date | undefined) => {
     setProfileData(prev => ({ ...prev, birthday: date || null }));
-  };
+  }, [setProfileData]); // Added setProfileData
 
-  const handleProfilePicChange = (e: ChangeEvent<HTMLInputElement>) => {
+  const handleProfilePicChange = useCallback((e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       const reader = new FileReader();
@@ -95,7 +95,7 @@ export default function ProfilePage() {
       };
       reader.readAsDataURL(file);
     }
-  };
+  }, [setProfileData]); // Added setProfileData
 
   const handleSaveChanges = () => {
     setIsSaving(true);
@@ -117,7 +117,7 @@ export default function ProfilePage() {
       localStorage.setItem('userGeminiApiKey', profileData.geminiApiKey);
 
       toast({ title: "Profile Updated", description: "Your changes have been saved. Please note: For the Gemini API Key to take effect for AI features, you must also set it in the project's .env file and restart the server." });
-      window.dispatchEvent(new Event('storage')); // Notify other components like UserNav
+      window.dispatchEvent(new Event('storage')); 
     }
     setIsSaving(false);
   };
@@ -136,7 +136,6 @@ export default function ProfilePage() {
       localStorage.removeItem('userBirthday');
       localStorage.removeItem('userProfilePic');
       localStorage.removeItem('userGeminiApiKey');
-      // Clear other session-specific data
       localStorage.removeItem('activeTutorSession');
       localStorage.removeItem('activeFlashcardSession');
       localStorage.removeItem('activeInteractiveTavusTutorSession');
@@ -206,19 +205,19 @@ export default function ProfilePage() {
             <div className="space-y-4">
               <div>
                 <Label htmlFor="name">Full Name</Label>
-                <Input id="name" name="name" value={profileData.name} onChange={handleInputChange} className="mt-1" disabled={isSaving} />
+                <Input id="name" name="name" value={profileData.name || ''} onChange={handleInputChange} className="mt-1" disabled={isSaving} />
               </div>
               <div>
                 <Label htmlFor="email">Email</Label>
-                <Input id="email" name="email" type="email" value={profileData.email} onChange={handleInputChange} className="mt-1" disabled={isSaving}/>
+                <Input id="email" name="email" type="email" value={profileData.email || ''} onChange={handleInputChange} className="mt-1" disabled={isSaving}/>
               </div>
               <div>
                 <Label htmlFor="department">Department</Label>
-                <Input id="department" name="department" value={profileData.department} onChange={handleInputChange} placeholder="e.g., Computer Science" className="mt-1" disabled={isSaving} />
+                <Input id="department" name="department" value={profileData.department || ''} onChange={handleInputChange} placeholder="e.g., Computer Science" className="mt-1" disabled={isSaving} />
               </div>
               <div>
                 <Label htmlFor="institution">Institution</Label>
-                <Input id="institution" name="institution" value={profileData.institution} placeholder="e.g., University of Example" className="mt-1" disabled={isSaving} />
+                <Input id="institution" name="institution" value={profileData.institution || ''} onChange={handleInputChange} placeholder="e.g., University of Example" className="mt-1" disabled={isSaving} />
               </div>
               <div>
                 <Label htmlFor="birthday">Date of Birth</Label>
@@ -249,7 +248,7 @@ export default function ProfilePage() {
               </div>
                <div>
                 <Label htmlFor="geminiApiKey">Gemini API Key</Label>
-                <Input id="geminiApiKey" name="geminiApiKey" type="password" value={profileData.geminiApiKey} onChange={handleInputChange} className="mt-1" placeholder="Enter your Gemini API Key" disabled={isSaving}/>
+                <Input id="geminiApiKey" name="geminiApiKey" type="password" value={profileData.geminiApiKey || ''} onChange={handleInputChange} className="mt-1" placeholder="Enter your Gemini API Key" disabled={isSaving}/>
               </div>
               <Alert variant="default" className="bg-primary/10 border-primary/30">
                 <Info className="h-5 w-5 text-primary" />
@@ -280,3 +279,4 @@ export default function ProfilePage() {
     </ClientAuthGuard>
   );
 }
+
