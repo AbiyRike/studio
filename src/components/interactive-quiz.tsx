@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useCallback } from 'react';
@@ -10,7 +9,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { CheckCircle, XCircle, Sparkles, Loader2, HelpCircle, ListChecks } from 'lucide-react';
+import { CheckCircle, XCircle, Sparkles, Loader2, HelpCircle, ListChecks, Home } from 'lucide-react';
 import { addToLearningHistory, HistoryItem, setActiveTutorSession } from '@/lib/session-store';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
@@ -41,6 +40,9 @@ export function InteractiveQuiz({ sessionData }: InteractiveQuizProps) {
   const [isFetchingNextBatch, setIsFetchingNextBatch] = useState(false);
   const [hasMoreQuestionsToFetch, setHasMoreQuestionsToFetch] = useState(true);
   
+  const questionsDisplayedCount = allQuestions.length;
+  const progressValue = questionsDisplayedCount > 0 ? ((currentQuestionIndex + 1) / Math.min(questionsDisplayedCount, MAX_QUESTIONS)) * 100 : 0;
+
 
   useEffect(() => {
     if (sessionData.questions.length === 0) {
@@ -214,7 +216,9 @@ export function InteractiveQuiz({ sessionData }: InteractiveQuizProps) {
            )}
         </CardContent>
         <CardFooter className="flex flex-col sm:flex-row justify-around gap-3 p-6">
-            <Button onClick={() => router.push('/dashboard')} className="w-full sm:w-auto">Back to Dashboard</Button>
+            <Button onClick={() => router.push('/dashboard')} className="w-full sm:w-auto">
+              <Home className="mr-2 h-4 w-4" /> Back to Dashboard
+            </Button>
             <Button variant="outline" onClick={() => router.push('/history')} className="w-full sm:w-auto">View History</Button>
         </CardFooter>
       </Card>
@@ -230,14 +234,11 @@ export function InteractiveQuiz({ sessionData }: InteractiveQuizProps) {
                 <p>Please wait while we prepare your quiz.</p>
                  <p className="text-sm text-muted-foreground mt-2">If this takes too long, the AI might be having trouble generating questions for the provided content.</p>
             </CardContent>
-            <CardFooter><Button onClick={() => router.push('/dashboard')}>Back to Dashboard</Button></CardFooter>
+            <CardFooter><Button onClick={() => router.push('/dashboard')}><Home className="mr-2 h-4 w-4" /> Back to Dashboard</Button></CardFooter>
         </Card>
     );
   }
   
-  const questionsDisplayedCount = allQuestions.length;
-  const progressValue = allQuestions.length > 0 ? ((currentQuestionIndex + 1) / Math.min(questionsDisplayedCount, MAX_QUESTIONS)) * 100 : 0;
-
 
   return (
     <div className="space-y-8">
@@ -269,8 +270,8 @@ export function InteractiveQuiz({ sessionData }: InteractiveQuizProps) {
                       "flex items-center p-4 border rounded-lg cursor-pointer transition-all",
                       "hover:border-primary",
                       selectedAnswer === index && "border-primary ring-2 ring-primary",
-                      showFeedback && index === currentQuestion.answer && "bg-green-100 border-green-500 text-green-700",
-                      showFeedback && index !== currentQuestion.answer && selectedAnswer === index && "bg-red-100 border-red-500 text-red-700"
+                      showFeedback && index === currentQuestion.answer && "bg-green-100 border-green-500 text-green-700 dark:bg-green-900/30 dark:text-green-300 dark:border-green-700",
+                      showFeedback && index !== currentQuestion.answer && selectedAnswer === index && "bg-red-100 border-red-500 text-red-700 dark:bg-red-900/30 dark:text-red-300 dark:border-red-700"
                     )}
                   >
                     <RadioGroupItem value={index.toString()} id={`option-${index}`} className="mr-3" />
@@ -318,7 +319,7 @@ export function InteractiveQuiz({ sessionData }: InteractiveQuizProps) {
       {showFeedback && currentQuestion && (
         <Alert variant={isCorrect ? "default" : "destructive"} className={cn("transition-opacity duration-300", isCorrect ? "border-green-500 bg-green-50 dark:bg-green-900/30" : "border-red-500 bg-red-50 dark:bg-red-900/30")}>
           {isCorrect ? <CheckCircle className="h-5 w-5 text-green-600 dark:text-green-400" /> : <XCircle className="h-5 w-5 text-red-600 dark:text-red-400" />}
-          <AlertTitle className={cn(isCorrect ? "text-green-700 dark:text-green-300" : "text-red-700 dark:text-red-300")}>
+          <AlertTitle className={cn("font-semibold", isCorrect ? "text-green-700 dark:text-green-300" : "text-red-700 dark:text-red-300")}>
             {isCorrect ? "Correct!" : "Not Quite!"}
           </AlertTitle>
           <AlertDescription className={cn(isCorrect ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400")}>

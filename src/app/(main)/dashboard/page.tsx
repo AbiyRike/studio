@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useEffect, useState } from 'react';
@@ -9,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { getLearningHistory, type HistoryItem } from '@/lib/session-store';
 import { getKnowledgeBaseItems } from '@/lib/knowledge-base-store';
-import { Brain, Layers, UserCircle, TrendingUp, BookCopy, Target, AlertTriangle, PieChart, CheckSquare, Activity, DatabaseZap, Edit3, GraduationCap, CheckCircle2, XCircle, HelpCircle, MessageCircleQuestion, Code2, BookOpenCheck, Briefcase, Video } from 'lucide-react';
+import { Brain, Layers, UserCircle, TrendingUp, BookCopy, Target, AlertTriangle, PieChart, CheckSquare, Activity, DatabaseZap, Edit3, GraduationCap, CheckCircle2, XCircle, HelpCircle, MessageCircleQuestion, Code2, BookOpenCheck, Briefcase, Video, FolderKanban } from 'lucide-react';
 import { format } from 'date-fns';
 
 const ClientAuthGuard = ({ children }: { children: React.ReactNode }) => {
@@ -188,17 +187,17 @@ export default function EnhancedDashboardPage() {
           <h2 className="text-2xl font-semibold font-headline mb-6 text-center text-foreground/90">Start Your Learning Journey</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             <FeatureButton
-              href="/knowledge-base/new"
-              icon={DatabaseZap}
-              title="Add to Knowledge"
-              description="Upload content to create summaries and store them in your knowledge base."
+              href="/knowledge-base/manage" // Updated Link
+              icon={FolderKanban} // Changed Icon
+              title="Knowledge Base" // Updated Title
+              description="Manage, view, edit, or delete your uploaded content and summaries." // Updated Description
               className="bg-gradient-to-br from-green-500/5 via-transparent to-green-500/5 hover:from-green-500/10 hover:to-green-500/10"
             />
              <FeatureButton
               href="/quiz-session/new"
               icon={Brain}
               title="New Quiz"
-              description="Upload new content. It's added to KB & a quiz starts immediately."
+              description="Upload new content. It's added to KB &amp; a quiz starts immediately."
               className="bg-gradient-to-br from-primary/5 via-transparent to-primary/5 hover:from-primary/10 hover:to-primary/10"
             />
              <FeatureButton
@@ -217,7 +216,7 @@ export default function EnhancedDashboardPage() {
             />
             <FeatureButton
               href="/interactive-tutor/select"
-              icon={Video} // Changed from GraduationCap
+              icon={Video} 
               title="Interactive Video Tutor"
               description="Select from KB for a step-by-step AI video tutoring session with StudyEthiopia AI+."
               className="bg-gradient-to-br from-purple-500/5 via-transparent to-purple-500/5 hover:from-purple-500/10 hover:to-purple-500/10"
@@ -233,7 +232,7 @@ export default function EnhancedDashboardPage() {
               href="/code-with-me/select"
               icon={Code2}
               title="Code with Me"
-              description="Learn programming concepts interactively with StudyEthiopia AI+."
+              description="Learn programming languages interactively with StudyEthiopia AI+."
               className="bg-gradient-to-br from-rose-500/5 via-transparent to-rose-500/5 hover:from-rose-500/10 hover:to-rose-500/10"
             />
             <FeatureButton

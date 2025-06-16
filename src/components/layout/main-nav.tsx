@@ -1,21 +1,20 @@
-
 "use client";
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { LayoutDashboard, History, LogOut, Brain, DatabaseZap, Edit3, Layers, GraduationCap, MessageCircleQuestion, Code2, User, Briefcase, Video } from "lucide-react"; 
+import { LayoutDashboard, History, LogOut, Brain, DatabaseZap, Edit3, Layers, GraduationCap, MessageCircleQuestion, Code2, User, Briefcase, Video, FolderKanban } from "lucide-react"; 
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
 
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/profile", label: "My Profile", icon: User },
-  { href: "/knowledge-base/new", label: "Add to Knowledge", icon: DatabaseZap },
+  { href: "/knowledge-base/manage", label: "Knowledge Base", icon: FolderKanban }, // Updated
   { href: "/quiz-session/new", label: "New Quiz", icon: Brain },
   { href: "/quiz-from-kb", label: "Quiz from KB", icon: Edit3 },
   { href: "/flashcards", label: "Flashcards", icon: Layers },
-  { href: "/interactive-tutor/select", label: "Interactive Tutor", icon: Video }, // Icon changed to Video for Tavus tutor
+  { href: "/interactive-tutor/select", label: "Interactive Tutor", icon: Video },
   { href: "/ask-mr-know/select", label: "Ask Mr. Know", icon: MessageCircleQuestion },
   { href: "/code-with-me/select", label: "Code with Me", icon: Code2 },
   { href: "/mock-interview", label: "Mock Interview", icon: Briefcase },
@@ -38,12 +37,11 @@ export function MainNav() {
       // Clear other session-specific data
       localStorage.removeItem('activeTutorSession');
       localStorage.removeItem('activeFlashcardSession');
-      // localStorage.removeItem('activeInteractiveTutorSession'); // Old key, replaced by Tavus
-      localStorage.removeItem('activeInteractiveTavusTutorSession'); // New key for video tutor
+      localStorage.removeItem('activeInteractiveTavusTutorSession');
       localStorage.removeItem('activeAskMrKnowSession');
       localStorage.removeItem('activeCodeTeachingSession');
     }
-    router.push("/"); // Redirect to homepage after logout
+    router.push("/"); 
   };
 
   return (
