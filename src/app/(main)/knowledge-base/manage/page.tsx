@@ -60,25 +60,22 @@ export default function ManageKnowledgeBasePage() {
   useEffect(() => {
     loadItems();
     setIsLoading(false);
+    
+    // Listen for custom event to refresh list after edits
+    const handleStorageChange = () => loadItems();
+    window.addEventListener('knowledgeBaseUpdated', handleStorageChange);
+    return () => {
+      window.removeEventListener('knowledgeBaseUpdated', handleStorageChange);
+    };
+
   }, []);
 
   const handleDeleteItem = (id: string, name: string) => {
     deleteKnowledgeBaseItem(id);
-    loadItems(); // Refresh the list
+    loadItems(); 
     toast({
       title: "Item Deleted",
       description: `"${name}" has been removed from your knowledge base.`,
-    });
-  };
-
-  const handleEditItem = (id: string) => {
-    // For now, this is a placeholder.
-    // In a full implementation, this would navigate to an edit page or open a modal.
-    // router.push(`/knowledge-base/edit/${id}`); 
-    toast({
-      title: "Edit Not Implemented",
-      description: "Editing knowledge base items will be available in a future update.",
-      variant: "default"
     });
   };
   
@@ -179,8 +176,8 @@ export default function ManageKnowledgeBasePage() {
                     <Button variant="ghost" size="icon" asChild title="View">
                       <Link href={`/knowledge-base/view/${item.id}`}><Eye className="h-5 w-5" /></Link>
                     </Button>
-                    <Button variant="ghost" size="icon" title="Edit (Coming Soon)" onClick={() => handleEditItem(item.id)}>
-                      <Edit className="h-5 w-5" />
+                    <Button variant="ghost" size="icon" title="Edit" asChild>
+                      <Link href={`/knowledge-base/edit/${item.id}`}><Edit className="h-5 w-5" /></Link>
                     </Button>
                      <AlertDialog>
                       <AlertDialogTrigger asChild>

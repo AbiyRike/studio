@@ -225,6 +225,65 @@ export async function summarizeAndGetDataForStorage(
   }
 }
 
+export interface UpdateKnowledgeItemDetailsInput {
+  id: string;
+  documentName: string;
+  documentContent: string;
+  mediaDataUri?: string; // Existing media URI, not changed in this step
+  createdAt: string;     // Existing creation timestamp
+}
+
+export async function updateKnowledgeItemDetails(
+  input: UpdateKnowledgeItemDetailsInput
+): Promise<KnowledgeBaseItem | { error: string }> {
+  try {
+    const { id, documentName, documentContent, mediaDataUri, createdAt } = input;
+
+    if (!documentName.trim()) {
+      return { error: "Document name cannot be empty." };
+    }
+    if (!documentContent.trim() && !mediaDataUri) { // Content or media must exist
+      return { error: "Document content or associated media is required for summarization." };
+    }
+
+    // Re-summarize based on new content and existing media
+    const aiSummarizeInput: SummarizeDocumentInput = {
+      documentContent,
+      ...(mediaDataUri && { photoDataUri: mediaDataUri }),
+    };
+    const summaryResult = await summarizeDocument(aiSummarizeInput);
+    let newSummary = summaryResult.summary;
+
+    if (!newSummary || newSummary.trim() === "" || newSummary.toLowerCase().includes("cannot generate summary") || newSummary.toLowerCase().includes("need some material")) {
+      newSummary = "I wasn't able to generate an updated summary for this content, but your changes have been saved. The previous summary might still be relevant or you can try editing again.";
+    }
+
+    const updatedItem: KnowledgeBaseItem = {
+      id,
+      documentName,
+      documentContent,
+      mediaDataUri,
+      summary: newSummary,
+      createdAt, // Preserve original creation date
+      updatedAt: new Date().toISOString(), // Set new update date
+    };
+
+    return updatedItem;
+
+  } catch (e) {
+    console.error("Error in updateKnowledgeItemDetails:", e);
+    const errorMessage = e instanceof Error ? e.message : "An unknown error occurred during AI processing.";
+    if (errorMessage.includes("rate limit") || errorMessage.includes("quota") || errorMessage.includes("503") || errorMessage.toLowerCase().includes("overloaded")) {
+        return { error: "The AI service is currently busy. Please try again later." };
+    }
+    if (errorMessage.toLowerCase().includes("safety") || errorMessage.toLowerCase().includes("blocked")) {
+        return { error: "The content changes could not be processed due to safety filters."};
+    }
+    return { error: `AI processing failed during update. Details: ${errorMessage}.` };
+  }
+}
+
+
 export interface GenerateQuizFromKBItemInput {
   documentName: string;
   documentContent?: string; 
@@ -426,24 +485,22 @@ export async function startInteractiveTutorSession(
         mediaDataUri: kbItem.mediaDataUri,
     };
     
-    const personaContextResult = await generateTavusTutorPersonaContext(personaInput);
+    const personaContextResultOrError = await generateTavusTutorPersonaContext(personaInput);
     
-    if ('error' in personaContextResult || !personaContextResult.conversation_name || !personaContextResult.conversational_context || !personaContextResult.custom_greeting) {
-        // Use fallback if AI fails to generate full context
-        const defaultGreeting = `Hello! I'm StudyEthiopia AI+, and I'm ready to explore ${kbItem.documentName || 'this topic'} with you! What's on your mind?`;
+    if ('error' in personaContextResultOrError) {
+        // Error case: persona generation itself failed
+        console.error(`Tavus persona generation failed: ${personaContextResultOrError.error}`);
+        const defaultGreeting = `Hello! I'm StudyEthiopia AI+. I seem to be having trouble getting specific details for "${kbItem.documentName}", but I can still help! What's on your mind?`;
         const defaultContext = `You are StudyEthiopia AI+, a friendly and knowledgeable tutor. You are helping a student learn about "${kbItem.documentName || 'the selected topic'}". Be encouraging and explain concepts clearly. Use the provided content as your primary reference: ${kbItem.documentContent || ''} ${kbItem.mediaDataUri ? `Associated Image: {{media url=${kbItem.mediaDataUri}}}` : '' }`;
-        
-        personaContextResult.conversation_name = personaContextResult.conversation_name || `Tutoring: ${kbItem.documentName || 'Selected Topic'}`;
-        personaContextResult.conversational_context = personaContextResult.conversational_context || defaultContext;
-        personaContextResult.custom_greeting = personaContextResult.custom_greeting || defaultGreeting;
-        
-        if (personaContextResult.error) {
-             console.warn(`Tavus persona generation had an error: ${personaContextResult.error}. Using fallbacks.`);
-        } else {
-             console.warn("Tavus persona generation returned incomplete data. Using fallbacks.");
-        }
+        personaContextResultOrError.conversation_name = `Tutoring: ${kbItem.documentName || 'Selected Topic'} (Default)`;
+        personaContextResultOrError.conversational_context = defaultContext;
+        personaContextResultOrError.custom_greeting = defaultGreeting;
     }
     
+    // Ensure we have a valid object, even if it's the error object with defaults added
+    const personaContextResult = personaContextResultOrError as GenerateTavusTutorPersonaContextOutput;
+
+
     const tavusApiKey = process.env.TAVUS_API_KEY;
     if (!tavusApiKey) {
       console.error("TAVUS_API_KEY not found in .env for startInteractiveTutorSession (Video Tutor)");
