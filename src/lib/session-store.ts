@@ -1,5 +1,8 @@
 
-import type { Question, Flashcard } from '@/app/actions'; 
+
+import type { Question } from '@/app/actions'; 
+import type { Flashcard as AppFlashcard } from '@/ai/flows/generate-flashcards';
+
 
 // ---- Quiz Session (Old Tutor) ----
 export interface TutorSessionData {
@@ -75,7 +78,9 @@ export const addToLearningHistory = (item: HistoryItem): void => {
 // ---- Active Flashcard Session ----
 export interface FlashcardSessionData {
   documentName: string;
-  flashcards: Flashcard[];
+  flashcards: AppFlashcard[];
+  documentContent: string; // Store original content to generate more cards
+  mediaDataUri?: string;   // Store original media to generate more cards
 }
 
 const ACTIVE_FLASHCARD_SESSION_KEY = 'activeFlashcardSession';

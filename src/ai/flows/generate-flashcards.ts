@@ -3,6 +3,7 @@
 
 /**
  * @fileOverview Generates flashcards (term/definition pairs) based on document content and/or an image, using the StudyEthiopia AI+ persona.
+ * Allows for specifying previously generated terms to avoid duplicates in a continuous session.
  *
  * - generateFlashcards - A function that generates flashcards.
  * - GenerateFlashcardsInput - The input type for the generateFlashcards function.
@@ -27,6 +28,10 @@ const GenerateFlashcardsInputSchema = z.object({
     .optional()
     .default(10)
     .describe('The desired number of flashcards to generate, defaults to 10.'),
+  previousFlashcardTerms: z
+    .array(z.string())
+    .optional()
+    .describe('An array of terms from flashcards already generated in this session, to encourage variety and avoid repetition.')
 });
 export type GenerateFlashcardsInput = z.infer<typeof GenerateFlashcardsInputSchema>;
 
@@ -34,6 +39,7 @@ const FlashcardSchema = z.object({
   term: z.string().describe('The term, question, or concept for the front of the flashcard. Should be clear and concise for an Ethiopian student.'),
   definition: z.string().describe('The definition, answer, or explanation for the back of the flashcard. Should be clear, conversational, and encouraging.'),
 });
+export type Flashcard = z.infer<typeof FlashcardSchema>;
 
 const GenerateFlashcardsOutputSchema = z.object({
   flashcards: z.array(FlashcardSchema).describe('An array of flashcards.'),
@@ -66,7 +72,15 @@ const prompt = ai.definePrompt({
   {{/unless}}
   {{/if}}
 
-  Generate exactly {{{numberOfFlashcards}}} flashcards.
+  Generate up to {{{numberOfFlashcards}}} new, distinct flashcards.
+
+  {{#if previousFlashcardTerms}}
+  IMPORTANT: You have already generated flashcards with the following terms. Do NOT generate flashcards with these exact terms again. Focus on creating NEW and DIFFERENT flashcards.
+  Previously generated terms to avoid:
+  {{#each previousFlashcardTerms}}
+  - "{{this}}"
+  {{/each}}
+  {{/if}}
 
   The output MUST be a JSON object with a "flashcards" field. The "flashcards" field must be an array of objects, where each object has the following structure:
   {
@@ -74,8 +88,8 @@ const prompt = ai.definePrompt({
     "definition": "The flashcard definition/answer"
   }
   If no content is provided to base flashcards on, return an empty "flashcards" array.
-  If you cannot generate {{{numberOfFlashcards}}} distinct flashcards based on the content, generate as many distinct flashcards as you can, up to {{{numberOfFlashcards}}}.
-  If no flashcards can be generated, return an empty "flashcards" array.
+  If you cannot generate {{{numberOfFlashcards}}} distinct new flashcards based on the content and previous terms, generate as many distinct new flashcards as you can, up to {{{numberOfFlashcards}}}.
+  If no new flashcards can be generated (e.g., all relevant content has been used or conflicts with previous terms), return an empty "flashcards" array.
   `,
 });
 
