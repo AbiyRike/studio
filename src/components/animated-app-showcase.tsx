@@ -40,15 +40,14 @@ const AnimatedAppShowcase: React.FC = () => {
   const sceneTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const [isSpeakingAllowed, setIsSpeakingAllowed] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
+  const [isIntersecting, setIsIntersecting] = useState(false); // For IntersectionObserver
+  const observerContainerRef = useRef<HTMLDivElement>(null); // Ref for the container to observe
 
   useEffect(() => {
     setIsMounted(true);
-    // Attempt to enable speech synthesis on first user interaction or component mount.
-    // Some browsers require user interaction to enable speech synthesis.
-    // We'll try to get voices, which often prompts permission if needed or pre-warms the engine.
     if (typeof window !== 'undefined' && window.speechSynthesis) {
-        window.speechSynthesis.getVoices(); // Pre-warm or prompt
-        setIsSpeakingAllowed(true); // Assume allowed, will fail gracefully if not
+        window.speechSynthesis.getVoices();
+        setIsSpeakingAllowed(true);
     }
     return () => {
        setIsMounted(false);
@@ -58,6 +57,27 @@ const AnimatedAppShowcase: React.FC = () => {
        }
     }
   }, []);
+
+  // IntersectionObserver setup
+  useEffect(() => {
+    if (!isMounted || !observerContainerRef.current) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        setIsIntersecting(entry.intersectionRatio === 1);
+      },
+      { threshold: 1.0 } // Trigger when 100% visible
+    );
+
+    observer.observe(observerContainerRef.current);
+
+    return () => {
+      if (observerContainerRef.current) {
+        observer.unobserve(observerContainerRef.current);
+      }
+      observer.disconnect();
+    };
+  }, [isMounted]);
 
 
   const speak = useCallback((text: string) => {
@@ -74,13 +94,10 @@ const AnimatedAppShowcase: React.FC = () => {
     newUtterance.rate = 0.95;
     newUtterance.pitch = 1.1;
     
-    // Ensure voices are loaded before trying to select one
     const voices = window.speechSynthesis.getVoices();
     if (voices.length > 0) {
         const enUsVoice = voices.find(v => v.lang === 'en-US' && (v.name.includes('Google') || v.name.includes('Microsoft David') || v.name.includes('Samantha') || v.name.includes('Alex')));
         newUtterance.voice = enUsVoice || voices.find(v => v.lang === 'en-US') || voices[0];
-    } else {
-      // Fallback if voices not ready, browser will use default
     }
 
     utteranceRef.current = newUtterance;
@@ -88,23 +105,36 @@ const AnimatedAppShowcase: React.FC = () => {
 
   }, [isSpeakingAllowed, isMounted]);
 
+  // Main effect for scene transitions and speech
   useEffect(() => {
-    if (!isMounted) return;
+    if (!isMounted || !isIntersecting) {
+      if (isMounted && typeof window !== 'undefined' && window.speechSynthesis?.speaking) {
+          window.speechSynthesis.pause(); // Pause speech if not intersecting but was speaking
+      }
+      if(sceneTimeoutRef.current) clearTimeout(sceneTimeoutRef.current); // Clear timer if not intersecting
+      return;
+    }
+
+    // If intersecting, resume speech if it was paused
+    if (typeof window !== 'undefined' && window.speechSynthesis?.paused) {
+        window.speechSynthesis.resume();
+    }
 
     const currentScene = scenes[currentSceneIndex];
     const textToSpeak = `${currentScene.title}. ${currentScene.description}`;
     
-    // Delay speech slightly to allow animation to start
     const speechTimeout = setTimeout(() => {
-        speak(textToSpeak);
-    }, 500); // 500ms delay
+        if (isMounted && isIntersecting) { // Double check before speaking
+            speak(textToSpeak);
+        }
+    }, 500);
 
     if (sceneTimeoutRef.current) {
       clearTimeout(sceneTimeoutRef.current);
     }
 
     sceneTimeoutRef.current = setTimeout(() => {
-      if (isMounted) {
+      if (isMounted && isIntersecting) { // Double check before advancing
         setCurrentSceneIndex((prevIndex) => (prevIndex + 1) % scenes.length);
       }
     }, currentScene.duration);
@@ -114,33 +144,35 @@ const AnimatedAppShowcase: React.FC = () => {
       if (sceneTimeoutRef.current) {
           clearTimeout(sceneTimeoutRef.current);
       }
-      if (typeof window !== 'undefined' && window.speechSynthesis && isMounted) {
-        window.speechSynthesis.cancel();
-      }
+      // Don't cancel synthesis here if we want it to resume correctly on intersect
+      // It will be paused by the isIntersecting check or visibilitychange
     };
-  }, [currentSceneIndex, speak, isMounted]);
+  }, [currentSceneIndex, speak, isMounted, isIntersecting]);
 
+  // Effect for handling browser tab visibility
   useEffect(() => {
+    if (!isMounted) return;
+
     const handleVisibilityChange = () => {
-      if (!isMounted || typeof window === 'undefined' || !window.speechSynthesis) return;
+      if (typeof window === 'undefined' || !window.speechSynthesis) return;
       
       if (document.hidden) {
         window.speechSynthesis.pause();
         if (sceneTimeoutRef.current) clearTimeout(sceneTimeoutRef.current);
       } else {
-        if (window.speechSynthesis.paused) {
-          window.speechSynthesis.resume();
-        }
-        // Restart scene transition timer if it was cleared
-        // This part is complex because we need to know remaining duration
-        // For simplicity, we might just let the useEffect for currentSceneIndex handle it on next cycle.
-        // Or, re-trigger the scene timeout:
-        if (!sceneTimeoutRef.current && scenes[currentSceneIndex]) {
-             sceneTimeoutRef.current = setTimeout(() => {
-                if (isMounted) {
-                    setCurrentSceneIndex((prevIndex) => (prevIndex + 1) % scenes.length);
-                }
-            }, scenes[currentSceneIndex].duration); // This might need adjustment for remaining time
+        // Only resume if also intersecting
+        if (isIntersecting) {
+          if (window.speechSynthesis.paused) {
+            window.speechSynthesis.resume();
+          }
+          // Restart scene transition timer if it was cleared and we are visible
+          if (!sceneTimeoutRef.current && scenes[currentSceneIndex] && isMounted && isIntersecting) {
+               sceneTimeoutRef.current = setTimeout(() => {
+                  if (isMounted && isIntersecting) {
+                      setCurrentSceneIndex((prevIndex) => (prevIndex + 1) % scenes.length);
+                  }
+              }, scenes[currentSceneIndex].duration);
+          }
         }
       }
     };
@@ -149,7 +181,7 @@ const AnimatedAppShowcase: React.FC = () => {
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [isMounted, currentSceneIndex]);
+  }, [isMounted, isIntersecting, currentSceneIndex]); // Add isIntersecting and currentSceneIndex
   
 
   if (!isMounted) {
@@ -165,14 +197,14 @@ const AnimatedAppShowcase: React.FC = () => {
   const currentScene = scenes[currentSceneIndex];
 
   return (
-    <div className="relative w-full h-full rounded-xl overflow-hidden bg-gray-900 flex items-center justify-center p-1">
+    <div ref={observerContainerRef} className="relative w-full h-full rounded-xl overflow-hidden bg-gray-900 flex items-center justify-center p-1">
       <AnimatePresence mode="wait">
         <motion.div
           key={currentScene.id}
           initial={{ opacity: 0, scale: 0.9, x: 100 }}
           animate={{ opacity: 1, scale: 1, x: 0 }}
           exit={{ opacity: 0, scale: 0.9, x: -100 }}
-          transition={{ duration: 0.8, ease: [0.42, 0, 0.58, 1] }} // Smoother cubic-bezier
+          transition={{ duration: 0.8, ease: [0.42, 0, 0.58, 1] }}
           className={`absolute inset-0 ${currentScene.color} ${currentScene.textColor} flex flex-col items-center justify-center p-4 md:p-6 text-center`}
         >
           <motion.div
@@ -200,7 +232,6 @@ const AnimatedAppShowcase: React.FC = () => {
           </motion.p>
         </motion.div>
       </AnimatePresence>
-      {/* Static fallback for SEO / No-JS, visually hidden but present in DOM */}
       <div className="opacity-0 pointer-events-none absolute" aria-hidden="true">
         <h1>Study AI+ Application Modules</h1>
         {scenes.map(s => <div key={`seo-${s.id}`}><h2>{s.title}</h2><p>{s.description}</p></div>)}
