@@ -9,7 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { getLearningHistory, type HistoryItem } from '@/lib/session-store';
 import { getKnowledgeBaseItems } from '@/lib/knowledge-base-store';
-import { Brain, Layers, UserCircle, TrendingUp, BookCopy, Target, AlertTriangle, PieChart, CheckSquare, Activity, DatabaseZap, Edit3, GraduationCap, CheckCircle2, XCircle, HelpCircle, MessageCircleQuestion, Code2, BookOpenCheck, Briefcase, Video, FolderKanban, Home } from 'lucide-react';
+import { Brain, Layers, UserCircle, TrendingUp, BookCopy, Target, AlertTriangle, PieChart, CheckSquare, Activity, DatabaseZap, Edit3, GraduationCap, CheckCircle2, XCircle, HelpCircle, MessageCircleQuestion, Code2, BookOpenCheck, Briefcase, Video, FolderKanban, Home, Sparkles } from 'lucide-react';
 import { format } from 'date-fns';
 
 const ClientAuthGuard = ({ children }: { children: React.ReactNode }) => {
@@ -29,7 +29,7 @@ const ClientAuthGuard = ({ children }: { children: React.ReactNode }) => {
   if (!isVerified) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <Brain className="h-12 w-12 animate-pulse text-primary" />
+        <Sparkles className="h-12 w-12 animate-pulse text-primary" />
       </div>
     );
   }
@@ -54,6 +54,7 @@ interface TopicAnalytics {
 }
 
 export default function EnhancedDashboardPage() {
+  const router = useRouter(); // Initialize router here
   const [userName, setUserName] = useState("AI Learner");
   const [userProfilePic, setUserProfilePic] = useState<string | null>(null);
   const [metrics, setMetrics] = useState<Metrics>({
@@ -399,3 +400,4 @@ export default function EnhancedDashboardPage() {
     </ClientAuthGuard>
   );
 }
+
