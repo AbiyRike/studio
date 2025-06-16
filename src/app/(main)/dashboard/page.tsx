@@ -9,7 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { getLearningHistory, type HistoryItem } from '@/lib/session-store';
 import { getKnowledgeBaseItems } from '@/lib/knowledge-base-store';
-import { Brain, Layers, UserCircle, TrendingUp, BookCopy, Target, AlertTriangle, PieChart, CheckSquare, Activity, DatabaseZap, Edit3, GraduationCap, CheckCircle2, XCircle, HelpCircle, MessageCircleQuestion, Code2, BookOpenCheck, Briefcase, Video, FolderKanban } from 'lucide-react';
+import { Brain, Layers, UserCircle, TrendingUp, BookCopy, Target, AlertTriangle, PieChart, CheckSquare, Activity, DatabaseZap, Edit3, GraduationCap, CheckCircle2, XCircle, HelpCircle, MessageCircleQuestion, Code2, BookOpenCheck, Briefcase, Video, FolderKanban, Home } from 'lucide-react';
 import { format } from 'date-fns';
 
 const ClientAuthGuard = ({ children }: { children: React.ReactNode }) => {
@@ -75,7 +75,7 @@ export default function EnhancedDashboardPage() {
     if (typeof window !== 'undefined') {
       const storedName = localStorage.getItem("userName");
       if (storedName) setUserName(storedName);
-      const storedPic = localStorage.getItem("userProfilePic"); // Load profile picture
+      const storedPic = localStorage.getItem("userProfilePic"); 
       setUserProfilePic(storedPic);
 
       const loadedHistory = getLearningHistory();
@@ -137,7 +137,6 @@ export default function EnhancedDashboardPage() {
 
   useEffect(() => {
     loadUserData();
-    // Listen for storage changes from other tabs/windows or profile page updates
     window.addEventListener('storage', loadUserData); 
     return () => {
       window.removeEventListener('storage', loadUserData);
@@ -151,12 +150,12 @@ export default function EnhancedDashboardPage() {
       className={`h-auto p-6 flex flex-col items-start text-left space-y-2 shadow-lg hover:shadow-xl transition-shadow duration-300 border-border ${className || ''}`}
       asChild
     >
-      <Link href={href}>
+      <Link href={href} className="flex flex-col w-full h-full">
         <div className="flex items-center space-x-3 mb-2">
           <Icon className="w-10 h-10 text-primary" />
           <CardTitle className="text-xl font-headline">{title}</CardTitle>
         </div>
-        <p className="text-sm text-muted-foreground">{description}</p>
+        <p className="text-sm text-muted-foreground flex-grow">{description}</p>
       </Link>
     </Button>
   );
@@ -220,21 +219,21 @@ export default function EnhancedDashboardPage() {
               href="/interactive-tutor/select"
               icon={Video} 
               title="Interactive Video Tutor"
-              description="Select from KB for a step-by-step AI video tutoring session with StudyEthiopia AI+."
+              description="Select from KB for a step-by-step AI video tutoring session with Study AI+."
               className="bg-gradient-to-br from-purple-500/5 via-transparent to-purple-500/5 hover:from-purple-500/10 hover:to-purple-500/10"
             />
              <FeatureButton
               href="/ask-mr-know/select"
               icon={MessageCircleQuestion}
               title="Ask Mr. Know" 
-              description="Chat with StudyEthiopia AI+ about content selected from your knowledge base."
+              description="Chat with Study AI+ about content selected from your knowledge base."
               className="bg-gradient-to-br from-sky-500/5 via-transparent to-sky-500/5 hover:from-sky-500/10 hover:to-sky-500/10"
             />
              <FeatureButton
               href="/code-with-me/select"
               icon={Code2}
               title="Code with Me"
-              description="Learn programming languages interactively with StudyEthiopia AI+."
+              description="Learn programming languages interactively with Study AI+."
               className="bg-gradient-to-br from-rose-500/5 via-transparent to-rose-500/5 hover:from-rose-500/10 hover:to-rose-500/10"
             />
             <FeatureButton
@@ -391,6 +390,11 @@ export default function EnhancedDashboardPage() {
             </div>
            )}
         </section>
+        <div className="mt-8 text-center">
+          <Button variant="outline" onClick={() => router.push('/dashboard')} className="w-full sm:w-auto">
+            <Home className="mr-2 h-4 w-4" /> Back to Dashboard
+          </Button>
+        </div>
       </div>
     </ClientAuthGuard>
   );
