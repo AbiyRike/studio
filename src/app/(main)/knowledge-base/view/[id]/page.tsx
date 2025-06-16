@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useEffect, useState } from 'react';
@@ -7,9 +8,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { getKnowledgeBaseItemById, type KnowledgeBaseItem } from '@/lib/knowledge-base-store';
 import { Skeleton } from '@/components/ui/skeleton';
-import { AlertTriangle, ArrowLeft, Download, FileText, Image as ImageIcon, Mic } from 'lucide-react';
-import NextImage from 'next/image'; // Use NextImage for optimized images
+import { AlertTriangle, ArrowLeft, Download, FileText, Image as ImageIcon, Mic, Loader2 } from 'lucide-react';
+import NextImage from 'next/image'; 
 import { format } from 'date-fns';
+import { useToast } from "@/hooks/use-toast";
+import html2pdf from 'html2pdf.js';
 
 const ClientAuthGuard = ({ children }: { children: React.ReactNode }) => {
   const router = useRouter();
@@ -33,9 +36,11 @@ export default function ViewKnowledgeItemPage() {
   const router = useRouter();
   const params = useParams();
   const id = params.id as string;
+  const { toast } = useToast();
 
   const [item, setItem] = useState<KnowledgeBaseItem | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -52,28 +57,59 @@ export default function ViewKnowledgeItemPage() {
     setIsLoading(false);
   }, [id]);
 
-  const handleDownloadText = () => {
+  const handleDownloadPdf = () => {
     if (!item) return;
-    const content = `Document Name: ${item.documentName}\n\nSummary:\n${item.summary}\n\nFull Content:\n${item.documentContent}`;
-    const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = `${item.documentName.replace(/[^a-zA-Z0-9]/g, '_')}_content.txt`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(link.href);
+    setIsDownloadingPdf(true);
+    toast({
+      title: "Generating PDF...",
+      description: "Please wait while the PDF is being prepared.",
+    });
+
+    const element = document.getElementById('printable-content-area');
+    if (element) {
+      const opt = {
+        margin:       [0.5, 0.5, 0.5, 0.5], // top, left, bottom, right
+        filename:     `${item.documentName.replace(/[^a-zA-Z0-9]/g, '_')}.pdf`,
+        image:        { type: 'jpeg', quality: 0.95 },
+        html2canvas:  { scale: 2, useCORS: true, logging: false, letterRendering: true },
+        jsPDF:        { unit: 'in', format: 'letter', orientation: 'portrait' }
+      };
+      
+      html2pdf().from(element).set(opt).save().then(() => {
+        setIsDownloadingPdf(false);
+        toast({
+          title: "PDF Downloaded",
+          description: `"${item.documentName}.pdf" has been saved.`,
+        });
+      }).catch(err => {
+        setIsDownloadingPdf(false);
+        console.error("Error generating PDF:", err);
+        toast({
+          title: "PDF Generation Failed",
+          description: "Could not generate PDF. Please try again.",
+          variant: "destructive",
+        });
+      });
+
+    } else {
+      setIsDownloadingPdf(false);
+      toast({
+        title: "Error",
+        description: "Could not find content to print.",
+        variant: "destructive",
+      });
+    }
   };
   
   const getIconForContent = (kbItem: KnowledgeBaseItem | null) => {
-    if (!kbItem) return <FileText className="h-8 w-8 text-primary" />;
+    if (!kbItem) return <FileText className="h-10 w-10 text-primary" />;
     if (kbItem.mediaDataUri?.startsWith('data:image')) {
-      return <ImageIcon className="h-8 w-8 text-primary" />;
+      return <ImageIcon className="h-10 w-10 text-primary" />;
     }
     if (kbItem.documentName.toLowerCase().includes('audio') || (kbItem.documentContent || "").toLowerCase().includes('audio recording')) {
-      return <Mic className="h-8 w-8 text-primary" />;
+      return <Mic className="h-10 w-10 text-primary" />;
     }
-    return <FileText className="h-8 w-8 text-primary" />;
+    return <FileText className="h-10 w-10 text-primary" />;
   };
 
   if (isLoading) {
@@ -81,10 +117,11 @@ export default function ViewKnowledgeItemPage() {
       <ClientAuthGuard>
         <div className="container mx-auto py-8 space-y-6">
           <Skeleton className="h-10 w-1/4" />
-          <Skeleton className="h-12 w-3/4" />
-          <Skeleton className="h-40 w-full" />
-          <Skeleton className="h-64 w-full" />
-          <Skeleton className="h-10 w-1/3" />
+          <Skeleton className="h-16 w-3/4" /> {/* For Hero Title */}
+          <Skeleton className="h-48 w-full" /> {/* For Image */}
+          <Skeleton className="h-24 w-full" /> {/* For Summary */}
+          <Skeleton className="h-64 w-full" /> {/* For Full Content */}
+          <Skeleton className="h-10 w-1/3" /> {/* For Button */}
         </div>
       </ClientAuthGuard>
     );
@@ -120,67 +157,85 @@ export default function ViewKnowledgeItemPage() {
           <ArrowLeft className="mr-2 h-4 w-4" /> Back to Knowledge Base
         </Button>
 
-        <Card className="w-full max-w-4xl mx-auto shadow-xl overflow-hidden">
-          <CardHeader className="bg-muted/30 p-6 border-b">
-            <div className="flex items-start space-x-4">
-              <div className="flex-shrink-0 pt-1">
+        <div id="printable-content-area" className="bg-card p-6 sm:p-8 md:p-10 rounded-lg shadow-xl">
+          {/* Hero Title Section */}
+          <div className="mb-8 pb-6 border-b border-border">
+            <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4">
+              <div className="flex-shrink-0 p-2 bg-primary/10 rounded-full">
                 {getIconForContent(item)}
               </div>
-              <div>
-                <CardTitle className="text-3xl font-headline mb-1">{item.documentName}</CardTitle>
-                <CardDescription className="text-sm">
+              <div className="text-center sm:text-left">
+                <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold font-headline text-primary break-words">
+                  {item.documentName}
+                </h1>
+                <CardDescription className="text-sm mt-2">
                   Added: {format(new Date(item.createdAt), "PPPp")} | Last Updated: {format(new Date(item.updatedAt), "PPPp")}
                 </CardDescription>
               </div>
             </div>
-          </CardHeader>
+          </div>
 
-          <CardContent className="p-6 space-y-6">
+          {/* Main Content Section */}
+          <div className="space-y-8">
             {isMediaImage && item.mediaDataUri && (
-              <div className="my-4 p-4 border rounded-lg bg-background shadow-inner">
-                <h3 className="text-xl font-semibold mb-3 font-headline text-primary">Associated Media</h3>
-                <div className="flex justify-center items-center max-h-96 overflow-hidden rounded-md">
+              <section className="mb-6">
+                <h2 className="text-2xl font-semibold font-headline mb-4 text-foreground">Associated Media</h2>
+                <div className="flex justify-center items-center p-4 border rounded-lg bg-muted/30 shadow-inner">
                   <NextImage 
                     src={item.mediaDataUri} 
                     alt={`Media for ${item.documentName}`} 
-                    width={600} 
-                    height={400} 
+                    width={700} // Increased size
+                    height={500} // Increased size
                     className="rounded-md object-contain border"
-                    data-ai-hint="document content image" 
+                    data-ai-hint="illustration concept" 
                   />
                 </div>
-              </div>
+              </section>
             )}
 
             {item.summary && (
-              <div className="p-4 border rounded-lg bg-background shadow-inner">
-                <h3 className="text-xl font-semibold mb-2 font-headline text-primary">Summary</h3>
-                <p className="text-foreground/90 whitespace-pre-line leading-relaxed">{item.summary}</p>
-              </div>
+              <section className="mb-6">
+                <h2 className="text-2xl font-semibold font-headline mb-3 text-foreground">Summary</h2>
+                <div className="prose prose-lg dark:prose-invert max-w-none bg-background p-4 rounded-md shadow-sm border">
+                  {item.summary.split('\n').map((paragraph, index) => (
+                    <p key={`summary-p-${index}`} className="mb-3 last:mb-0 leading-relaxed text-foreground/90">{paragraph}</p>
+                  ))}
+                </div>
+              </section>
             )}
 
             {item.documentContent && (
-              <div className="p-4 border rounded-lg bg-background shadow-inner">
-                <h3 className="text-xl font-semibold mb-2 font-headline text-primary">Full Content</h3>
-                <ScrollArea className="h-[400px] w-full rounded-md p-1">
-                  <pre className="text-sm text-foreground/80 whitespace-pre-wrap break-words leading-relaxed p-3 bg-muted/30 rounded-md">
-                    {item.documentContent}
-                  </pre>
+              <section>
+                <h2 className="text-2xl font-semibold font-headline mb-3 text-foreground">Full Content</h2>
+                <ScrollArea className="h-auto max-h-[600px] w-full rounded-md border shadow-sm">
+                  <div className="prose prose-base dark:prose-invert max-w-none p-6 bg-background leading-relaxed">
+                    {item.documentContent.split('\n\n').map((paragraphBlock, index) => (
+                      <div key={`content-block-${index}`} className="mb-4">
+                        {paragraphBlock.split('\n').map((paragraph, pIndex) => (
+                           <p key={`content-p-${index}-${pIndex}`} className="mb-2 last:mb-0 text-foreground/80">{paragraph}</p>
+                        ))}
+                      </div>
+                    ))}
+                  </div>
                 </ScrollArea>
-              </div>
+              </section>
             )}
             
             {!item.documentContent && !item.mediaDataUri && !item.summary && (
-                <p className="text-muted-foreground text-center py-8">This knowledge base item seems to be empty.</p>
+                <p className="text-muted-foreground text-center py-10 text-lg">This knowledge base item appears to be empty.</p>
             )}
+          </div>
+        </div>
 
-          </CardContent>
-          <CardFooter className="p-6 border-t bg-muted/30 flex justify-end">
-            <Button onClick={handleDownloadText} disabled={!item.documentContent && !item.summary}>
-              <Download className="mr-2 h-4 w-4" /> Download as Text
-            </Button>
-          </CardFooter>
-        </Card>
+        <CardFooter className="mt-8 p-6 border-t bg-muted/20 rounded-b-lg flex justify-end">
+          <Button onClick={handleDownloadPdf} disabled={isDownloadingPdf} size="lg">
+            {isDownloadingPdf ? (
+              <><Loader2 className="mr-2 h-5 w-5 animate-spin" /> Generating PDF...</>
+            ) : (
+              <><Download className="mr-2 h-5 w-5" /> Download as PDF</>
+            )}
+          </Button>
+        </CardFooter>
       </div>
     </ClientAuthGuard>
   );
