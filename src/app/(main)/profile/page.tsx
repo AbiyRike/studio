@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useEffect, useState, useRef, type ChangeEvent, useCallback } from 'react'; // Added useCallback
+import { useEffect, useState, useRef, type ChangeEvent, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
@@ -9,14 +9,23 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { useToast } from "@/hooks/use-toast";
-import { User, LogOut, Edit, Save, Camera, Lock, CalendarIcon as CalendarIconLucide, Info, Loader2 } from 'lucide-react';
+import { User, LogOut, Save, Camera, Lock, CalendarIcon as CalendarIconLucide, Loader2 } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { format, parseISO } from "date-fns";
 import { cn } from "@/lib/utils";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 const ClientAuthGuard = ({ children }: { children: React.ReactNode }) => {
   const router = useRouter();
@@ -43,7 +52,6 @@ interface UserProfileData {
   institution: string;
   birthday: Date | null;
   profilePic: string | null;
-  geminiApiKey: string;
 }
 
 export default function ProfilePage() {
@@ -56,11 +64,13 @@ export default function ProfilePage() {
     institution: '',
     birthday: null,
     profilePic: null,
-    geminiApiKey: '',
   });
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const [isPasswordDialogOpen, setIsPasswordDialogOpen] = useState(false);
+  const [currentPasswordInput, setCurrentPasswordInput] = useState("");
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -71,8 +81,7 @@ export default function ProfilePage() {
       const birthdayString = localStorage.getItem('userBirthday');
       const birthday = birthdayString ? parseISO(birthdayString) : null;
       const profilePic = localStorage.getItem('userProfilePic') || null;
-      const geminiApiKey = localStorage.getItem('userGeminiApiKey') || '';
-      setProfileData({ name, email, department, institution, birthday, profilePic, geminiApiKey });
+      setProfileData({ name, email, department, institution, birthday, profilePic });
       setIsLoading(false);
     }
   }, []);
@@ -80,11 +89,11 @@ export default function ProfilePage() {
   const handleInputChange = useCallback((e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setProfileData(prev => ({ ...prev, [name]: value }));
-  }, [setProfileData]); // Added setProfileData to dependency array
+  }, []);
 
   const handleDateChange = useCallback((date: Date | undefined) => {
     setProfileData(prev => ({ ...prev, birthday: date || null }));
-  }, [setProfileData]); // Added setProfileData
+  }, []);
 
   const handleProfilePicChange = useCallback((e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -95,7 +104,7 @@ export default function ProfilePage() {
       };
       reader.readAsDataURL(file);
     }
-  }, [setProfileData]); // Added setProfileData
+  }, []);
 
   const handleSaveChanges = () => {
     setIsSaving(true);
@@ -114,16 +123,31 @@ export default function ProfilePage() {
       } else {
         localStorage.removeItem('userProfilePic');
       }
-      localStorage.setItem('userGeminiApiKey', profileData.geminiApiKey);
 
-      toast({ title: "Profile Updated", description: "Your changes have been saved. Please note: For the Gemini API Key to take effect for AI features, you must also set it in the project's .env file and restart the server." });
+      toast({ title: "Profile Updated", description: "Your changes have been saved." });
       window.dispatchEvent(new Event('storage')); 
     }
     setIsSaving(false);
   };
 
-  const handleChangePassword = () => {
-    toast({ title: "Feature Not Implemented", description: "Password change functionality is not yet available." });
+  const handlePasswordVerification = () => {
+    if (!currentPasswordInput.trim()) {
+      toast({
+        title: "Verification Failed",
+        description: "Current password cannot be empty.",
+        variant: "destructive",
+      });
+      return;
+    }
+    // Simulate password check (in a real app, this would be an API call)
+    // For demo, any non-empty password is "correct"
+    toast({
+      title: "Password Verified",
+      description: "Proceed to change password (Actual change UI not implemented).",
+    });
+    setIsPasswordDialogOpen(false);
+    setCurrentPasswordInput(""); // Reset field
+    // router.push('/profile/change-password'); // Future navigation
   };
 
   const handleLogout = () => {
@@ -135,12 +159,13 @@ export default function ProfilePage() {
       localStorage.removeItem('userInstitution');
       localStorage.removeItem('userBirthday');
       localStorage.removeItem('userProfilePic');
-      localStorage.removeItem('userGeminiApiKey');
+      // Clear all known session keys
       localStorage.removeItem('activeTutorSession');
       localStorage.removeItem('activeFlashcardSession');
       localStorage.removeItem('activeInteractiveTavusTutorSession');
       localStorage.removeItem('activeAskMrKnowSession');
       localStorage.removeItem('activeCodeTeachingSession');
+       window.dispatchEvent(new Event('storage')); // Notify other components like UserNav
     }
     toast({ title: "Logged Out", description: "You have been successfully logged out." });
     router.push("/"); 
@@ -187,6 +212,7 @@ export default function ProfilePage() {
                   className="absolute bottom-0 right-0 rounded-full bg-background hover:bg-muted p-1"
                   onClick={() => fileInputRef.current?.click()}
                   disabled={isSaving}
+                  title="Change profile picture"
                 >
                   <Camera className="h-5 w-5" />
                   <span className="sr-only">Change profile picture</span>
@@ -246,17 +272,6 @@ export default function ProfilePage() {
                   </PopoverContent>
                 </Popover>
               </div>
-               <div>
-                <Label htmlFor="geminiApiKey">Gemini API Key</Label>
-                <Input id="geminiApiKey" name="geminiApiKey" type="password" value={profileData.geminiApiKey || ''} onChange={handleInputChange} className="mt-1" placeholder="Enter your Gemini API Key" disabled={isSaving}/>
-              </div>
-              <Alert variant="default" className="bg-primary/10 border-primary/30">
-                <Info className="h-5 w-5 text-primary" />
-                <AlertTitle className="text-primary font-semibold">Important: Gemini API Key</AlertTitle>
-                <AlertDescription className="text-primary/80">
-                  For AI features to work correctly, this key must also be set in the project's <code>.env</code> file as <code>GEMINI_API_KEY=YOUR_KEY_HERE</code>. You'll need to restart your development server after updating the <code>.env</code> file.
-                </AlertDescription>
-              </Alert>
             </div>
             
             <Button onClick={handleSaveChanges} className="w-full" disabled={isSaving}>
@@ -264,9 +279,36 @@ export default function ProfilePage() {
               {isSaving ? "Saving..." : "Save Changes"}
             </Button>
 
-            <Button variant="outline" onClick={handleChangePassword} className="w-full" disabled={isSaving}>
-              <Lock className="mr-2 h-4 w-4" /> Change Password
-            </Button>
+            <AlertDialog open={isPasswordDialogOpen} onOpenChange={setIsPasswordDialogOpen}>
+              <AlertDialogTrigger asChild>
+                <Button variant="outline" className="w-full" disabled={isSaving}>
+                  <Lock className="mr-2 h-4 w-4" /> Change Password
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Verify Current Password</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Please enter your current password to proceed.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <div className="py-4">
+                  <Label htmlFor="currentPassword">Current Password</Label>
+                  <Input
+                    id="currentPassword"
+                    type="password"
+                    value={currentPasswordInput}
+                    onChange={(e) => setCurrentPasswordInput(e.target.value)}
+                    placeholder="••••••••"
+                    className="mt-1"
+                  />
+                </div>
+                <AlertDialogFooter>
+                  <AlertDialogCancel onClick={() => setCurrentPasswordInput("")}>Cancel</AlertDialogCancel>
+                  <AlertDialogAction onClick={handlePasswordVerification}>Continue</AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
             
           </CardContent>
           <CardFooter>
@@ -279,4 +321,3 @@ export default function ProfilePage() {
     </ClientAuthGuard>
   );
 }
-

@@ -1,3 +1,4 @@
+
 "use client";
 
 import Link from "next/link";
@@ -10,7 +11,7 @@ import { useRouter } from "next/navigation";
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/profile", label: "My Profile", icon: User },
-  { href: "/knowledge-base/manage", label: "Knowledge Base", icon: FolderKanban }, // Updated
+  { href: "/knowledge-base/manage", label: "Knowledge Base", icon: FolderKanban },
   { href: "/quiz-session/new", label: "New Quiz", icon: Brain },
   { href: "/quiz-from-kb", label: "Quiz from KB", icon: Edit3 },
   { href: "/flashcards", label: "Flashcards", icon: Layers },
@@ -34,12 +35,13 @@ export function MainNav() {
       localStorage.removeItem("userInstitution");
       localStorage.removeItem("userBirthday");
       localStorage.removeItem("userProfilePic");
-      // Clear other session-specific data
+      // Clear all known active session keys
       localStorage.removeItem('activeTutorSession');
       localStorage.removeItem('activeFlashcardSession');
       localStorage.removeItem('activeInteractiveTavusTutorSession');
       localStorage.removeItem('activeAskMrKnowSession');
       localStorage.removeItem('activeCodeTeachingSession');
+      window.dispatchEvent(new Event('storage')); // Notify other components
     }
     router.push("/"); 
   };
@@ -73,5 +75,3 @@ export function MainNav() {
     </nav>
   );
 }
-
-    

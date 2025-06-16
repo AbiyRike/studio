@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useEffect, useState } from 'react';
@@ -74,7 +75,7 @@ export default function EnhancedDashboardPage() {
     if (typeof window !== 'undefined') {
       const storedName = localStorage.getItem("userName");
       if (storedName) setUserName(storedName);
-      const storedPic = localStorage.getItem("userProfilePic");
+      const storedPic = localStorage.getItem("userProfilePic"); // Load profile picture
       setUserProfilePic(storedPic);
 
       const loadedHistory = getLearningHistory();
@@ -136,6 +137,7 @@ export default function EnhancedDashboardPage() {
 
   useEffect(() => {
     loadUserData();
+    // Listen for storage changes from other tabs/windows or profile page updates
     window.addEventListener('storage', loadUserData); 
     return () => {
       window.removeEventListener('storage', loadUserData);
@@ -187,17 +189,17 @@ export default function EnhancedDashboardPage() {
           <h2 className="text-2xl font-semibold font-headline mb-6 text-center text-foreground/90">Start Your Learning Journey</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             <FeatureButton
-              href="/knowledge-base/manage" // Updated Link
-              icon={FolderKanban} // Changed Icon
-              title="Knowledge Base" // Updated Title
-              description="Manage, view, edit, or delete your uploaded content and summaries." // Updated Description
+              href="/knowledge-base/manage"
+              icon={FolderKanban}
+              title="Knowledge Base"
+              description="Manage, view, edit, or delete your uploaded content and summaries."
               className="bg-gradient-to-br from-green-500/5 via-transparent to-green-500/5 hover:from-green-500/10 hover:to-green-500/10"
             />
              <FeatureButton
               href="/quiz-session/new"
               icon={Brain}
               title="New Quiz"
-              description="Upload new content. It's added to KB &amp; a quiz starts immediately."
+              description="Upload new content. It's added to KB & a quiz starts immediately."
               className="bg-gradient-to-br from-primary/5 via-transparent to-primary/5 hover:from-primary/10 hover:to-primary/10"
             />
              <FeatureButton
@@ -393,5 +395,3 @@ export default function EnhancedDashboardPage() {
     </ClientAuthGuard>
   );
 }
-
-    

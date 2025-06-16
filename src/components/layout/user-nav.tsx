@@ -12,7 +12,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { LogOut, UserCircle, Settings } from "lucide-react"; // Added Settings
+import { LogOut, UserCircle, Settings } from "lucide-react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useEffect, useState } from "react";
@@ -25,10 +25,10 @@ export function UserNav() {
 
   const updateUserData = () => {
     if (typeof window !== 'undefined') {
-      const storedName = localStorage.getItem("userName");
-      if (storedName) setUserName(storedName);
-      const storedEmail = localStorage.getItem("userEmail");
-      if (storedEmail) setUserEmail(storedEmail);
+      const storedName = localStorage.getItem("userName") || "AI Learner";
+      setUserName(storedName);
+      const storedEmail = localStorage.getItem("userEmail") || "learner@example.com";
+      setUserEmail(storedEmail);
       const storedPic = localStorage.getItem("userProfilePic");
       setUserProfilePic(storedPic);
     }
@@ -36,7 +36,7 @@ export function UserNav() {
 
   useEffect(() => {
     updateUserData();
-    // Listen for storage changes to update avatar if changed on profile page
+    // Listen for storage changes to update avatar if changed on profile page or logout
     window.addEventListener('storage', updateUserData);
     return () => {
       window.removeEventListener('storage', updateUserData);
@@ -55,11 +55,12 @@ export function UserNav() {
       // Clear other session-specific data
       localStorage.removeItem('activeTutorSession');
       localStorage.removeItem('activeFlashcardSession');
-      localStorage.removeItem('activeInteractiveTutorSession');
+      localStorage.removeItem('activeInteractiveTavusTutorSession');
       localStorage.removeItem('activeAskMrKnowSession');
       localStorage.removeItem('activeCodeTeachingSession');
+      window.dispatchEvent(new Event('storage')); // Notify other components
     }
-    router.push("/"); // Redirect to homepage after logout
+    router.push("/"); 
   };
 
   return (
