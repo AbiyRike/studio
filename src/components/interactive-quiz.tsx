@@ -11,7 +11,6 @@ import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { CheckCircle, XCircle, Sparkles, Loader2, HelpCircle, ListChecks } from 'lucide-react';
-// Removed AvatarPlaceholder import as it's no longer used here
 import { addToLearningHistory, HistoryItem, setActiveTutorSession } from '@/lib/session-store';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
@@ -42,7 +41,6 @@ export function InteractiveQuiz({ sessionData }: InteractiveQuizProps) {
   const [isFetchingNextBatch, setIsFetchingNextBatch] = useState(false);
   const [hasMoreQuestionsToFetch, setHasMoreQuestionsToFetch] = useState(true);
   
-  // Removed avatarFeedback and avatarMessage states as AvatarPlaceholder is removed
 
   useEffect(() => {
     if (sessionData.questions.length === 0) {
@@ -89,7 +87,6 @@ export function InteractiveQuiz({ sessionData }: InteractiveQuizProps) {
     }
 
     setIsFetchingNextBatch(true);
-    // Removed avatarMessage update
 
     const previousQuestionTexts = allQuestions.map(q => q.question);
     const result = await generateAdditionalQuestions({
@@ -99,7 +96,6 @@ export function InteractiveQuiz({ sessionData }: InteractiveQuizProps) {
     });
 
     setIsFetchingNextBatch(false);
-    // Removed avatarMessage update
 
     if ('error' in result) {
       toast({
@@ -145,16 +141,12 @@ export function InteractiveQuiz({ sessionData }: InteractiveQuizProps) {
     setShowFeedback(true);
     if (selectedAnswer === currentQuestion.answer) {
       setScore(s => s + 1);
-      // Removed avatarFeedback update
-    } else {
-      // Removed avatarFeedback update
-    }
+    } 
   };
 
   const handleNextQuestion = () => {
     setShowFeedback(false);
     setSelectedAnswer(null);
-    // Removed avatarFeedback update
 
     if (currentQuestionIndex < allQuestions.length - 1) {
       setCurrentQuestionIndex(prev => prev + 1);
@@ -186,7 +178,6 @@ export function InteractiveQuiz({ sessionData }: InteractiveQuizProps) {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
-          {/* Removed AvatarPlaceholder */}
           
           {incorrectAnswers.length > 0 && (
             <div className="mt-6">
@@ -244,13 +235,12 @@ export function InteractiveQuiz({ sessionData }: InteractiveQuizProps) {
     );
   }
   
-  const progressValue = allQuestions.length > 0 ? ((currentQuestionIndex + 1) / Math.min(questionsDisplayedCount, MAX_QUESTIONS)) * 100 : 0;
   const questionsDisplayedCount = allQuestions.length;
+  const progressValue = allQuestions.length > 0 ? ((currentQuestionIndex + 1) / Math.min(questionsDisplayedCount, MAX_QUESTIONS)) * 100 : 0;
 
 
   return (
     <div className="space-y-8">
-      {/* AvatarPlaceholder removed */}
       <Card className="w-full shadow-xl">
         <CardHeader>
           <div className="flex items-center space-x-2 mb-4">
