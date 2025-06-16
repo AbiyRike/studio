@@ -9,12 +9,13 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { useToast } from "@/hooks/use-toast";
-import { User, LogOut, Edit, Save, Camera, Lock, CalendarIcon as CalendarIconLucide, Info, Loader2 } from 'lucide-react'; // Added Loader2
+import { User, LogOut, Edit, Save, Camera, Lock, CalendarIcon as CalendarIconLucide, Info, Loader2 } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { format, parseISO } from "date-fns";
 import { cn } from "@/lib/utils";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"; // Added this line
 
 
 const ClientAuthGuard = ({ children }: { children: React.ReactNode }) => {
