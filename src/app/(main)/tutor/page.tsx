@@ -11,7 +11,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { AlertTriangle, Image as ImageIcon } from 'lucide-react';
 import { redirect } from 'next/navigation';
 import Image from 'next/image';
-import { AvatarPlaceholder } from '@/components/avatar-placeholder';
+// Removed AvatarPlaceholder import as it's no longer used here
 
 const ClientAuthGuard = ({ children }: { children: React.ReactNode }) => {
   if (typeof window !== 'undefined' && !localStorage.getItem('isLoggedIn')) {
@@ -72,30 +72,7 @@ export default function TutorPage() {
   return (
     <ClientAuthGuard>
       <div className="container mx-auto py-8 space-y-8">
-        <AvatarPlaceholder 
-          message="Let's test your knowledge!"
-          subMessage={`Topic: ${sessionData.documentName}`}
-        />
-
-        {sessionData.mediaDataUri && (
-            <Card className="shadow-md mb-6">
-              <CardHeader>
-                <CardTitle className="text-xl font-headline flex items-center">
-                  <ImageIcon className="mr-2 h-6 w-6 text-primary" /> Associated Image
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="flex justify-center">
-                <Image 
-                  src={sessionData.mediaDataUri} 
-                  alt="Associated media" 
-                  width={400} 
-                  height={300} 
-                  className="rounded-md object-contain max-h-[300px]"
-                />
-              </CardContent>
-            </Card>
-          )}
-        
+        {/* AvatarPlaceholder and Image display Card removed as per request */}
         <InteractiveQuiz sessionData={sessionData} />
       </div>
     </ClientAuthGuard>

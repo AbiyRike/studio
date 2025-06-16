@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { CheckCircle, XCircle, Sparkles, Loader2, HelpCircle, ListChecks } from 'lucide-react';
-import { AvatarPlaceholder } from './avatar-placeholder';
+// Removed AvatarPlaceholder import as it's no longer used here
 import { addToLearningHistory, HistoryItem, setActiveTutorSession } from '@/lib/session-store';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
@@ -40,11 +40,9 @@ export function InteractiveQuiz({ sessionData }: InteractiveQuizProps) {
   
   const [quizFinished, setQuizFinished] = useState(false);
   const [isFetchingNextBatch, setIsFetchingNextBatch] = useState(false);
-  const [hasMoreQuestionsToFetch, setHasMoreQuestionsToFetch] = useState(true); // Initialize to true
+  const [hasMoreQuestionsToFetch, setHasMoreQuestionsToFetch] = useState(true);
   
-  const [avatarFeedback, setAvatarFeedback] = useState<'neutral' | 'correct' | 'incorrect'>('neutral');
-  const [avatarMessage, setAvatarMessage] = useState<string | undefined>(undefined);
-
+  // Removed avatarFeedback and avatarMessage states as AvatarPlaceholder is removed
 
   useEffect(() => {
     if (sessionData.questions.length === 0) {
@@ -56,11 +54,8 @@ export function InteractiveQuiz({ sessionData }: InteractiveQuizProps) {
             variant: "destructive",
         });
     } else if (sessionData.questions.length >= MAX_QUESTIONS) {
-        // If initial batch itself meets or exceeds max questions
         setHasMoreQuestionsToFetch(false);
     }
-    // We no longer set hasMoreQuestionsToFetch to false if the initial batch is small.
-    // Let the first call to fetchNextBatch or subsequent calls determine this.
   }, [sessionData.questions, toast]);
 
 
@@ -94,7 +89,7 @@ export function InteractiveQuiz({ sessionData }: InteractiveQuizProps) {
     }
 
     setIsFetchingNextBatch(true);
-    setAvatarMessage("Generating more questions for you...");
+    // Removed avatarMessage update
 
     const previousQuestionTexts = allQuestions.map(q => q.question);
     const result = await generateAdditionalQuestions({
@@ -104,7 +99,7 @@ export function InteractiveQuiz({ sessionData }: InteractiveQuizProps) {
     });
 
     setIsFetchingNextBatch(false);
-    setAvatarMessage(undefined);
+    // Removed avatarMessage update
 
     if ('error' in result) {
       toast({
@@ -125,18 +120,8 @@ export function InteractiveQuiz({ sessionData }: InteractiveQuizProps) {
       if (result.questions.length < QUESTIONS_PER_BATCH || newTotalQuestions >= MAX_QUESTIONS) {
         setHasMoreQuestionsToFetch(false);
       }
-      
-      // This auto-advance logic is tricky; for now, user clicks "Next" after loading.
-      // if (showFeedback && currentQuestionIndex === allQuestions.length - 1 - result.questions.length) { 
-      //    setCurrentQuestionIndex(prev => prev + 1); 
-      //    setShowFeedback(false);
-      //    setSelectedAnswer(null);
-      //    setAvatarFeedback('neutral');
-      // }
-
     } else {
-      // No more questions returned by AI (empty array)
-      if (!('error' in result)) { // Check if it wasn't already an error toast
+      if (!('error' in result)) {
          toast({
             title: "No More Unique Questions",
             description: "The AI couldn't generate more unique questions for this content.",
@@ -160,16 +145,16 @@ export function InteractiveQuiz({ sessionData }: InteractiveQuizProps) {
     setShowFeedback(true);
     if (selectedAnswer === currentQuestion.answer) {
       setScore(s => s + 1);
-      setAvatarFeedback('correct');
+      // Removed avatarFeedback update
     } else {
-      setAvatarFeedback('incorrect');
+      // Removed avatarFeedback update
     }
   };
 
   const handleNextQuestion = () => {
     setShowFeedback(false);
     setSelectedAnswer(null);
-    setAvatarFeedback('neutral');
+    // Removed avatarFeedback update
 
     if (currentQuestionIndex < allQuestions.length - 1) {
       setCurrentQuestionIndex(prev => prev + 1);
@@ -201,7 +186,7 @@ export function InteractiveQuiz({ sessionData }: InteractiveQuizProps) {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
-          <AvatarPlaceholder feedbackType={allQuestions.length > 0 && score > allQuestions.length / 2 ? 'correct' : 'neutral'} message="Great effort!" />
+          {/* Removed AvatarPlaceholder */}
           
           {incorrectAnswers.length > 0 && (
             <div className="mt-6">
@@ -246,7 +231,6 @@ export function InteractiveQuiz({ sessionData }: InteractiveQuizProps) {
   }
 
   if (!currentQuestion && !isFetchingNextBatch && allQuestions.length === 0) {
-    // This handles the case where initial questions were empty and quiz hasn't formally finished.
     return (
         <Card className="w-full max-w-2xl mx-auto shadow-xl">
             <CardHeader><CardTitle>Loading Questions...</CardTitle></CardHeader>
@@ -260,16 +244,20 @@ export function InteractiveQuiz({ sessionData }: InteractiveQuizProps) {
     );
   }
   
-  const progressValue = allQuestions.length > 0 ? ((currentQuestionIndex + 1) / Math.min(allQuestions.length, MAX_QUESTIONS)) * 100 : 0;
+  const progressValue = allQuestions.length > 0 ? ((currentQuestionIndex + 1) / Math.min(questionsDisplayedCount, MAX_QUESTIONS)) * 100 : 0;
   const questionsDisplayedCount = allQuestions.length;
 
 
   return (
     <div className="space-y-8">
-      <AvatarPlaceholder feedbackType={avatarFeedback} message={avatarMessage} />
+      {/* AvatarPlaceholder removed */}
       <Card className="w-full shadow-xl">
         <CardHeader>
-          <Progress value={progressValue} className="w-full mb-4" />
+          <div className="flex items-center space-x-2 mb-4">
+            <span className="text-xs font-medium text-muted-foreground">1</span>
+            <Progress value={progressValue} className="flex-1" />
+            <span className="text-xs font-medium text-muted-foreground">100</span>
+          </div>
           <CardTitle className="text-2xl font-headline">Question {currentQuestionIndex + 1} of {Math.min(questionsDisplayedCount, MAX_QUESTIONS)}{hasMoreQuestionsToFetch && questionsDisplayedCount < MAX_QUESTIONS && !isFetchingNextBatch ? ` (aiming for up to ${MAX_QUESTIONS})` : ""}</CardTitle>
           {currentQuestion && <CardDescription className="text-lg pt-2">{currentQuestion.question}</CardDescription>}
           {!currentQuestion && isFetchingNextBatch && <p className="text-muted-foreground pt-2">Loading next question...</p>}
@@ -317,7 +305,6 @@ export function InteractiveQuiz({ sessionData }: InteractiveQuizProps) {
                 <Button 
                     onClick={handleNextQuestion} 
                     className="w-full text-lg py-3"
-                    // Disable if fetching AND we are effectively waiting for that fetch to show the next question.
                     disabled={isFetchingNextBatch && currentQuestionIndex >= allQuestions.length -1 && hasMoreQuestionsToFetch} 
                 >
                   {isFetchingNextBatch && currentQuestionIndex >= allQuestions.length -1 && hasMoreQuestionsToFetch ? (
@@ -331,7 +318,6 @@ export function InteractiveQuiz({ sessionData }: InteractiveQuizProps) {
             </CardFooter>
           </>
         )}
-         {/* Fallback for when currentQuestion is null but quiz is not finished (e.g. initial load error not caught by quizFinished) */}
         {!currentQuestion && !isFetchingNextBatch && !quizFinished && allQuestions.length > 0 && (
              <CardContent className="text-center py-10">
                 <p className="text-muted-foreground">Preparing question...</p>
@@ -340,12 +326,12 @@ export function InteractiveQuiz({ sessionData }: InteractiveQuizProps) {
       </Card>
 
       {showFeedback && currentQuestion && (
-        <Alert variant={isCorrect ? "default" : "destructive"} className={isCorrect ? "border-green-500 bg-green-50" : "border-red-500 bg-red-50"}>
-          {isCorrect ? <CheckCircle className="h-5 w-5 text-green-600" /> : <XCircle className="h-5 w-5 text-red-600" />}
-          <AlertTitle className={isCorrect ? "text-green-700" : "text-red-700"}>
+        <Alert variant={isCorrect ? "default" : "destructive"} className={cn("transition-opacity duration-300", isCorrect ? "border-green-500 bg-green-50 dark:bg-green-900/30" : "border-red-500 bg-red-50 dark:bg-red-900/30")}>
+          {isCorrect ? <CheckCircle className="h-5 w-5 text-green-600 dark:text-green-400" /> : <XCircle className="h-5 w-5 text-red-600 dark:text-red-400" />}
+          <AlertTitle className={cn(isCorrect ? "text-green-700 dark:text-green-300" : "text-red-700 dark:text-red-300")}>
             {isCorrect ? "Correct!" : "Not Quite!"}
           </AlertTitle>
-          <AlertDescription className={isCorrect ? "text-green-600" : "text-red-600"}>
+          <AlertDescription className={cn(isCorrect ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400")}>
             {currentQuestion.explanation || (isCorrect
               ? "Excellent work!"
               : `The correct answer was: ${currentQuestion.options[currentQuestion.answer]}`)}
