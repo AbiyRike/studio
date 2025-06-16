@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { summarizeAndGetDataForStorage, type SummarizeAndGetDataForStorageInput } from "@/app/actions";
-import { Loader2, FileText, Mic, Video, Camera, StopCircle, UploadCloud, X, CheckCircle } from 'lucide-react';
+import { Loader2, FileText, Mic, Video, Camera, StopCircle, UploadCloud, X, CheckCircle, Home } from 'lucide-react'; // Added Home
 import { addKnowledgeBaseItem, type KnowledgeBaseItem } from '@/lib/knowledge-base-store';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import * as pdfjsLib from 'pdfjs-dist';
@@ -295,7 +295,9 @@ export function KnowledgeBuilderUploader() {
         </CardHeader>
         <CardContent className="flex flex-col items-center space-y-4">
            <Button onClick={resetForm} className="w-full sm:w-auto">Add Another Item</Button>
-           <Button variant="outline" onClick={() => router.push('/dashboard')} className="w-full sm:w-auto">Back to Dashboard</Button>
+           <Button variant="outline" onClick={() => router.push('/dashboard')} className="w-full sm:w-auto">
+            <Home className="mr-2 h-4 w-4" /> Back to Dashboard
+           </Button>
         </CardContent>
       </Card>
     )

@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useEffect, useState } from 'react';
@@ -5,7 +6,7 @@ import { DocumentHistoryCard } from "@/components/document-history-card";
 import { getLearningHistory, type HistoryItem } from '@/lib/session-store';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { BookOpenCheck, HistoryIcon } from 'lucide-react';
+import { BookOpenCheck, HistoryIcon, Home } from 'lucide-react';
 import { redirect } from 'next/navigation';
 
 // This client-side component will handle the auth check and redirect if necessary
@@ -60,16 +61,28 @@ export default function HistoryPage() {
           <div className="text-center py-10">
             <BookOpenCheck className="mx-auto h-20 w-20 text-muted-foreground mb-4" />
             <p className="text-xl text-muted-foreground mb-4">No learning history yet.</p>
-            <Button asChild size="lg">
-              <Link href="/dashboard">Start a New Session</Link>
-            </Button>
+            <div className="flex flex-col sm:flex-row justify-center gap-4">
+              <Button asChild size="lg">
+                <Link href="/dashboard">Start a New Session</Link>
+              </Button>
+               <Button variant="outline" asChild size="lg">
+                <Link href="/dashboard"><Home className="mr-2 h-5 w-5" />Back to Dashboard</Link>
+              </Button>
+            </div>
           </div>
         ) : (
-          <div className="space-y-6">
-            {history.map((item) => (
-              <DocumentHistoryCard key={item.id} item={item} />
-            ))}
-          </div>
+          <>
+            <div className="space-y-6">
+              {history.map((item) => (
+                <DocumentHistoryCard key={item.id} item={item} />
+              ))}
+            </div>
+            <div className="mt-8 text-center">
+              <Button asChild size="lg" variant="outline">
+                <Link href="/dashboard"><Home className="mr-2 h-5 w-5" />Back to Dashboard</Link>
+              </Button>
+            </div>
+          </>
         )}
       </div>
     </ClientAuthGuard>

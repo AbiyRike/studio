@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useCallback } from 'react';
@@ -9,7 +10,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { CheckCircle, XCircle, Sparkles, Loader2, HelpCircle, ListChecks, Home } from 'lucide-react';
+import { CheckCircle, XCircle, Sparkles, Loader2, HelpCircle, ListChecks, Home, History } from 'lucide-react';
 import { addToLearningHistory, HistoryItem, setActiveTutorSession } from '@/lib/session-store';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
@@ -200,7 +201,7 @@ export function InteractiveQuiz({ sessionData }: InteractiveQuizProps) {
                       Correct answer: {item.options[item.answer]} <CheckCircle className="inline h-4 w-4 ml-1" />
                     </p>
                     {item.explanation && (
-                      <p className="mt-2 text-xs text-blue-700 bg-blue-100 p-2 rounded-md">
+                      <p className="mt-2 text-xs text-blue-700 bg-blue-100 p-2 rounded-md dark:bg-blue-900/30 dark:text-blue-300">
                         <HelpCircle className="inline mr-1 h-3 w-3" />
                         Explanation: {item.explanation}
                       </p>
@@ -219,7 +220,9 @@ export function InteractiveQuiz({ sessionData }: InteractiveQuizProps) {
             <Button onClick={() => router.push('/dashboard')} className="w-full sm:w-auto">
               <Home className="mr-2 h-4 w-4" /> Back to Dashboard
             </Button>
-            <Button variant="outline" onClick={() => router.push('/history')} className="w-full sm:w-auto">View History</Button>
+            <Button variant="outline" onClick={() => router.push('/history')} className="w-full sm:w-auto">
+                <History className="mr-2 h-4 w-4" /> View History
+            </Button>
         </CardFooter>
       </Card>
     );
@@ -245,13 +248,14 @@ export function InteractiveQuiz({ sessionData }: InteractiveQuizProps) {
       <Card className="w-full shadow-xl">
         <CardHeader>
           <div className="flex items-center space-x-2 mb-4">
-            <span className="text-xs font-medium text-muted-foreground">1</span>
-            <Progress value={progressValue} className="flex-1" />
-            <span className="text-xs font-medium text-muted-foreground">100</span>
+            <span className="text-xs font-medium text-muted-foreground">Question {currentQuestionIndex + 1}</span>
+            <Progress value={progressValue} className="flex-1" aria-label={`Quiz progress ${progressValue.toFixed(0)}%`} />
+            <span className="text-xs font-medium text-muted-foreground">Max {Math.min(questionsDisplayedCount, MAX_QUESTIONS)}</span>
           </div>
-          <CardTitle className="text-2xl font-headline">Question {currentQuestionIndex + 1} of {Math.min(questionsDisplayedCount, MAX_QUESTIONS)}{hasMoreQuestionsToFetch && questionsDisplayedCount < MAX_QUESTIONS && !isFetchingNextBatch ? ` (aiming for up to ${MAX_QUESTIONS})` : ""}</CardTitle>
-          {currentQuestion && <CardDescription className="text-lg pt-2">{currentQuestion.question}</CardDescription>}
-          {!currentQuestion && isFetchingNextBatch && <p className="text-muted-foreground pt-2">Loading next question...</p>}
+          <CardTitle className="text-2xl font-headline">
+            {currentQuestion?.question || (isFetchingNextBatch ? "Loading next question..." : "Preparing question...")}
+          </CardTitle>
+          {!currentQuestion && isFetchingNextBatch && <CardDescription className="text-muted-foreground pt-2">Fetching more questions for you...</CardDescription>}
         </CardHeader>
         {currentQuestion && (
           <>
@@ -265,7 +269,7 @@ export function InteractiveQuiz({ sessionData }: InteractiveQuizProps) {
                 {currentQuestion.options.map((option, index) => (
                   <Label
                     key={index}
-                    htmlFor={`option-${index}`}
+                    htmlFor={`option-${index}-${currentQuestionIndex}`} // Ensure unique ID per question render
                     className={cn(
                       "flex items-center p-4 border rounded-lg cursor-pointer transition-all",
                       "hover:border-primary",
@@ -274,7 +278,7 @@ export function InteractiveQuiz({ sessionData }: InteractiveQuizProps) {
                       showFeedback && index !== currentQuestion.answer && selectedAnswer === index && "bg-red-100 border-red-500 text-red-700 dark:bg-red-900/30 dark:text-red-300 dark:border-red-700"
                     )}
                   >
-                    <RadioGroupItem value={index.toString()} id={`option-${index}`} className="mr-3" />
+                    <RadioGroupItem value={index.toString()} id={`option-${index}-${currentQuestionIndex}`} className="mr-3" />
                     <span className="text-base">{option}</span>
                   </Label>
                 ))}

@@ -8,10 +8,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from '@/components/ui/button';
 import { getActiveTutorSession, TutorSessionData } from '@/lib/session-store';
 import { Skeleton } from '@/components/ui/skeleton';
-import { AlertTriangle, Image as ImageIcon } from 'lucide-react';
+import { AlertTriangle, Image as ImageIcon, Home } from 'lucide-react'; // Added Home
 import { redirect } from 'next/navigation';
 import Image from 'next/image';
-// Removed AvatarPlaceholder import as it's no longer used here
 
 const ClientAuthGuard = ({ children }: { children: React.ReactNode }) => {
   if (typeof window !== 'undefined' && !localStorage.getItem('isLoggedIn')) {
@@ -60,7 +59,7 @@ export default function TutorPage() {
             <CardContent>
               <p>{error || "Could not load session data."}</p>
               <Button onClick={() => router.push('/dashboard')} className="mt-4">
-                Go to Dashboard
+                <Home className="mr-2 h-4 w-4" /> Go to Dashboard
               </Button>
             </CardContent>
           </Card>
