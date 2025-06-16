@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { useToast } from "@/hooks/use-toast";
-import { User, LogOut, Save, Camera, Lock, CalendarIcon as CalendarIconLucide, Loader2 } from 'lucide-react';
+import { User, LogOut, Save, Camera, Lock, CalendarIcon as CalendarIconLucide, Loader2, AlertTriangle } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { format, parseISO } from "date-fns";
@@ -26,6 +26,8 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { Alert, AlertDescription as UiAlertDescription, AlertTitle as UiAlertTitle } from "@/components/ui/alert";
+
 
 const ClientAuthGuard = ({ children }: { children: React.ReactNode }) => {
   const router = useRouter();
@@ -53,6 +55,8 @@ interface UserProfileData {
   birthday: Date | null;
   profilePic: string | null;
 }
+
+const MAX_PROFILE_PIC_SIZE_BYTES = 1 * 1024 * 1024; // 1MB limit for base64 string
 
 export default function ProfilePage() {
   const router = useRouter();
@@ -89,42 +93,71 @@ export default function ProfilePage() {
   const handleInputChange = useCallback((e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setProfileData(prev => ({ ...prev, [name]: value }));
-  }, []);
+  }, [setProfileData]);
 
   const handleDateChange = useCallback((date: Date | undefined) => {
     setProfileData(prev => ({ ...prev, birthday: date || null }));
-  }, []);
+  }, [setProfileData]);
 
   const handleProfilePicChange = useCallback((e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      if (file.size > MAX_PROFILE_PIC_SIZE_BYTES * 0.75) { // Estimate original file size limit (base64 is ~33% larger)
+          toast({
+            title: "Image Too Large",
+            description: `Please select an image smaller than ~${(MAX_PROFILE_PIC_SIZE_BYTES * 0.75 / (1024*1024)).toFixed(1)}MB.`,
+            variant: "destructive",
+          });
+          if(fileInputRef.current) fileInputRef.current.value = ""; // Reset file input
+          return;
+      }
       const reader = new FileReader();
       reader.onloadend = () => {
-        setProfileData(prev => ({ ...prev, profilePic: reader.result as string }));
+        const base64String = reader.result as string;
+        if (base64String.length > MAX_PROFILE_PIC_SIZE_BYTES) {
+            toast({
+                title: "Profile Image Too Large",
+                description: "The selected image is too large after encoding. Please choose a smaller image.",
+                variant: "destructive",
+            });
+            if(fileInputRef.current) fileInputRef.current.value = ""; // Reset file input
+        } else {
+            setProfileData(prev => ({ ...prev, profilePic: base64String }));
+        }
       };
       reader.readAsDataURL(file);
     }
-  }, []);
+  }, [toast, setProfileData]);
 
   const handleSaveChanges = () => {
     setIsSaving(true);
     if (typeof window !== 'undefined') {
-      localStorage.setItem('userName', profileData.name);
-      localStorage.setItem('userEmail', profileData.email);
-      localStorage.setItem('userDepartment', profileData.department);
-      localStorage.setItem('userInstitution', profileData.institution);
+      localStorage.setItem('userName', profileData.name || '');
+      localStorage.setItem('userEmail', profileData.email || '');
+      localStorage.setItem('userDepartment', profileData.department || '');
+      localStorage.setItem('userInstitution', profileData.institution || '');
       if (profileData.birthday) {
         localStorage.setItem('userBirthday', profileData.birthday.toISOString());
       } else {
         localStorage.removeItem('userBirthday');
       }
+
       if (profileData.profilePic) {
-        localStorage.setItem('userProfilePic', profileData.profilePic);
+        if (profileData.profilePic.length > MAX_PROFILE_PIC_SIZE_BYTES) {
+          toast({
+            title: "Profile Image Not Saved",
+            description: "The profile image is too large. Please choose a smaller one. Other changes were saved.",
+            variant: "destructive",
+          });
+          // Don't save the large image, but other data is saved above
+        } else {
+          localStorage.setItem('userProfilePic', profileData.profilePic);
+        }
       } else {
         localStorage.removeItem('userProfilePic');
       }
 
-      toast({ title: "Profile Updated", description: "Your changes have been saved." });
+      toast({ title: "Profile Updated", description: "Your changes have been saved (or attempted)." });
       window.dispatchEvent(new Event('storage')); 
     }
     setIsSaving(false);
@@ -139,15 +172,14 @@ export default function ProfilePage() {
       });
       return;
     }
-    // Simulate password check (in a real app, this would be an API call)
-    // For demo, any non-empty password is "correct"
+    // Simulate password check
     toast({
       title: "Password Verified",
       description: "Proceed to change password (Actual change UI not implemented).",
     });
     setIsPasswordDialogOpen(false);
-    setCurrentPasswordInput(""); // Reset field
-    // router.push('/profile/change-password'); // Future navigation
+    setCurrentPasswordInput(""); 
+    // router.push('/profile/change-password'); 
   };
 
   const handleLogout = () => {
@@ -159,13 +191,12 @@ export default function ProfilePage() {
       localStorage.removeItem('userInstitution');
       localStorage.removeItem('userBirthday');
       localStorage.removeItem('userProfilePic');
-      // Clear all known session keys
       localStorage.removeItem('activeTutorSession');
       localStorage.removeItem('activeFlashcardSession');
       localStorage.removeItem('activeInteractiveTavusTutorSession');
       localStorage.removeItem('activeAskMrKnowSession');
       localStorage.removeItem('activeCodeTeachingSession');
-       window.dispatchEvent(new Event('storage')); // Notify other components like UserNav
+      window.dispatchEvent(new Event('storage')); 
     }
     toast({ title: "Logged Out", description: "You have been successfully logged out." });
     router.push("/"); 
@@ -191,7 +222,7 @@ export default function ProfilePage() {
             <CardDescription>Manage your account information and preferences.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
-            <div className="flex flex-col items-center space-y-4">
+            <div className="flex flex-col items-center space-y-2">
               <div className="relative">
                 <Avatar className="w-32 h-32 border-4 border-primary shadow-md">
                   <AvatarImage 
@@ -199,7 +230,7 @@ export default function ProfilePage() {
                     alt={profileData.name || "User"}
                     width={128}
                     height={128}
-                    data-ai-hint="profile photo"
+                    data-ai-hint="profile avatar"
                     className="object-cover" 
                   />
                   <AvatarFallback className="text-4xl">
@@ -209,7 +240,7 @@ export default function ProfilePage() {
                 <Button
                   variant="outline"
                   size="icon"
-                  className="absolute bottom-0 right-0 rounded-full bg-background hover:bg-muted p-1"
+                  className="absolute bottom-0 right-0 rounded-full bg-background hover:bg-muted p-1 shadow-md"
                   onClick={() => fileInputRef.current?.click()}
                   disabled={isSaving}
                   title="Change profile picture"
@@ -226,6 +257,7 @@ export default function ProfilePage() {
                   disabled={isSaving}
                 />
               </div>
+              <p className="text-xs text-muted-foreground">Max image size: ~750KB. Larger images may not save.</p>
             </div>
 
             <div className="space-y-4">
@@ -289,7 +321,7 @@ export default function ProfilePage() {
                 <AlertDialogHeader>
                   <AlertDialogTitle>Verify Current Password</AlertDialogTitle>
                   <AlertDialogDescription>
-                    Please enter your current password to proceed.
+                    Please enter your current password to proceed. (This is a simulation)
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <div className="py-4">
@@ -321,3 +353,4 @@ export default function ProfilePage() {
     </ClientAuthGuard>
   );
 }
+
