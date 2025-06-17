@@ -225,7 +225,7 @@ export default function CodeWizSessionPage() {
                 <Copy className="h-5 w-5" />
               </Button>
             </CardHeader>
-            <CardContent className="flex-grow overflow-hidden p-0">
+            <CardContent className="flex-grow overflow-hidden pt-2 px-0 pb-0">
               <ScrollArea className="h-full p-4">
                 <pre className="text-sm whitespace-pre-wrap break-all font-code bg-muted/50 p-3 rounded-md">
                   {sessionData.originalCode}
@@ -242,7 +242,7 @@ export default function CodeWizSessionPage() {
                 {sessionData.isTtsMuted ? <VolumeX className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}
               </Button>
             </CardHeader>
-            <CardContent className="flex-grow overflow-hidden p-0">
+            <CardContent className="flex-grow overflow-hidden pt-2 px-0 pb-0">
               <ScrollArea className="h-full p-4">
                 {sessionData.isLoadingAi && sessionData.currentOperation && (
                   <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
@@ -306,3 +306,4 @@ export default function CodeWizSessionPage() {
     </ClientAuthGuard>
   );
 }
+
