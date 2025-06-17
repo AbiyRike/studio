@@ -13,6 +13,7 @@ import { useToast } from "@/hooks/use-toast";
 import { setActiveCodeWizSession, type ActiveCodeWizSessionData } from '@/lib/session-store';
 import { fetchCodeFromUrlAction } from '@/app/actions';
 import { Wand2, Loader2, UploadCloud, Link as LinkIcon, FileText, Sparkles, AlertTriangle } from 'lucide-react';
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { generateId } from '@/lib/knowledge-base-store';
 
 const ClientAuthGuard = ({ children }: { children: React.ReactNode }) => {
@@ -219,3 +220,4 @@ export default function CodeWizInputPage() {
     </ClientAuthGuard>
   );
 }
+
