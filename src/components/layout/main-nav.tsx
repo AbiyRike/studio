@@ -4,7 +4,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { LayoutDashboard, History, LogOut, Brain, DatabaseZap, Edit3, Layers, GraduationCap, MessageCircleQuestion, Code2, User, Briefcase, Video, FolderKanban } from "lucide-react"; 
+import { LayoutDashboard, History, LogOut, Brain, DatabaseZap, Edit3, Layers, GraduationCap, MessageCircleQuestion, Code2, User, Briefcase, Video, FolderKanban, Library } from "lucide-react"; 
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
 
@@ -12,6 +12,7 @@ const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/profile", label: "My Profile", icon: User },
   { href: "/knowledge-base/manage", label: "Knowledge Base", icon: FolderKanban },
+  { href: "/contents", label: "My Contents", icon: Library },
   { href: "/quiz-session/new", label: "New Quiz", icon: Brain },
   { href: "/quiz-from-kb", label: "Quiz from KB", icon: Edit3 },
   { href: "/flashcards", label: "Flashcards", icon: Layers },

@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
@@ -9,8 +9,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { getLearningHistory, type HistoryItem } from '@/lib/session-store';
 import { getKnowledgeBaseItems } from '@/lib/knowledge-base-store';
-import { Brain, Layers, UserCircle, TrendingUp, BookCopy, Target, AlertTriangle, PieChart, CheckSquare, Activity, DatabaseZap, Edit3, GraduationCap, CheckCircle2, XCircle, HelpCircle, MessageCircleQuestion, Code2, BookOpenCheck, Briefcase, Video, FolderKanban, Home, Sparkles } from 'lucide-react';
+import { Brain, Layers, UserCircle, TrendingUp, BookCopy, Target, AlertTriangle, PieChart, CheckSquare, Activity, DatabaseZap, Edit3, GraduationCap, CheckCircle2, XCircle, HelpCircle, MessageCircleQuestion, Code2, BookOpenCheck, Briefcase, Video, FolderKanban, Home, Sparkles, Library } from 'lucide-react';
 import { format } from 'date-fns';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell } from 'recharts';
+import { ChartContainer, ChartTooltipContent } from '@/components/ui/chart';
+import { cn } from '@/lib/utils';
+
 
 const ClientAuthGuard = ({ children }: { children: React.ReactNode }) => {
   const router = useRouter();
@@ -49,12 +53,15 @@ interface Metrics {
 
 interface TopicAnalytics {
   name: string;
-  average: number;
+  average: number; // Average score for this topic
   quizCount: number;
+  correctAnswers: number;
+  incorrectAnswers: number;
+  totalQuestions: number;
 }
 
 export default function EnhancedDashboardPage() {
-  const router = useRouter(); // Initialize router here
+  const router = useRouter();
   const [userName, setUserName] = useState("AI Learner");
   const [userProfilePic, setUserProfilePic] = useState<string | null>(null);
   const [metrics, setMetrics] = useState<Metrics>({
@@ -72,38 +79,40 @@ export default function EnhancedDashboardPage() {
   const [recentActivity, setRecentActivity] = useState<HistoryItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  const loadUserData = () => {
+  const loadUserData = useCallback(() => {
     if (typeof window !== 'undefined') {
       const storedName = localStorage.getItem("userName");
       if (storedName) setUserName(storedName);
-      const storedPic = localStorage.getItem("userProfilePic"); 
+      const storedPic = localStorage.getItem("userProfilePic");
       setUserProfilePic(storedPic);
 
       const loadedHistory = getLearningHistory();
       const kbItems = getKnowledgeBaseItems();
 
-      setRecentActivity(loadedHistory.slice(0, 3)); 
+      setRecentActivity(loadedHistory.slice(0, 3));
 
       let calculatedTotalCorrectAnswers = 0;
       let calculatedTotalQuestionsAttempted = 0;
-      const topicPerformance: { [key: string]: { totalScore: number; totalQuestions: number; quizCount: number } } = {};
+      const topicPerformance: { [key: string]: { totalScore: number; totalQuestions: number; quizCount: number; correct: number; incorrect: number } } = {};
 
       loadedHistory.forEach(item => {
         calculatedTotalCorrectAnswers += item.score;
         calculatedTotalQuestionsAttempted += item.questions.length;
 
         if (!topicPerformance[item.documentName]) {
-          topicPerformance[item.documentName] = { totalScore: 0, totalQuestions: 0, quizCount: 0 };
+          topicPerformance[item.documentName] = { totalScore: 0, totalQuestions: 0, quizCount: 0, correct: 0, incorrect: 0 };
         }
         topicPerformance[item.documentName].totalScore += item.score;
         topicPerformance[item.documentName].totalQuestions += item.questions.length;
         topicPerformance[item.documentName].quizCount += 1;
+        topicPerformance[item.documentName].correct += item.score;
+        topicPerformance[item.documentName].incorrect += (item.questions.length - item.score);
       });
 
       const quizzesTaken = loadedHistory.length;
       const topicsStudied = Array.from(new Set(loadedHistory.map(item => item.documentName)));
       const overallAccuracy = calculatedTotalQuestionsAttempted > 0 ? Math.round((calculatedTotalCorrectAnswers / calculatedTotalQuestionsAttempted) * 100) : 0;
-      
+
       let sumOfQuizPercentages = 0;
       loadedHistory.forEach(item => {
         if (item.questions.length > 0) {
@@ -124,25 +133,26 @@ export default function EnhancedDashboardPage() {
         totalIncorrectAnswers: totalIncorrectAnswers,
       });
 
-      const topicAverages = Object.entries(topicPerformance).map(([name, data]) => {
+      const topicAverages: TopicAnalytics[] = Object.entries(topicPerformance).map(([name, data]) => {
         const average = data.totalQuestions > 0 ? Math.round((data.totalScore / data.totalQuestions) * 100) : 0;
-        return { name, average, quizCount: data.quizCount };
+        return { name, average, quizCount: data.quizCount, correctAnswers: data.correct, incorrectAnswers: data.incorrect, totalQuestions: data.totalQuestions };
       });
 
-      setStrongestTopics([...topicAverages].sort((a, b) => b.average - a.average || b.quizCount - a.quizCount).slice(0, 3));
-      setWeakestTopics([...topicAverages].sort((a, b) => a.average - b.average || b.quizCount - a.quizCount).filter(t => t.quizCount > 0).slice(0, 3));
-      
+      setStrongestTopics([...topicAverages].sort((a, b) => b.average - a.average || b.correctAnswers - a.correctAnswers).slice(0, 3));
+      setWeakestTopics([...topicAverages].sort((a, b) => a.average - b.average || b.incorrectAnswers - a.incorrectAnswers).filter(t => t.totalQuestions > 0 && t.average < 100).slice(0, 3));
+
       setIsLoading(false);
     }
-  };
+  }, []);
+
 
   useEffect(() => {
     loadUserData();
-    window.addEventListener('storage', loadUserData); 
+    window.addEventListener('storage', loadUserData);
     return () => {
       window.removeEventListener('storage', loadUserData);
     };
-  }, []);
+  }, [loadUserData]);
 
 
   const FeatureButton = ({ href, icon: Icon, title, description, className }: { href: string, icon: React.ElementType, title: string, description: string, className?: string }) => (
@@ -160,6 +170,17 @@ export default function EnhancedDashboardPage() {
       </Link>
     </Button>
   );
+  
+  const performanceChartData = [
+    { name: 'Correct', value: metrics.totalCorrectAnswers, fill: 'hsl(var(--chart-2))' }, // Greenish
+    { name: 'Incorrect', value: metrics.totalIncorrectAnswers, fill: 'hsl(var(--destructive))' }, // Reddish
+  ];
+
+  const chartConfig = {
+    correct: { label: "Correct", color: "hsl(var(--chart-2))" },
+    incorrect: { label: "Incorrect", color: "hsl(var(--destructive))" },
+  } satisfies Parameters<typeof ChartContainer>[0]["config"];
+
 
   return (
     <ClientAuthGuard>
@@ -168,10 +189,10 @@ export default function EnhancedDashboardPage() {
           <CardHeader className="bg-gradient-to-r from-primary/10 to-accent/10 p-6">
             <div className="flex items-center space-x-4">
               <Avatar className="w-20 h-20 border-4 border-background shadow-md">
-                <AvatarImage 
-                  src={userProfilePic || "https://placehold.co/100x100.png"} 
-                  alt={userName} 
-                  width={100} height={100} 
+                <AvatarImage
+                  src={userProfilePic || "https://placehold.co/100x100.png"}
+                  alt={userName}
+                  width={100} height={100}
                   data-ai-hint="profile avatar"
                   className="object-cover"
                 />
@@ -195,6 +216,13 @@ export default function EnhancedDashboardPage() {
               description="Manage, view, edit, or delete your uploaded content and summaries."
               className="bg-gradient-to-br from-green-500/5 via-transparent to-green-500/5 hover:from-green-500/10 hover:to-green-500/10"
             />
+            <FeatureButton
+              href="/contents"
+              icon={Library}
+              title="My Contents"
+              description="Browse and access all items in your Knowledge Base."
+              className="bg-gradient-to-br from-indigo-500/5 via-transparent to-indigo-500/5 hover:from-indigo-500/10 hover:to-indigo-500/10"
+            />
              <FeatureButton
               href="/quiz-session/new"
               icon={Brain}
@@ -204,7 +232,7 @@ export default function EnhancedDashboardPage() {
             />
              <FeatureButton
               href="/quiz-from-kb"
-              icon={Edit3} 
+              icon={Edit3}
               title="Quiz from KB"
               description="Select from your knowledge base to start an interactive quiz."
               className="bg-gradient-to-br from-orange-500/5 via-transparent to-orange-500/5 hover:from-orange-500/10 hover:to-orange-500/10"
@@ -218,15 +246,15 @@ export default function EnhancedDashboardPage() {
             />
             <FeatureButton
               href="/interactive-tutor/select"
-              icon={Video} 
-              title="Interactive Video Tutor"
+              icon={Video}
+              title="Interactive Tutor"
               description="Select from KB for a step-by-step AI video tutoring session with Study AI+."
               className="bg-gradient-to-br from-purple-500/5 via-transparent to-purple-500/5 hover:from-purple-500/10 hover:to-purple-500/10"
             />
              <FeatureButton
               href="/ask-mr-know/select"
               icon={MessageCircleQuestion}
-              title="Ask Mr. Know" 
+              title="Ask Mr. Know"
               description="Chat with Study AI+ about content selected from your knowledge base."
               className="bg-gradient-to-br from-sky-500/5 via-transparent to-sky-500/5 hover:from-sky-500/10 hover:to-sky-500/10"
             />
@@ -254,40 +282,66 @@ export default function EnhancedDashboardPage() {
               {[...Array(8)].map((_, i) => <Card key={i} className="h-36 animate-pulse bg-muted/50"></Card>)}
             </div>
           ) : metrics.quizzesTaken > 0 || metrics.knowledgeBaseSize > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              <Card className="shadow-md hover:shadow-lg transition-shadow">
-                <CardHeader><CardTitle className="text-lg flex items-center"><PieChart className="mr-2 h-5 w-5 text-primary" /> Accuracy</CardTitle></CardHeader>
-                <CardContent><p className="text-4xl font-bold text-primary">{metrics.overallAccuracy}%</p></CardContent>
+            <>
+              <Card className="shadow-lg mb-8">
+                <CardHeader>
+                  <CardTitle className="text-xl flex items-center"><TrendingUp className="mr-2 h-6 w-6 text-primary"/> Quiz Performance Overview</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-center">
+                    <div>
+                      <p className="text-sm text-muted-foreground">Attempted</p>
+                      <p className="text-3xl font-bold text-primary">{metrics.totalQuestionsAttempted}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-green-600">Correct</p>
+                      <p className="text-3xl font-bold text-green-500">{metrics.totalCorrectAnswers}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-red-600">Incorrect</p>
+                      <p className="text-3xl font-bold text-red-500">{metrics.totalIncorrectAnswers}</p>
+                    </div>
+                  </div>
+                  {metrics.totalQuestionsAttempted > 0 && (
+                    <ChartContainer config={chartConfig} className="h-[250px] w-full">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={performanceChartData} layout="vertical" margin={{ right: 30, left: 20 }}>
+                          <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+                          <XAxis type="number" hide />
+                          <YAxis dataKey="name" type="category" tickLine={false} axisLine={false} stroke="hsl(var(--foreground))" />
+                          <Tooltip cursor={{fill: 'hsl(var(--muted))'}} content={<ChartTooltipContent hideLabel />} />
+                          <Legend verticalAlign="top" height={36} />
+                          <Bar dataKey="value" radius={5}>
+                            {performanceChartData.map((entry, index) => (
+                              <Cell key={`cell-${index}`} fill={entry.fill} />
+                            ))}
+                          </Bar>
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </ChartContainer>
+                  )}
+                </CardContent>
               </Card>
-              <Card className="shadow-md hover:shadow-lg transition-shadow">
-                <CardHeader><CardTitle className="text-lg flex items-center"><CheckSquare className="mr-2 h-5 w-5 text-primary" /> Quizzes</CardTitle></CardHeader>
-                <CardContent><p className="text-4xl font-bold text-primary">{metrics.quizzesTaken}</p></CardContent>
-              </Card>
-               <Card className="shadow-md hover:shadow-lg transition-shadow">
-                <CardHeader><CardTitle className="text-lg flex items-center"><Activity className="mr-2 h-5 w-5 text-primary" /> Avg. Score</CardTitle></CardHeader>
-                <CardContent><p className="text-4xl font-bold text-primary">{metrics.averageScore}%</p></CardContent>
-              </Card>
-              <Card className="shadow-md hover:shadow-lg transition-shadow">
-                <CardHeader><CardTitle className="text-lg flex items-center"><BookCopy className="mr-2 h-5 w-5 text-primary" /> Topics</CardTitle></CardHeader>
-                <CardContent><p className="text-4xl font-bold text-primary">{metrics.topicsStudiedCount}</p></CardContent>
-              </Card>
-              <Card className="shadow-md hover:shadow-lg transition-shadow">
-                <CardHeader><CardTitle className="text-lg flex items-center"><DatabaseZap className="mr-2 h-5 w-5 text-primary" /> KB Items</CardTitle></CardHeader>
-                <CardContent><p className="text-4xl font-bold text-primary">{metrics.knowledgeBaseSize}</p></CardContent>
-              </Card>
-              <Card className="shadow-md hover:shadow-lg transition-shadow">
-                <CardHeader><CardTitle className="text-lg flex items-center"><CheckCircle2 className="mr-2 h-5 w-5 text-green-500" /> Correct</CardTitle></CardHeader>
-                <CardContent><p className="text-4xl font-bold text-green-500">{metrics.totalCorrectAnswers}</p></CardContent>
-              </Card>
-              <Card className="shadow-md hover:shadow-lg transition-shadow">
-                <CardHeader><CardTitle className="text-lg flex items-center"><HelpCircle className="mr-2 h-5 w-5 text-blue-500" /> Attempted</CardTitle></CardHeader>
-                <CardContent><p className="text-4xl font-bold text-blue-500">{metrics.totalQuestionsAttempted}</p></CardContent>
-              </Card>
-              <Card className="shadow-md hover:shadow-lg transition-shadow">
-                <CardHeader><CardTitle className="text-lg flex items-center"><XCircle className="mr-2 h-5 w-5 text-red-500" /> Incorrect</CardTitle></CardHeader>
-                <CardContent><p className="text-4xl font-bold text-red-500">{metrics.totalIncorrectAnswers}</p></CardContent>
-              </Card>
-            </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                 <Card className="shadow-md hover:shadow-lg transition-shadow">
+                    <CardHeader><CardTitle className="text-lg flex items-center"><PieChart className="mr-2 h-5 w-5 text-primary" /> Accuracy</CardTitle></CardHeader>
+                    <CardContent><p className="text-4xl font-bold text-primary">{metrics.overallAccuracy}%</p></CardContent>
+                </Card>
+                <Card className="shadow-md hover:shadow-lg transition-shadow">
+                    <CardHeader><CardTitle className="text-lg flex items-center"><CheckSquare className="mr-2 h-5 w-5 text-primary" /> Quizzes</CardTitle></CardHeader>
+                    <CardContent><p className="text-4xl font-bold text-primary">{metrics.quizzesTaken}</p></CardContent>
+                </Card>
+                <Card className="shadow-md hover:shadow-lg transition-shadow">
+                    <CardHeader><CardTitle className="text-lg flex items-center"><BookCopy className="mr-2 h-5 w-5 text-primary" /> Topics</CardTitle></CardHeader>
+                    <CardContent><p className="text-4xl font-bold text-primary">{metrics.topicsStudiedCount}</p></CardContent>
+                </Card>
+                <Card className="shadow-md hover:shadow-lg transition-shadow">
+                    <CardHeader><CardTitle className="text-lg flex items-center"><DatabaseZap className="mr-2 h-5 w-5 text-primary" /> KB Items</CardTitle></CardHeader>
+                    <CardContent><p className="text-4xl font-bold text-primary">{metrics.knowledgeBaseSize}</p></CardContent>
+                </Card>
+              </div>
+            </>
           ) : (
             <Card className="text-center py-10 shadow-md col-span-1 md:col-span-2 lg:grid-cols-3 xl:col-span-4">
                 <CardContent>
@@ -348,9 +402,9 @@ export default function EnhancedDashboardPage() {
             </Card>
           )}
         </section>
-        
+
         <section>
-          <h2 className="text-2xl font-semibold font-headline mb-6 text-center text-foreground/90">Learning Analytics</h2>
+          <h2 className="text-2xl font-semibold font-headline mb-6 text-center text-foreground/90">Learning Focus</h2>
            {isLoading ? (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                  <Card className="h-48 animate-pulse bg-muted/50"></Card>
@@ -359,14 +413,16 @@ export default function EnhancedDashboardPage() {
            ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <Card className="shadow-md">
-                <CardHeader><CardTitle className="text-lg flex items-center"><Target className="mr-2 h-5 w-5 text-green-500" /> Strongest Topics</CardTitle></CardHeader>
+                <CardHeader><CardTitle className="text-lg flex items-center"><Target className="mr-2 h-5 w-5 text-green-500" /> Areas of Excellence</CardTitle></CardHeader>
                 <CardContent>
                     {strongestTopics.length > 0 ? (
                     <ul className="space-y-2">
                         {strongestTopics.map(topic => (
-                        <li key={topic.name} className="text-sm p-2 border-b last:border-b-0">
-                            <span className="font-medium">{topic.name}</span>
-                            <span className="text-xs text-muted-foreground float-right pt-1">Avg: {topic.average}% ({topic.quizCount} {topic.quizCount === 1 ? "quiz" : "quizzes"})</span>
+                        <li key={topic.name} className="text-sm p-3 border rounded-md bg-green-50 dark:bg-green-900/20">
+                            <div className="font-medium text-green-700 dark:text-green-300">{topic.name}</div>
+                            <div className="text-xs text-green-600 dark:text-green-400">
+                                Avg: {topic.average}% ({topic.correctAnswers}/{topic.totalQuestions} correct from {topic.quizCount} {topic.quizCount === 1 ? "quiz" : "quizzes"})
+                            </div>
                         </li>
                         ))}
                     </ul>
@@ -379,9 +435,12 @@ export default function EnhancedDashboardPage() {
                     {weakestTopics.length > 0 ? (
                     <ul className="space-y-2">
                         {weakestTopics.map(topic => (
-                        <li key={topic.name} className="text-sm p-2 border-b last:border-b-0">
-                            <span className="font-medium">{topic.name}</span>
-                             <span className="text-xs text-muted-foreground float-right pt-1">Avg: {topic.average}% ({topic.quizCount} {topic.quizCount === 1 ? "quiz" : "quizzes"})</span>
+                         <li key={topic.name} className="text-sm p-3 border rounded-md bg-amber-50 dark:bg-amber-900/20">
+                            <div className="font-medium text-amber-700 dark:text-amber-300">{topic.name}</div>
+                            <div className="text-xs text-amber-600 dark:text-amber-400">
+                                Avg: {topic.average}% ({topic.correctAnswers}/{topic.totalQuestions} correct from {topic.quizCount} {topic.quizCount === 1 ? "quiz" : "quizzes"})
+                            </div>
+                             <p className="text-xs text-muted-foreground mt-1">Focus here: {topic.incorrectAnswers} incorrect answers.</p>
                         </li>
                         ))}
                     </ul>
@@ -393,11 +452,70 @@ export default function EnhancedDashboardPage() {
         </section>
         <div className="mt-8 text-center">
           <Button variant="outline" onClick={() => router.push('/dashboard')} className="w-full sm:w-auto">
-            <Home className="mr-2 h-4 w-4" /> Back to Dashboard
+            <Home className="mr-2 h-4 w-4" /> Refresh Dashboard
           </Button>
         </div>
       </div>
     </ClientAuthGuard>
   );
 }
+</content>
+  </change>
+  <change>
+    <file>/src/app/(main)/contents/page.tsx</file>
+    <content><![CDATA[
+"use client";
 
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { KnowledgeBaseContentsDisplay } from '@/components/knowledge-base-contents-display';
+import { Sparkles, Library } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import Link from 'next/link';
+
+const ClientAuthGuard = ({ children }: { children: React.ReactNode }) => {
+  const router = useRouter();
+  const [isVerified, setIsVerified] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      if (!localStorage.getItem('isLoggedIn')) {
+        router.push('/login');
+      } else {
+        setIsVerified(true);
+      }
+    }
+  }, [router]);
+
+  if (!isVerified) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <Sparkles className="h-12 w-12 animate-pulse text-primary" />
+      </div>
+    );
+  }
+  return <>{children}</>;
+};
+
+
+export default function ContentsPage() {
+  return (
+    <ClientAuthGuard>
+      <div className="container mx-auto py-8">
+        <div className="flex flex-col items-center mb-10">
+          <Library className="h-16 w-16 text-primary mb-4" />
+          <h1 className="text-4xl font-bold font-headline text-center">Your Knowledge Library</h1>
+          <p className="text-muted-foreground mt-2 text-center max-w-prose">
+            Browse, search, and access all the content you've added to Study AI+.
+          </p>
+        </div>
+        <KnowledgeBaseContentsDisplay />
+         <div className="mt-12 text-center">
+            <Button asChild variant="outline" size="lg">
+                <Link href="/dashboard">Back to Dashboard</Link>
+            </Button>
+        </div>
+      </div>
+    </ClientAuthGuard>
+  );
+}
