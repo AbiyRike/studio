@@ -1,4 +1,3 @@
-
 "use client";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -36,7 +35,6 @@ export function UserNav() {
 
   useEffect(() => {
     updateUserData();
-    // Listen for storage changes to update avatar if changed on profile page or logout
     window.addEventListener('storage', updateUserData);
     return () => {
       window.removeEventListener('storage', updateUserData);
@@ -52,13 +50,13 @@ export function UserNav() {
       localStorage.removeItem("userInstitution");
       localStorage.removeItem("userBirthday");
       localStorage.removeItem("userProfilePic");
-      // Clear other session-specific data
       localStorage.removeItem('activeTutorSession');
       localStorage.removeItem('activeFlashcardSession');
-      localStorage.removeItem('activeInteractiveTavusTutorSession');
+      localStorage.removeItem('activeDynamicTutorSession'); // Updated
       localStorage.removeItem('activeAskMrKnowSession');
       localStorage.removeItem('activeCodeTeachingSession');
-      window.dispatchEvent(new Event('storage')); // Notify other components
+      localStorage.removeItem('activeCodeWizSession');
+      window.dispatchEvent(new Event('storage')); 
     }
     router.push("/"); 
   };
@@ -99,12 +97,6 @@ export function UserNav() {
               Profile
             </Link>
           </DropdownMenuItem>
-          {/* Placeholder for future settings page
-          <DropdownMenuItem className="cursor-pointer">
-            <Settings className="w-4 h-4 mr-2" />
-            Settings
-          </DropdownMenuItem>
-          */}
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={handleLogout} className="cursor-pointer">

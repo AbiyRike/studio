@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useEffect, useState, useCallback } from 'react';
@@ -53,7 +52,7 @@ interface Metrics {
 
 interface TopicAnalytics {
   name: string;
-  average: number; // Average score for this topic
+  average: number; 
   quizCount: number;
   correctAnswers: number;
   incorrectAnswers: number;
@@ -172,8 +171,8 @@ export default function EnhancedDashboardPage() {
   );
   
   const performanceChartData = [
-    { name: 'Correct', value: metrics.totalCorrectAnswers, fill: 'hsl(var(--chart-2))' }, // Greenish
-    { name: 'Incorrect', value: metrics.totalIncorrectAnswers, fill: 'hsl(var(--destructive))' }, // Reddish
+    { name: 'Correct', value: metrics.totalCorrectAnswers, fill: 'hsl(var(--chart-2))' }, 
+    { name: 'Incorrect', value: metrics.totalIncorrectAnswers, fill: 'hsl(var(--destructive))' }, 
   ];
 
   const chartConfig = {
@@ -246,9 +245,9 @@ export default function EnhancedDashboardPage() {
             />
             <FeatureButton
               href="/interactive-tutor/select"
-              icon={Video}
+              icon={Sparkles} /* Updated Icon for new tutor */
               title="Interactive Tutor"
-              description="Select from KB for a step-by-step AI video tutoring session with Study AI+."
+              description="Engage with a dynamic, animated AI tutor on content from your knowledge base."
               className="bg-gradient-to-br from-purple-500/5 via-transparent to-purple-500/5 hover:from-purple-500/10 hover:to-purple-500/10"
             />
              <FeatureButton

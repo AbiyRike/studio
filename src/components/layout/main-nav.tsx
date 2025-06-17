@@ -1,10 +1,9 @@
-
 "use client";
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { LayoutDashboard, History, LogOut, Brain, DatabaseZap, Edit3, Layers, GraduationCap, MessageCircleQuestion, Code2, User, Briefcase, Video, FolderKanban, Library, Wand2 } from "lucide-react"; 
+import { LayoutDashboard, History, LogOut, Brain, DatabaseZap, Edit3, Layers, GraduationCap, MessageCircleQuestion, Code2, User, Briefcase, Video, FolderKanban, Library, Wand2, Sparkles } from "lucide-react"; 
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
 
@@ -16,7 +15,7 @@ const navItems = [
   { href: "/quiz-session/new", label: "New Quiz", icon: Brain },
   { href: "/quiz-from-kb", label: "Quiz from KB", icon: Edit3 },
   { href: "/flashcards", label: "Flashcards", icon: Layers },
-  { href: "/interactive-tutor/select", label: "Interactive Tutor", icon: Video },
+  { href: "/interactive-tutor/select", label: "Interactive Tutor", icon: Sparkles }, // Updated Icon
   { href: "/ask-mr-know/select", label: "Ask Mr. Know", icon: MessageCircleQuestion },
   { href: "/code-with-me/select", label: "Code with Me", icon: Code2 },
   { href: "/code-wiz", label: "Code Wiz", icon: Wand2 },
@@ -40,11 +39,11 @@ export function MainNav() {
       // Clear all known active session keys
       localStorage.removeItem('activeTutorSession');
       localStorage.removeItem('activeFlashcardSession');
-      localStorage.removeItem('activeInteractiveTavusTutorSession');
+      localStorage.removeItem('activeDynamicTutorSession'); // Updated
       localStorage.removeItem('activeAskMrKnowSession');
       localStorage.removeItem('activeCodeTeachingSession');
       localStorage.removeItem('activeCodeWizSession');
-      window.dispatchEvent(new Event('storage')); // Notify other components
+      window.dispatchEvent(new Event('storage')); 
     }
     router.push("/"); 
   };

@@ -1,15 +1,14 @@
-
 import type { Question } from '@/app/actions'; 
 import type { Flashcard as AppFlashcard } from '@/ai/flows/generate-flashcards';
-
+import type { InteractiveTutorOutput as DynamicTutorStepData } from '@/ai/flows/interactive-tutor-flow'; // Import the output type
 
 // ---- Quiz Session (Old Tutor) ----
 export interface TutorSessionData {
   documentName: string;
   summary: string;
   questions: Question[];
-  documentContent?: string; // Original content used to generate quiz
-  mediaDataUri?: string;  // Original media URI
+  documentContent?: string; 
+  mediaDataUri?: string;  
 }
 
 const ACTIVE_TUTOR_SESSION_KEY = 'activeTutorSession'; // For quiz feature
@@ -39,15 +38,15 @@ export const getActiveTutorSession = (): TutorSessionData | null => {
 const HISTORY_STORAGE_KEY = 'geminiAITutorHistory';
 
 export interface HistoryItem {
-  id: string; // Unique ID for the history entry
+  id: string; 
   documentName: string;
-  summary: string; // Summary at the time of the quiz
-  questions: Question[]; // Questions asked in that session
-  documentContent?: string; // Full content (optional, for review context)
-  mediaDataUri?: string;   // Media URI (optional, for review context)
-  userAnswers: (number | null)[]; // User's answers (index or null if not answered)
-  score: number; // Number of correct answers
-  completedAt: string; // ISO date string
+  summary: string; 
+  questions: Question[]; 
+  documentContent?: string; 
+  mediaDataUri?: string;   
+  userAnswers: (number | null)[]; 
+  score: number; 
+  completedAt: string; 
 }
 
 export const getLearningHistory = (): HistoryItem[] => {
@@ -66,11 +65,10 @@ export const addToLearningHistory = (item: HistoryItem): void => {
   const history = getLearningHistory();
   const existingIndex = history.findIndex(h => h.id === item.id);
   if (existingIndex > -1) {
-    history[existingIndex] = item; // Update if ID exists (e.g. re-quiz)
+    history[existingIndex] = item; 
   } else {
-    history.unshift(item); // Add new item to the beginning
+    history.unshift(item); 
   }
-  // Limit history to a reasonable number, e.g., 50 items
   localStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify(history.slice(0, 50)));
 };
 
@@ -78,8 +76,8 @@ export const addToLearningHistory = (item: HistoryItem): void => {
 export interface FlashcardSessionData {
   documentName: string;
   flashcards: AppFlashcard[];
-  documentContent: string; // Store original content to generate more cards
-  mediaDataUri?: string;   // Store original media to generate more cards
+  documentContent: string; 
+  mediaDataUri?: string;   
 }
 
 const ACTIVE_FLASHCARD_SESSION_KEY = 'activeFlashcardSession';
@@ -104,43 +102,45 @@ export const getActiveFlashcardSession = (): FlashcardSessionData | null => {
   }
 };
 
-// ---- Active Interactive Tavus Video Tutor Session ----
-export interface ChatHistoryMessage { // For Tavus tutor chat log
-  role: 'user' | 'model';
+// ---- Active Dynamic Interactive Tutor Session (Replaces Tavus Tutor) ----
+export { type DynamicTutorStepData }; // Export the imported type
+
+export interface ChatMessage { 
+  role: 'user' | 'ai';
   text: string;
   timestamp: string;
 }
-export interface ActiveInteractiveTavusTutorSessionData {
-  kbItemId: string; // ID of the knowledge base item being tutored
+
+export interface ActiveDynamicTutorSessionData {
+  kbItemId: string; 
   documentName: string;
   documentContent: string; 
   mediaDataUri?: string;   
-  conversationId: string; // Tavus conversation ID
-  clientSecret: string;   // Tavus client secret
-  chatHistory: ChatHistoryMessage[];
-  initialVideoUrl?: string; // Video URL for the tutor's greeting
-  initialAiText?: string;   // Text for the tutor's greeting
-  tavusPersonaSystemPrompt: string; // The system prompt used to init Tavus persona context
+  currentStepData: DynamicTutorStepData | null; 
+  chatHistory: ChatMessage[];
+  isTtsMuted: boolean;
+  isCameraAnalysisEnabled: boolean; 
+  currentQuizAttempt: { question: string; answerIndex: number | null } | null; // For managing quiz state within the tutor
 }
 
-const ACTIVE_INTERACTIVE_TAVUS_TUTOR_SESSION_KEY = 'activeInteractiveTavusTutorSession';
+const ACTIVE_DYNAMIC_TUTOR_SESSION_KEY = 'activeDynamicTutorSession'; // New key
 
-export const setActiveInteractiveTavusTutorSession = (data: ActiveInteractiveTavusTutorSessionData | null): void => {
+export const setActiveDynamicTutorSession = (data: ActiveDynamicTutorSessionData | null): void => {
   if (typeof window === 'undefined') return;
   if (data === null) {
-    localStorage.removeItem(ACTIVE_INTERACTIVE_TAVUS_TUTOR_SESSION_KEY);
+    localStorage.removeItem(ACTIVE_DYNAMIC_TUTOR_SESSION_KEY);
   } else {
-    localStorage.setItem(ACTIVE_INTERACTIVE_TAVUS_TUTOR_SESSION_KEY, JSON.stringify(data));
+    localStorage.setItem(ACTIVE_DYNAMIC_TUTOR_SESSION_KEY, JSON.stringify(data));
   }
 };
 
-export const getActiveInteractiveTavusTutorSession = (): ActiveInteractiveTavusTutorSessionData | null => {
+export const getActiveDynamicTutorSession = (): ActiveDynamicTutorSessionData | null => {
   if (typeof window === 'undefined') return null;
-  const storedData = localStorage.getItem(ACTIVE_INTERACTIVE_TAVUS_TUTOR_SESSION_KEY);
+  const storedData = localStorage.getItem(ACTIVE_DYNAMIC_TUTOR_SESSION_KEY);
   try {
     return storedData ? JSON.parse(storedData) : null;
   } catch (e) {
-    console.error("Error parsing active interactive Tavus tutor session from localStorage", e);
+    console.error("Error parsing active dynamic tutor session from localStorage", e);
     return null;
   }
 };
@@ -234,7 +234,7 @@ export const getActiveCodeTeachingSession = (): ActiveCodeTeachingSessionData | 
 
 // ---- Active "Code Wiz" Session ----
 export interface ActiveCodeWizSessionData {
-  id: string; // Unique ID for this session
+  id: string; 
   originalCode: string;
   languageHint?: string;
   analysis?: string;
@@ -244,7 +244,7 @@ export interface ActiveCodeWizSessionData {
   currentOperation?: 'analyze' | 'explain' | 'optimize' | null;
   isLoadingAi: boolean;
   isTtsMuted: boolean;
-  createdAt: string; // ISO date string
+  createdAt: string; 
 }
 
 const ACTIVE_CODE_WIZ_SESSION_KEY = 'activeCodeWizSession';
@@ -268,4 +268,3 @@ export const getActiveCodeWizSession = (): ActiveCodeWizSessionData | null => {
     return null;
   }
 };
-    

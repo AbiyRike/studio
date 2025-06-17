@@ -1,15 +1,18 @@
-
 "use server";
 
 import { summarizeDocument } from "@/ai/flows/summarize-document";
 import { generateQuestions, type GenerateQuestionsInput as AIQuestionsInput } from "@/ai/flows/generate-questions";
 import { generateFlashcards as generateFlashcardsFlowInternal, type GenerateFlashcardsInput as AIGenerateFlashcardsInput } from "@/ai/flows/generate-flashcards"; // Renamed internal flow
-import { getNextInteractiveTutorStep as getNextTextTutorStepFlow, type InteractiveTutorInput as TextTutorInput, type InteractiveTutorOutput as TextTutorOutput } from "@/ai/flows/interactive-tutor-flow"; // Aliased
+// Updated import for the dynamic tutor flow
+import { getNextInteractiveTutorStep as getNextDynamicTutorStepFlow, type InteractiveTutorInput as DynamicTutorInput, type InteractiveTutorOutput as DynamicTutorOutput } from "@/ai/flows/interactive-tutor-flow"; 
+
 import { chatWithStudyEthiopiaAI, type AskStudyEthiopiaAIInput as AIAskStudyEthiopiaAIInput, type AskStudyEthiopiaAIOutput } from "@/ai/flows/ask-mr-know-flow";
 import { getProgrammingLanguages as getProgrammingLanguagesFlow, type GetProgrammingLanguagesInput as AIGetProgrammingLanguagesInput } from "@/ai/flows/get-programming-languages-flow.ts";
 import { getCodeTeachingStep as getCodeTeachingStepFlow, type GetCodeTeachingStepInput as AIGetCodeTeachingStepInput, type GetCodeTeachingStepOutput as AIGetCodeTeachingStepOutput } from "@/ai/flows/get-code-teaching-step-flow.ts";
-import { generateTavusTutorPersonaContext, type GenerateTavusTutorPersonaContextInput, type GenerateTavusTutorPersonaContextOutput } from "@/ai/flows/generate-tavus-tutor-persona-context-flow";
-import { getNextTavusTutorText as getNextTavusTutorTextFlow, type GetNextTavusTutorTextInput, type GetNextTavusTutorTextOutput } from "@/ai/flows/get-next-tavus-tutor-text-flow";
+// Persona context generation for Tavus is removed as we replace that tutor
+// import { generateTavusTutorPersonaContext, type GenerateTavusTutorPersonaContextInput, type GenerateTavusTutorPersonaContextOutput } from "@/ai/flows/generate-tavus-tutor-persona-context-flow";
+// Next Tavus tutor text flow is removed
+// import { getNextTavusTutorText as getNextTavusTutorTextFlow, type GetNextTavusTutorTextInput, type GetNextTavusTutorTextOutput } from "@/ai/flows/get-next-tavus-tutor-text-flow";
 import { analyzeCode as analyzeCodeFlow, type AnalyzeCodeInput as AIAnalyzeCodeInput, type AnalyzeCodeOutput as AIAnalyzeCodeOutput } from "@/ai/flows/analyze-code-flow";
 import { explainCode as explainCodeFlow, type ExplainCodeInput as AIExplainCodeInput, type ExplainCodeOutput as AIExplainCodeOutput } from "@/ai/flows/explain-code-flow";
 import { optimizeCode as optimizeCodeFlow, type OptimizeCodeInput as AIOptimizeCodeInput, type OptimizeCodeOutput as AIOptimizeCodeOutput } from "@/ai/flows/optimize-code-flow";
@@ -17,8 +20,9 @@ import { optimizeCode as optimizeCodeFlow, type OptimizeCodeInput as AIOptimizeC
 
 import type { SummarizeDocumentInput } from "@/ai/flows/summarize-document";
 import { generateId, type KnowledgeBaseItem } from '@/lib/knowledge-base-store'; 
-import type { Flashcard as AppFlashcard } from '@/ai/flows/generate-flashcards'; // Import type from flow
-import type { AskMrKnowMessage, ActiveAskMrKnowSessionData, CodeTeachingStepData, ActiveCodeTeachingSessionData, ActiveInteractiveTavusTutorSessionData, ChatHistoryMessage as TavusChatMessage, ActiveCodeWizSessionData } from '@/lib/session-store'; 
+import type { Flashcard as AppFlashcard } from '@/ai/flows/generate-flashcards'; 
+// Updated import for new session data types
+import type { AskMrKnowMessage, ActiveAskMrKnowSessionData, CodeTeachingStepData, ActiveCodeTeachingSessionData, ActiveDynamicTutorSessionData, DynamicTutorStepData, ChatMessage as DynamicTutorChatMessage, ActiveCodeWizSessionData } from '@/lib/session-store'; 
 
 
 export interface Question {
@@ -232,8 +236,8 @@ export interface UpdateKnowledgeItemDetailsInput {
   id: string;
   documentName: string;
   documentContent: string;
-  mediaDataUri?: string; // Existing media URI, not changed in this step
-  createdAt: string;     // Existing creation timestamp
+  mediaDataUri?: string; 
+  createdAt: string;     
 }
 
 export async function updateKnowledgeItemDetails(
@@ -245,11 +249,10 @@ export async function updateKnowledgeItemDetails(
     if (!documentName.trim()) {
       return { error: "Document name cannot be empty." };
     }
-    if (!documentContent.trim() && !mediaDataUri) { // Content or media must exist
+    if (!documentContent.trim() && !mediaDataUri) { 
       return { error: "Document content or associated media is required for summarization." };
     }
 
-    // Re-summarize based on new content and existing media
     const aiSummarizeInput: SummarizeDocumentInput = {
       documentContent,
       ...(mediaDataUri && { photoDataUri: mediaDataUri }),
@@ -267,8 +270,8 @@ export async function updateKnowledgeItemDetails(
       documentContent,
       mediaDataUri,
       summary: newSummary,
-      createdAt, // Preserve original creation date
-      updatedAt: new Date().toISOString(), // Set new update date
+      createdAt, 
+      updatedAt: new Date().toISOString(), 
     };
 
     return updatedItem;
@@ -353,15 +356,13 @@ export async function generateQuizSessionFromKBItem(
 }
 
 
-// ---- Flashcard Related Actions ----
-// Make sure AppFlashcard is the one used for UI state and session data
 export type { AppFlashcard }; 
 
 export interface FlashcardSessionData {
   documentName: string;
-  flashcards: AppFlashcard[]; // Use AppFlashcard
-  documentContent: string; // Content for generating more
-  mediaDataUri?: string;   // Media for generating more
+  flashcards: AppFlashcard[]; 
+  documentContent: string; 
+  mediaDataUri?: string;   
 }
 
 export interface GenerateFlashcardsFromKBItemInput {
@@ -383,7 +384,7 @@ export async function generateFlashcardsFromKBItem(
     const aiFlashcardsInput: AIGenerateFlashcardsInput = {
       documentContent: documentContent || "",
       ...(mediaDataUri && { photoDataUri: mediaDataUri }),
-      numberOfFlashcards: 10, // Initial batch size
+      numberOfFlashcards: 10, 
     };
 
     const flashcardsResult = await generateFlashcardsFlowInternal(aiFlashcardsInput);
@@ -391,7 +392,6 @@ export async function generateFlashcardsFromKBItem(
 
     if (!createdFlashcards || createdFlashcards.length === 0) {
       console.warn(`AI failed to generate initial flashcards for "${documentName}".`);
-      // Return an empty array so the UI can handle it gracefully
       return {
         documentName,
         flashcards: [],
@@ -437,8 +437,8 @@ export async function generateMoreFlashcards(
     if (!documentName || (!documentContent && !mediaDataUri)) {
       return { error: "Content missing for generating more flashcards." };
     }
-    if (allPreviousTerms.length >= 50) { // Safety limit for previous terms
-        return { flashcards: [] }; // Avoid overly long prompts
+    if (allPreviousTerms.length >= 50) { 
+        return { flashcards: [] }; 
     }
 
     const aiFlashcardsInput: AIGenerateFlashcardsInput = {
@@ -450,7 +450,7 @@ export async function generateMoreFlashcards(
 
     const flashcardsResult = await generateFlashcardsFlowInternal(aiFlashcardsInput);
     
-    if (!flashcardsResult.flashcards) { // This check is important
+    if (!flashcardsResult.flashcards) { 
         console.warn(`AI returned null or undefined flashcards array for "more" in "${documentName}".`);
         return { flashcards: [] };
     }
@@ -473,149 +473,111 @@ export async function generateMoreFlashcards(
 }
 
 
-// ---- Tavus-based Interactive Video Tutor Actions ----
-export async function startInteractiveTutorSession( 
+// ---- Dynamic Interactive Tutor Actions (Replaces Tavus Tutor) ----
+export async function startDynamicTutorSession( 
   kbItem: KnowledgeBaseItem
-): Promise<ActiveInteractiveTavusTutorSessionData | { error: string }> {
+): Promise<ActiveDynamicTutorSessionData | { error: string }> {
   try {
     if (!kbItem || (!kbItem.documentContent && !kbItem.mediaDataUri)) {
-      return { error: "Knowledge base item is missing content. Cannot start video tutor session." };
+      return { error: "Knowledge base item is missing content. Cannot start dynamic tutor session." };
     }
-
-    const personaInput: GenerateTavusTutorPersonaContextInput = {
+    
+    // Fetch the first teaching step
+    const firstStepInput: DynamicTutorInput = {
         documentName: kbItem.documentName,
-        documentContent: kbItem.documentContent || "", 
-        mediaDataUri: kbItem.mediaDataUri,
+        documentContent: kbItem.documentContent || "",
+        photoDataUri: kbItem.mediaDataUri,
+        currentTopic: `Introduction to ${kbItem.documentName}`,
+        currentStepNumber: 0,
     };
     
-    const personaContextResultOrError = await generateTavusTutorPersonaContext(personaInput);
-    
-    if ('error' in personaContextResultOrError) {
-        // Error case: persona generation itself failed
-        console.error(`Tavus persona generation failed: ${personaContextResultOrError.error}`);
-        const defaultGreeting = `Hello! I'm Study AI+. I seem to be having trouble getting specific details for "${kbItem.documentName}", but I can still help! What's on your mind?`;
-        const defaultContext = `You are Study AI+, a friendly and knowledgeable tutor. You are helping a student learn about "${kbItem.documentName || 'the selected topic'}". Be encouraging and explain concepts clearly. Use the provided content as your primary reference: ${kbItem.documentContent || ''} ${kbItem.mediaDataUri ? `Associated Image: {{media url=${kbItem.mediaDataUri}}}` : '' }`;
-        personaContextResultOrError.conversation_name = `Tutoring: ${kbItem.documentName || 'Selected Topic'} (Default)`;
-        personaContextResultOrError.conversational_context = defaultContext;
-        personaContextResultOrError.custom_greeting = defaultGreeting;
+    const firstStepResultOrError = await getNextDynamicTutorStepFlow(firstStepInput);
+
+    if ('error' in firstStepResultOrError) {
+        return { error: `Failed to get the first tutoring step: ${firstStepResultOrError.error}` };
     }
+    const firstStepData = firstStepResultOrError as DynamicTutorOutput;
+
+    const initialChatMessage: DynamicTutorChatMessage = {
+      role: 'ai',
+      text: firstStepData.aiResponseToUserQuery || firstStepData.explanationSegments.join(' '), // Use direct response or first explanation
+      timestamp: new Date().toISOString(),
+    };
     
-    // Ensure we have a valid object, even if it's the error object with defaults added
-    const personaContextResult = personaContextResultOrError as GenerateTavusTutorPersonaContextOutput;
-
-
-    const tavusApiKey = process.env.TAVUS_API_KEY;
-    if (!tavusApiKey) {
-      console.error("TAVUS_API_KEY not found in .env for startInteractiveTutorSession (Video Tutor)");
-      return { error: "Video Tutor configuration error (API Key). Please contact support." };
-    }
-
-    console.log(`SIMULATING Tavus Conversation Creation for Video Tutor:
-      Replica ID: r_generic_tutor_replica (Placeholder)
-      Persona ID: p_generic_tutor_persona (Placeholder)
-      Conversation Name: ${personaContextResult.conversation_name}
-      Conversational Context (System Prompt for Tavus): ${personaContextResult.conversational_context}
-      Custom Greeting: ${personaContextResult.custom_greeting}
-      Properties: max_call_duration: 3600, enable_recording: true, etc.
-    `);
-
-
-    const simulatedConversationId = `tavus_tutor_conv_${generateId()}`;
-    const simulatedClientSecret = `tavus_tutor_secret_${generateId()}`;
-    
-    const initialVideoUrl = "https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerFun.mp4"; // Placeholder
-
-    const sessionData: ActiveInteractiveTavusTutorSessionData = {
+    const sessionData: ActiveDynamicTutorSessionData = {
       kbItemId: kbItem.id,
       documentName: kbItem.documentName,
       documentContent: kbItem.documentContent || "",
       mediaDataUri: kbItem.mediaDataUri,
-      conversationId: simulatedConversationId, 
-      clientSecret: simulatedClientSecret,  
-      chatHistory: [{ role: 'model', text: personaContextResult.custom_greeting, timestamp: new Date().toISOString() }],
-      initialVideoUrl: initialVideoUrl, 
-      initialAiText: personaContextResult.custom_greeting,
-      tavusPersonaSystemPrompt: personaContextResult.conversational_context,
+      currentStepData: firstStepData,
+      chatHistory: firstStepData.aiResponseToUserQuery ? [initialChatMessage] : [], // Only add if it's a direct answer, teaching steps handled by DynamicTutorDisplay
+      isTtsMuted: false,
+      isCameraAnalysisEnabled: false,
+      currentQuizAttempt: null,
     };
     return sessionData;
 
   } catch (e) {
-    console.error("Error in startInteractiveTutorSession (Video Tutor):", e);
+    console.error("Error in startDynamicTutorSession:", e);
     const errorMessage = e instanceof Error ? e.message : "An unknown error occurred.";
     if (errorMessage.includes("rate limit") || errorMessage.includes("quota") || errorMessage.includes("503") || errorMessage.toLowerCase().includes("overloaded")) {
-      return { error: "The AI video tutor service is currently busy. Please try again in a few moments." };
+      return { error: "The AI tutor service is currently busy. Please try again in a few moments." };
     }
     if (errorMessage.toLowerCase().includes("safety") || errorMessage.toLowerCase().includes("blocked")) {
-      return { error: "The content could not be processed by the video tutor due to safety filters. Please try with different content."};
+      return { error: "The content could not be processed by the tutor due to safety filters. Please try with different content."};
     }
-    return { error: `Failed to start video tutoring session: ${errorMessage}` };
+    return { error: `Failed to start dynamic tutoring session: ${errorMessage}` };
   }
 }
 
-export async function getTavusTutorVideoResponse(
-  currentSession: ActiveInteractiveTavusTutorSessionData,
-  userText: string,
-): Promise<{ videoUrl?: string; aiTextResponse?: string; error?: string }> {
+export async function getNextDynamicTutorResponse(
+  currentSession: ActiveDynamicTutorSessionData,
+  userInput: { query?: string; quizAnswer?: string; engagementHint?: "focused" | "confused" | "distracted" }
+): Promise<DynamicTutorOutput | { error: string }> {
   try {
-    if (!userText.trim() && currentSession.chatHistory.length > 1) { // Allow empty initial if history is just greeting
-      return { error: "Your message cannot be empty." };
+    if (!currentSession.currentStepData && !userInput.query) {
+        return {error: "Session not properly initialized or no user input provided."};
+    }
+
+    let previousExplanationSummary = "";
+    if (currentSession.currentStepData?.explanationSegments) {
+        previousExplanationSummary = currentSession.currentStepData.explanationSegments.join(' ').substring(0,150) + "...";
     }
     
-    const aiInput: GetNextTavusTutorTextInput = {
+    const aiInput: DynamicTutorInput = {
         documentName: currentSession.documentName,
         documentContent: currentSession.documentContent,
         photoDataUri: currentSession.mediaDataUri,
-        chatHistory: currentSession.chatHistory.map(m => ({ role: m.role, text: m.text })),
-        userQuery: userText,
+        currentTopic: currentSession.currentStepData?.title || `Continuing ${currentSession.documentName}`,
+        previousStepTitle: currentSession.currentStepData?.title,
+        previousExplanationSummary: previousExplanationSummary,
+        userQuery: userInput.query,
+        userQuizAnswer: userInput.quizAnswer,
+        chatHistory: currentSession.chatHistory.map(m => ({role: m.role, text: m.text})),
+        currentStepNumber: currentSession.chatHistory.filter(m => m.role === 'ai' && !m.text.startsWith("Response to:")).length, // crude step count
+        userEngagementHint: userInput.engagementHint,
     };
 
-    const textResultOrError = await getNextTavusTutorTextFlow(aiInput);
-
-    if ('error' in textResultOrError || !textResultOrError.tutorTextResponse) {
-        return { error: textResultOrError.error || "The tutor could not generate a text response." };
-    }
-    const aiTextResponse = textResultOrError.tutorTextResponse;
-
-    const tavusApiKey = process.env.TAVUS_API_KEY;
-    if (!tavusApiKey) {
-      console.error("TAVUS_API_KEY not found for getTavusTutorVideoResponse");
-      return { error: "Video Tutor configuration error (API Key).", aiTextResponse: aiTextResponse };
-    }
-
-    console.log(`SIMULATING Tavus video generation for VIDEO TUTOR conversation ${currentSession.conversationId} with text: "${aiTextResponse}"`);
+    const result = await getNextDynamicTutorStepFlow(aiInput);
     
-    await new Promise(resolve => setTimeout(resolve, 1000 + Math.random() * 1500)); 
-
-    const simulatedVideoUrl = "https://storage.googleapis.com/gtv-videos-bucket/sample/Sintel.mp4"; 
+    if ('error' in result) return result;
     
-    return {
-        videoUrl: simulatedVideoUrl,
-        aiTextResponse: aiTextResponse,
-    };
+    if (!result.title && !result.aiResponseToUserQuery) {
+        return { error: "The AI tutor provided an incomplete response. Please try rephrasing." };
+    }
+    return result;
 
   } catch (e) {
-      console.error("Error getting Tavus tutor video response:", e);
+      console.error("Error getting next dynamic tutor response:", e);
       const errorMessage = e instanceof Error ? e.message : "An unknown error occurred.";
       if (errorMessage.includes("rate limit") || errorMessage.includes("quota") || errorMessage.includes("503") || errorMessage.toLowerCase().includes("overloaded")) {
-        return { error: "The AI video tutor service is currently busy. Please try again in a few moments." };
+        return { error: "The AI tutor service is currently busy. Please try again." };
       }
       if (errorMessage.toLowerCase().includes("safety") || errorMessage.toLowerCase().includes("blocked")) {
-        return { error: "Your message or the context could not be processed for video tutoring due to safety filters."};
+        return { error: "Your message or the context could not be processed due to safety filters."};
       }
-      return { error: `AI video tutor processing failed. Details: ${errorMessage}.` };
+      return { error: `AI tutor processing failed. Details: ${errorMessage}.` };
   }
-}
-
-export async function endTavusTutorSession(conversationId: string): Promise<{ success: boolean; message?: string; error?: string }> {
-    const tavusApiKey = process.env.TAVUS_API_KEY;
-    if (!tavusApiKey) {
-        console.error("TAVUS_API_KEY not found in .env for endTavusTutorSession");
-        return { success: false, error: "Video Tutor configuration error (API Key). Cannot end session formally." };
-    }
-
-    console.log(`SIMULATING ending Tavus conversation: ${conversationId}`);
-    await new Promise(resolve => setTimeout(resolve, 200));
-    return { success: true, message: "Tavus tutoring session ended successfully (simulated)." };
 }
 
 
@@ -883,40 +845,6 @@ export async function endTavusLiveSession(conversationId: string): Promise<{ suc
 }
 
 
-// ----- Legacy Text-Based Interactive Tutor - Retained for reference or specific use cases -----
-export async function getNextInteractiveTextTutorStep(
-  sessionData: { documentName: string, documentContent: string, mediaDataUri?: string, currentTopic?: string, previousExplanation?: string, currentStep: number },
-  userQuizAnswer?: string
-): Promise<TextTutorOutput | { error: string }> {
-  try {
-    const input: TextTutorInput = {
-      documentName: sessionData.documentName,
-      documentContent: sessionData.documentContent,
-      photoDataUri: sessionData.mediaDataUri,
-      currentTopic: sessionData.currentTopic,
-      previousExplanation: sessionData.previousExplanation,
-      userQuizAnswer: userQuizAnswer,
-      currentStep: sessionData.currentStep,
-    };
-    const result = await getNextTextTutorStepFlow(input);
-    if ('error' in result) return result; // Propagate error correctly
-    if (!result.topic || !result.explanation) { // Add basic validation for output
-        return { error: "The AI tutor provided an incomplete step. Please try again."};
-    }
-    return result;
-  } catch (e) {
-    console.error('Error getting next text tutor step:', e);
-    const errorMessage = e instanceof Error ? e.message : 'Unknown error in text tutor step.';
-    if (errorMessage.includes("rate limit") || errorMessage.includes("quota") || errorMessage.includes("503") || errorMessage.toLowerCase().includes("overloaded")) {
-        return { error: "The AI tutor is currently very busy. Please try again in a few moments." };
-    }
-    if (errorMessage.toLowerCase().includes("safety") || errorMessage.toLowerCase().includes("blocked")) {
-        return { error: "The content or your response could not be processed by the tutor due to safety filters. Let's try a different angle."};
-    }
-    return { error: `AI text tutor encountered an issue: ${errorMessage}` };
-  }
-}
-
 // ---- Code Wiz Actions ----
 export interface AnalyzeCodeActionInput {
   code: string;
@@ -965,7 +893,6 @@ export async function fetchCodeFromUrlAction(url: string): Promise<{ code: strin
     if (!url || !url.trim()) {
       return { error: "URL cannot be empty." };
     }
-    // Basic URL validation (can be more sophisticated)
     if (!url.startsWith('http://') && !url.startsWith('https://')) {
         return { error: "Invalid URL. Must start with http:// or https://" };
     }
@@ -975,7 +902,7 @@ export async function fetchCodeFromUrlAction(url: string): Promise<{ code: strin
       return { error: `Failed to fetch code from URL: ${response.status} ${response.statusText}` };
     }
     const code = await response.text();
-    if (code.length > 200000) { // Limit code size to prevent abuse/performance issues
+    if (code.length > 200000) { 
         return { error: "Fetched code is too large (max 200KB). Please provide a smaller file." };
     }
     return { code };
