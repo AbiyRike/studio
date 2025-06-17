@@ -10,12 +10,15 @@ import { getProgrammingLanguages as getProgrammingLanguagesFlow, type GetProgram
 import { getCodeTeachingStep as getCodeTeachingStepFlow, type GetCodeTeachingStepInput as AIGetCodeTeachingStepInput, type GetCodeTeachingStepOutput as AIGetCodeTeachingStepOutput } from "@/ai/flows/get-code-teaching-step-flow.ts";
 import { generateTavusTutorPersonaContext, type GenerateTavusTutorPersonaContextInput, type GenerateTavusTutorPersonaContextOutput } from "@/ai/flows/generate-tavus-tutor-persona-context-flow";
 import { getNextTavusTutorText as getNextTavusTutorTextFlow, type GetNextTavusTutorTextInput, type GetNextTavusTutorTextOutput } from "@/ai/flows/get-next-tavus-tutor-text-flow";
+import { analyzeCode as analyzeCodeFlow, type AnalyzeCodeInput as AIAnalyzeCodeInput, type AnalyzeCodeOutput as AIAnalyzeCodeOutput } from "@/ai/flows/analyze-code-flow";
+import { explainCode as explainCodeFlow, type ExplainCodeInput as AIExplainCodeInput, type ExplainCodeOutput as AIExplainCodeOutput } from "@/ai/flows/explain-code-flow";
+import { optimizeCode as optimizeCodeFlow, type OptimizeCodeInput as AIOptimizeCodeInput, type OptimizeCodeOutput as AIOptimizeCodeOutput } from "@/ai/flows/optimize-code-flow";
 
 
 import type { SummarizeDocumentInput } from "@/ai/flows/summarize-document";
 import { generateId, type KnowledgeBaseItem } from '@/lib/knowledge-base-store'; 
 import type { Flashcard as AppFlashcard } from '@/ai/flows/generate-flashcards'; // Import type from flow
-import type { AskMrKnowMessage, ActiveAskMrKnowSessionData, CodeTeachingStepData, ActiveCodeTeachingSessionData, ActiveInteractiveTavusTutorSessionData, ChatHistoryMessage as TavusChatMessage } from '@/lib/session-store'; 
+import type { AskMrKnowMessage, ActiveAskMrKnowSessionData, CodeTeachingStepData, ActiveCodeTeachingSessionData, ActiveInteractiveTavusTutorSessionData, ChatHistoryMessage as TavusChatMessage, ActiveCodeWizSessionData } from '@/lib/session-store'; 
 
 
 export interface Question {
@@ -490,8 +493,8 @@ export async function startInteractiveTutorSession(
     if ('error' in personaContextResultOrError) {
         // Error case: persona generation itself failed
         console.error(`Tavus persona generation failed: ${personaContextResultOrError.error}`);
-        const defaultGreeting = `Hello! I'm StudyEthiopia AI+. I seem to be having trouble getting specific details for "${kbItem.documentName}", but I can still help! What's on your mind?`;
-        const defaultContext = `You are StudyEthiopia AI+, a friendly and knowledgeable tutor. You are helping a student learn about "${kbItem.documentName || 'the selected topic'}". Be encouraging and explain concepts clearly. Use the provided content as your primary reference: ${kbItem.documentContent || ''} ${kbItem.mediaDataUri ? `Associated Image: {{media url=${kbItem.mediaDataUri}}}` : '' }`;
+        const defaultGreeting = `Hello! I'm Study AI+. I seem to be having trouble getting specific details for "${kbItem.documentName}", but I can still help! What's on your mind?`;
+        const defaultContext = `You are Study AI+, a friendly and knowledgeable tutor. You are helping a student learn about "${kbItem.documentName || 'the selected topic'}". Be encouraging and explain concepts clearly. Use the provided content as your primary reference: ${kbItem.documentContent || ''} ${kbItem.mediaDataUri ? `Associated Image: {{media url=${kbItem.mediaDataUri}}}` : '' }`;
         personaContextResultOrError.conversation_name = `Tutoring: ${kbItem.documentName || 'Selected Topic'} (Default)`;
         personaContextResultOrError.conversational_context = defaultContext;
         personaContextResultOrError.custom_greeting = defaultGreeting;
@@ -616,7 +619,7 @@ export async function endTavusTutorSession(conversationId: string): Promise<{ su
 }
 
 
-// ---- Ask Mr. Know (Chat with StudyEthiopia AI+) Actions ----
+// ---- Ask Mr. Know (Chat with Study AI+) Actions ----
 export async function startAskMrKnowSession(
   kbItem: KnowledgeBaseItem
 ): Promise<ActiveAskMrKnowSessionData | { error: string }> {
@@ -635,7 +638,7 @@ export async function startAskMrKnowSession(
       chatHistory: [
         {
           role: 'model', 
-          parts: [{ text: `Hello! I'm StudyEthiopia AI+. I'm ready to discuss "${kbItem.documentName}". What would you like to know?` }],
+          parts: [{ text: `Hello! I'm Study AI+. I'm ready to discuss "${kbItem.documentName}". What would you like to know?` }],
           timestamp: new Date().toISOString(),
         }
       ],
@@ -672,7 +675,7 @@ export async function getNextAskMrKnowResponse(
         return { error: aiResponseOrError.error };
     }
     
-    const aiResponse = aiResponseOrError as AskStudyEthiopiaAIOutput;
+    const aiResponse = aiResponseOrError as AIAskStudyEthiopiaAIOutput;
 
     if (!aiResponse.response) {
         return { error: "I couldn't formulate a response to that. Could you try rephrasing or asking something else about the material?" };
@@ -686,7 +689,7 @@ export async function getNextAskMrKnowResponse(
 
   } catch (e) {
     console.error("Error in getNextAskMrKnowResponse server action:", e);
-    const errorMessage = e instanceof Error ? e.message : "An unknown error occurred contacting StudyEthiopia AI+.";
+    const errorMessage = e instanceof Error ? e.message : "An unknown error occurred contacting Study AI+.";
     if (errorMessage.includes("rate limit") || errorMessage.includes("quota") || errorMessage.includes("503") || errorMessage.toLowerCase().includes("overloaded")) {
         return { error: "I'm currently very busy helping other students. Please try again in a few moments." };
     }
@@ -914,3 +917,71 @@ export async function getNextInteractiveTextTutorStep(
   }
 }
 
+// ---- Code Wiz Actions ----
+export interface AnalyzeCodeActionInput {
+  code: string;
+  languageHint?: string;
+}
+export async function analyzeCodeAction(input: AnalyzeCodeActionInput): Promise<AIAnalyzeCodeOutput | { error: string }> {
+  try {
+    return await analyzeCodeFlow(input);
+  } catch (e) {
+    console.error("Error in analyzeCodeAction:", e);
+    const errorMessage = e instanceof Error ? e.message : "An unknown error occurred during code analysis.";
+    return { error: `Code analysis failed: ${errorMessage}` };
+  }
+}
+
+export interface ExplainCodeActionInput {
+  code: string;
+  languageHint?: string;
+}
+export async function explainCodeAction(input: ExplainCodeActionInput): Promise<AIExplainCodeOutput | { error: string }> {
+  try {
+    return await explainCodeFlow(input);
+  } catch (e) {
+    console.error("Error in explainCodeAction:", e);
+    const errorMessage = e instanceof Error ? e.message : "An unknown error occurred during code explanation.";
+    return { error: `Code explanation failed: ${errorMessage}` };
+  }
+}
+
+export interface OptimizeCodeActionInput {
+  code: string;
+  languageHint?: string;
+}
+export async function optimizeCodeAction(input: OptimizeCodeActionInput): Promise<AIOptimizeCodeOutput | { error: string }> {
+  try {
+    return await optimizeCodeFlow(input);
+  } catch (e) {
+    console.error("Error in optimizeCodeAction:", e);
+    const errorMessage = e instanceof Error ? e.message : "An unknown error occurred during code optimization.";
+    return { error: `Code optimization failed: ${errorMessage}` };
+  }
+}
+
+export async function fetchCodeFromUrlAction(url: string): Promise<{ code: string } | { error: string }> {
+  try {
+    if (!url || !url.trim()) {
+      return { error: "URL cannot be empty." };
+    }
+    // Basic URL validation (can be more sophisticated)
+    if (!url.startsWith('http://') && !url.startsWith('https://')) {
+        return { error: "Invalid URL. Must start with http:// or https://" };
+    }
+
+    const response = await fetch(url);
+    if (!response.ok) {
+      return { error: `Failed to fetch code from URL: ${response.status} ${response.statusText}` };
+    }
+    const code = await response.text();
+    if (code.length > 200000) { // Limit code size to prevent abuse/performance issues
+        return { error: "Fetched code is too large (max 200KB). Please provide a smaller file." };
+    }
+    return { code };
+  } catch (e) {
+    console.error("Error fetching code from URL:", e);
+    const errorMessage = e instanceof Error ? e.message : "An unknown error occurred while fetching code.";
+    return { error: `Could not fetch code: ${errorMessage}` };
+  }
+}

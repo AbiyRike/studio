@@ -9,7 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { getLearningHistory, type HistoryItem } from '@/lib/session-store';
 import { getKnowledgeBaseItems } from '@/lib/knowledge-base-store';
-import { Brain, Layers, UserCircle, TrendingUp, BookCopy, Target, AlertTriangle, PieChart, CheckSquare, Activity, DatabaseZap, Edit3, GraduationCap, CheckCircle2, XCircle, HelpCircle, MessageCircleQuestion, Code2, BookOpenCheck, Briefcase, Video, FolderKanban, Home, Sparkles, Library } from 'lucide-react';
+import { Brain, Layers, UserCircle, TrendingUp, BookCopy, Target, AlertTriangle, PieChart, CheckSquare, Activity, DatabaseZap, Edit3, GraduationCap, CheckCircle2, XCircle, HelpCircle, MessageCircleQuestion, Code2, BookOpenCheck, Briefcase, Video, FolderKanban, Home, Sparkles, Library, Wand2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell } from 'recharts';
 import { ChartContainer, ChartTooltipContent } from '@/components/ui/chart';
@@ -158,7 +158,7 @@ export default function EnhancedDashboardPage() {
   const FeatureButton = ({ href, icon: Icon, title, description, className }: { href: string, icon: React.ElementType, title: string, description: string, className?: string }) => (
     <Button
       variant="outline"
-      className={`h-auto p-6 flex flex-col items-start text-left space-y-2 shadow-lg hover:shadow-xl transition-shadow duration-300 border-border ${className || ''}`}
+      className={cn("h-auto p-6 flex flex-col items-start text-left space-y-2 shadow-lg hover:shadow-xl transition-shadow duration-300 border-border", className)}
       asChild
     >
       <Link href={href} className="flex flex-col w-full h-full">
@@ -264,6 +264,13 @@ export default function EnhancedDashboardPage() {
               title="Code with Me"
               description="Learn programming languages interactively with Study AI+."
               className="bg-gradient-to-br from-rose-500/5 via-transparent to-rose-500/5 hover:from-rose-500/10 hover:to-rose-500/10"
+            />
+             <FeatureButton
+              href="/code-wiz"
+              icon={Wand2}
+              title="Code Wiz"
+              description="Analyze, explain, and optimize your code with AI assistance in real-time."
+              className="bg-gradient-to-br from-yellow-500/5 via-transparent to-yellow-500/5 hover:from-yellow-500/10 hover:to-yellow-500/10"
             />
             <FeatureButton
               href="/mock-interview"

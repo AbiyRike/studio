@@ -1,5 +1,4 @@
 
-
 import type { Question } from '@/app/actions'; 
 import type { Flashcard as AppFlashcard } from '@/ai/flows/generate-flashcards';
 
@@ -233,4 +232,40 @@ export const getActiveCodeTeachingSession = (): ActiveCodeTeachingSessionData | 
   }
 };
 
+// ---- Active "Code Wiz" Session ----
+export interface ActiveCodeWizSessionData {
+  id: string; // Unique ID for this session
+  originalCode: string;
+  languageHint?: string;
+  analysis?: string;
+  explanation?: string;
+  optimizedCode?: string;
+  optimizationSummary?: string;
+  currentOperation?: 'analyze' | 'explain' | 'optimize' | null;
+  isLoadingAi: boolean;
+  isTtsMuted: boolean;
+  createdAt: string; // ISO date string
+}
+
+const ACTIVE_CODE_WIZ_SESSION_KEY = 'activeCodeWizSession';
+
+export const setActiveCodeWizSession = (data: ActiveCodeWizSessionData | null): void => {
+  if (typeof window === 'undefined') return;
+  if (data === null) {
+    localStorage.removeItem(ACTIVE_CODE_WIZ_SESSION_KEY);
+  } else {
+    localStorage.setItem(ACTIVE_CODE_WIZ_SESSION_KEY, JSON.stringify(data));
+  }
+};
+
+export const getActiveCodeWizSession = (): ActiveCodeWizSessionData | null => {
+  if (typeof window === 'undefined') return null;
+  const storedData = localStorage.getItem(ACTIVE_CODE_WIZ_SESSION_KEY);
+  try {
+    return storedData ? JSON.parse(storedData) : null;
+  } catch (e) {
+    console.error("Error parsing active Code Wiz session from localStorage", e);
+    return null;
+  }
+};
     
