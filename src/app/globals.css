@@ -2,10 +2,6 @@
 @tailwind components;
 @tailwind utilities;
 
-body {
-  font-family: Arial, Helvetica, sans-serif;
-}
-
 @layer base {
   :root {
     --background: 220 20% 96%; /* Very Light Cool Gray */
@@ -20,13 +16,13 @@ body {
     --primary: 205 65% 50%; /* Clear Blue */
     --primary-foreground: 0 0% 100%; /* White text on primary */
 
-    --secondary: 190 45% 75%; /* Soft Teal-Blue */
-    --secondary-foreground: 210 30% 30%; /* Darker text for secondary */
+    --secondary: 210 20% 90%; /* Light Cool Gray */
+    --secondary-foreground: 210 20% 40%; /* Medium Cool Gray text */
 
     --muted: 220 15% 90%; /* Light Gray */
     --muted-foreground: 220 10% 50%; /* Mid Gray for muted text */
 
-    --accent: 170 50% 45%; /* Muted Sea Green */
+    --accent: 145 55% 45%; /* Cool Green */
     --accent-foreground: 0 0% 100%; /* White text on accent */
 
     --destructive: 0 70% 55%;
@@ -34,62 +30,70 @@ body {
 
     --border: 220 15% 88%; /* Light Gray Border */
     --input: 220 20% 92%; /* Lighter Gray Input */
-    --ring: 205 65% 50%; /* Primary Blue for rings */
+    --ring: 145 55% 45%; /* Cool Green for rings */
     
     --chart-1: 205 60% 50%; /* Primary Blue */
-    --chart-2: 170 45% 50%; /* Accent Green */
-    --chart-3: 190 40% 60%; /* Secondary Teal-Blue */
-    --chart-4: 220 30% 65%; /* Muted Gray-Blue */
-    --chart-5: 25 70% 60%;  /* Muted Orange (use sparingly if avoiding warm) */
+    --chart-2: 145 55% 45%; /* Accent Green */
+    --chart-3: 145 50% 65%; /* Lighter Accent Green */
+    --chart-4: 205 50% 70%; /* Lighter Primary Blue */
+    --chart-5: 210 20% 75%;  /* Light Cool Gray (neutral) */
     --radius: 0.5rem;
 
     /* Sidebar specific colors */
     --sidebar-background: 220 20% 20%; /* Dark Slate Blue */
     --sidebar-foreground: 0 0% 95%; /* Light text for sidebar */
-    --sidebar-primary: 170 50% 55%; /* Accent green but slightly lighter for sidebar active */
+    --sidebar-primary: 145 55% 55%; /* Cool Green for sidebar active/hover */
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 220 20% 30%; /* Slightly lighter dark blue for hover */
     --sidebar-accent-foreground: 0 0% 98%;
     --sidebar-border: 220 20% 15%;
-    --sidebar-ring: 170 50% 55%;
+    --sidebar-ring: 145 55% 55%;
   }
 
   .dark {
-    --background: 220 15% 10%; /* Very Dark Blue-Gray */
-    --foreground: 220 15% 90%; /* Light Gray Text */
-    --card: 220 15% 15%; /* Darker Blue-Gray */
-    --card-foreground: 220 15% 90%;
-    --popover: 220 15% 12%;
-    --popover-foreground: 220 15% 90%;
-    --primary: 205 70% 60%; /* Brighter Blue for dark mode */
-    --primary-foreground: 220 20% 10%; /* Very dark text on primary */
-    --secondary: 190 35% 30%; /* Darker Muted Teal-Blue */
-    --secondary-foreground: 190 40% 85%; /* Lighter text for secondary */
-    --muted: 220 15% 20%;
-    --muted-foreground: 220 10% 65%;
-    --accent: 170 55% 55%; /* Brighter Sea Green for dark mode */
-    --accent-foreground: 220 20% 10%;
-    --destructive: 0 60% 50%;
-    --destructive-foreground: 0 0% 95%;
-    --border: 220 15% 25%;
-    --input: 220 15% 22%;
-    --ring: 205 70% 60%;
+    --background: 220 10% 15%; /* Very Dark Gray-Blue */
+    --foreground: 210 15% 88%; /* Light Gray Text */
+    
+    --card: 220 10% 20%; /* Dark Gray-Blue */
+    --card-foreground: 210 15% 88%;
+    
+    --popover: 220 10% 18%;
+    --popover-foreground: 210 15% 88%;
+    
+    --primary: 145 60% 55%; /* Brighter Cool Green for dark mode */
+    --primary-foreground: 145 20% 10%; /* Very dark green on primary */
+    
+    --secondary: 220 8% 30%; /* Medium Dark Gray */
+    --secondary-foreground: 210 15% 75%; /* Lighter gray for secondary text */
+    
+    --muted: 220 10% 25%;
+    --muted-foreground: 220 10% 55%;
+    
+    --accent: 145 60% 55%; /* Brighter Cool Green for dark mode */
+    --accent-foreground: 145 20% 10%;
+    
+    --destructive: 0 65% 60%; /* Slightly lighter red for dark mode */
+    --destructive-foreground: 0 0% 98%;
+    
+    --border: 220 10% 30%;
+    --input: 220 10% 28%;
+    --ring: 145 60% 55%; /* Brighter Cool Green for rings */
 
-    --chart-1: 205 65% 65%;
-    --chart-2: 170 50% 60%;
-    --chart-3: 190 40% 50%;
-    --chart-4: 220 30% 55%;
-    --chart-5: 30 65% 58%;
+    --chart-1: 205 70% 60%; /* Brighter Blue */
+    --chart-2: 145 60% 55%; /* Accent Green (Dark Mode) */
+    --chart-3: 145 55% 70%; /* Lighter Accent Green (Dark Mode) */
+    --chart-4: 205 60% 75%; /* Lighter Primary Blue (Dark Mode) */
+    --chart-5: 210 15% 60%; /* Mid-Light Cool Gray (neutral Dark Mode) */
 
     /* Dark Sidebar */
-    --sidebar-background: 220 15% 10%;
-    --sidebar-foreground: 220 15% 90%;
-    --sidebar-primary: 170 55% 60%; /* Brighter accent green for active */
-    --sidebar-primary-foreground: 220 20% 5%;
-    --sidebar-accent: 220 15% 20%; /* Lighter dark blue-gray for hover */
-    --sidebar-accent-foreground: 220 15% 95%;
-    --sidebar-border: 220 15% 8%;
-    --sidebar-ring: 170 55% 60%;
+    --sidebar-background: 220 10% 12%; /* Even Darker Gray-Blue */
+    --sidebar-foreground: 210 15% 85%;
+    --sidebar-primary: 145 60% 60%; /* Bright cool green for active */
+    --sidebar-primary-foreground: 145 20% 5%;
+    --sidebar-accent: 220 10% 22%; /* Darker gray for hover */
+    --sidebar-accent-foreground: 210 15% 90%;
+    --sidebar-border: 220 10% 10%;
+    --sidebar-ring: 145 60% 60%;
   }
 }
 
@@ -99,5 +103,6 @@ body {
   }
   body {
     @apply bg-background text-foreground;
+    /* font-family is handled by Tailwind's font-body class in layout.tsx */
   }
 }
