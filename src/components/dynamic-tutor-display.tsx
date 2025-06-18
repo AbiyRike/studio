@@ -3,10 +3,11 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card'; // Keep Card for potential internal styling consistency
 import { Sparkles, Lightbulb, Zap, BookOpen, Brain, Palette } from 'lucide-react';
 import type { LucideProps } from 'lucide-react';
-import { ScrollArea } from '@/components/ui/scroll-area'; // Added ScrollArea import
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { cn } from '@/lib/utils';
 
 interface DynamicTutorDisplayProps {
   title: string;
@@ -19,13 +20,13 @@ interface DynamicTutorDisplayProps {
 }
 
 const VisualHintIcon = ({ hint }: { hint?: string }) => {
-  if (!hint) return <Sparkles className="w-8 h-8 md:w-10 md:h-10 text-primary/70" />;
+  if (!hint) return <Sparkles className="w-10 h-10 md:w-12 md:h-12 text-primary/80" />;
   const lowerHint = hint.toLowerCase();
-  if (lowerHint.includes("diagram") || lowerHint.includes("chart")) return <Palette className="w-8 h-8 md:w-10 md:h-10 text-primary/70" />;
-  if (lowerHint.includes("code") || lowerHint.includes("example")) return <Zap className="w-8 h-8 md:w-10 md:h-10 text-primary/70" />;
-  if (lowerHint.includes("concept") || lowerHint.includes("idea")) return <Lightbulb className="w-8 h-8 md:w-10 md:h-10 text-primary/70" />;
-  if (lowerHint.includes("definition") || lowerHint.includes("term")) return <BookOpen className="w-8 h-8 md:w-10 md:h-10 text-primary/70" />;
-  return <Brain className="w-8 h-8 md:w-10 md:h-10 text-primary/70" />;
+  if (lowerHint.includes("diagram") || lowerHint.includes("chart")) return <Palette className="w-10 h-10 md:w-12 md:h-12 text-primary/80" />;
+  if (lowerHint.includes("code") || lowerHint.includes("example")) return <Zap className="w-10 h-10 md:w-12 md:h-12 text-primary/80" />;
+  if (lowerHint.includes("concept") || lowerHint.includes("idea")) return <Lightbulb className="w-10 h-10 md:w-12 md:h-12 text-primary/80" />;
+  if (lowerHint.includes("definition") || lowerHint.includes("term")) return <BookOpen className="w-10 h-10 md:w-12 md:h-12 text-primary/80" />;
+  return <Brain className="w-10 h-10 md:w-12 md:h-12 text-primary/80" />;
 };
 
 export const DynamicTutorDisplay: React.FC<DynamicTutorDisplayProps> = ({
@@ -44,7 +45,6 @@ export const DynamicTutorDisplay: React.FC<DynamicTutorDisplayProps> = ({
 
   useEffect(() => {
     setIsMounted(true);
-    // Attempt to load voices early. Some browsers require this.
     if (typeof window !== 'undefined' && window.speechSynthesis) {
         window.speechSynthesis.getVoices(); 
     }
@@ -78,7 +78,7 @@ export const DynamicTutorDisplay: React.FC<DynamicTutorDisplayProps> = ({
 
   const speakAndAdvance = useCallback((indexToSpeak: number) => {
     if (!isMounted || !explanationSegments[indexToSpeak]) {
-      if (isMounted && indexToSpeak >= explanationSegments.length -1) {
+      if (isMounted && indexToSpeak >= explanationSegments.length -1 && explanationSegments.length > 0) {
         onAllSegmentsSpoken?.();
       }
       return;
@@ -97,12 +97,13 @@ export const DynamicTutorDisplay: React.FC<DynamicTutorDisplayProps> = ({
     };
 
     if (isTtsMuted || typeof window === 'undefined' || !window.speechSynthesis) {
-      completeSegmentProcessing();
+      // Simulate speech duration for visual flow if TTS is muted
+      setTimeout(completeSegmentProcessing, explanationSegments[indexToSpeak].length * 50); // Approx 50ms per char
       return;
     }
-
-    if (utteranceRef.current) { 
-        utteranceRef.current.onend = null;
+    
+    if (utteranceRef.current && utteranceRef.current.onend) {
+        utteranceRef.current.onend = null; 
         utteranceRef.current.onerror = null;
     }
     window.speechSynthesis.cancel(); 
@@ -110,7 +111,7 @@ export const DynamicTutorDisplay: React.FC<DynamicTutorDisplayProps> = ({
     const segmentText = explanationSegments[indexToSpeak];
     const newUtterance = new SpeechSynthesisUtterance(segmentText);
     newUtterance.lang = 'en-US';
-    newUtterance.rate = 0.9; // Slower speed
+    newUtterance.rate = 0.9; 
     newUtterance.pitch = 1.0; 
     
     const voices = window.speechSynthesis.getVoices();
@@ -149,71 +150,60 @@ export const DynamicTutorDisplay: React.FC<DynamicTutorDisplayProps> = ({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentSegmentIndex, explanationSegments, speakAndAdvance, isMounted]); 
   
-
-  if (!isMounted) {
-    return (
-      <Card className="w-full h-full flex flex-col items-center justify-center bg-muted/30 p-6 shadow-lg rounded-xl">
-        <Sparkles className="w-16 h-16 text-primary animate-pulse mb-4" />
-        <p className="text-muted-foreground">Preparing tutor display...</p>
-      </Card>
-    );
-  }
-  
-  const motionKey = `${keyForReset}-${currentSegmentIndex}`;
+  const motionKeyBase = `${keyForReset}`;
 
   return (
-    <Card className="w-full h-full flex flex-col bg-gradient-to-br from-card via-card/95 to-muted/50 p-4 md:p-6 shadow-xl rounded-xl overflow-hidden">
+    <motion.div
+      key={motionKeyBase} // Main animation key for the whole "slide"
+      initial={{ opacity: 0, scale: 0.95, y: 20 }}
+      animate={{ opacity: 1, scale: 1, y: 0 }}
+      transition={{ duration: 0.6, ease: [0.42, 0, 0.58, 1] }}
+      className="w-full h-full flex flex-col bg-gradient-to-br from-card via-card/95 to-muted/30 p-4 md:p-6 shadow-xl rounded-xl overflow-hidden"
+    >
       <motion.div
-        key={`${keyForReset}-titleanim`} 
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, ease: "easeOut" }}
-        className="mb-4 md:mb-6 text-center flex-shrink-0"
+        transition={{ duration: 0.5, ease: "easeOut", delay: 0.2 }}
+        className="mb-4 text-center flex-shrink-0"
       >
-        <h2 className="text-2xl md:text-3xl font-bold font-headline text-primary">{title}</h2>
+        <h2 className="text-xl md:text-2xl font-bold font-headline text-primary">{title}</h2>
       </motion.div>
 
-      <ScrollArea className="flex-grow w-full min-h-0"> {/* Added ScrollArea here */}
-        <div className="flex flex-col md:flex-row items-center md:items-start justify-center gap-4 md:gap-6 p-1"> {/* Added p-1 for scrollbar space */}
-          <motion.div
-            key={`${keyForReset}-visualanim`}
-            initial={{ opacity: 0, scale: 0.8 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.5, delay: 0.2, ease: "easeOut" }}
-            className="flex-shrink-0 w-20 h-20 md:w-28 md:h-28 bg-primary/10 rounded-full flex items-center justify-center p-2 md:p-3 shadow-md"
-          >
-            <VisualHintIcon hint={visualHint} />
-            {visualHint && <p className="sr-only">Visual hint: {visualHint}</p>}
-          </motion.div>
+      <div className="flex-grow flex flex-col md:flex-row items-center md:items-start gap-4 md:gap-6 min-h-0">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.8 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.5, delay: 0.4, ease: "easeOut" }}
+          className="flex-shrink-0 w-20 h-20 md:w-24 md:h-24 bg-primary/10 rounded-full flex items-center justify-center p-2 shadow-md"
+        >
+          <VisualHintIcon hint={visualHint} />
+          {visualHint && <p className="sr-only">Visual hint: {visualHint}</p>}
+        </motion.div>
 
-          <div className="flex-grow space-y-2 md:space-y-3 text-left md:max-w-prose w-full">
+        <ScrollArea className="flex-grow w-full md:max-w-prose min-h-0 bg-background/50 p-3 rounded-lg shadow-inner">
+          <div className="space-y-2 md:space-y-3">
             <AnimatePresence mode="popLayout">
               {explanationSegments.map((segment, index) =>
-                index === currentSegmentIndex ? ( 
+                index <= currentSegmentIndex ? ( 
                   <motion.p
-                    key={motionKey} 
-                    initial={{ opacity: 0, x: -30 }}
+                    key={`${motionKeyBase}-segment-${index}`} 
+                    initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: 30 }}
-                    transition={{ duration: 0.6, ease: [0.42, 0, 0.58, 1] }}
-                    className="text-base md:text-lg text-foreground/90 leading-relaxed p-3 bg-background/70 rounded-md shadow-sm"
+                    exit={{ opacity: 0, x: 20 }}
+                    transition={{ duration: 0.5, ease: "circOut", delay: index === currentSegmentIndex ? 0.1 : 0 }}
+                    className={cn(
+                        "text-sm md:text-base text-foreground/90 leading-relaxed p-2.5 rounded-md",
+                        index === currentSegmentIndex ? "bg-primary/10 ring-2 ring-primary/50" : "bg-transparent text-foreground/70"
+                    )}
                   >
                     {segment}
                   </motion.p>
-                ) : index < currentSegmentIndex ? ( 
-                   <p key={`${keyForReset}-segment-${index}-static`}
-                      className="text-base md:text-lg text-foreground/70 leading-relaxed p-3 bg-transparent rounded-md"
-                    >
-                      {segment}
-                    </p>
-                )
-                : null
+                ) : null
               )}
             </AnimatePresence>
           </div>
-        </div>
-      </ScrollArea>
-    </Card>
+        </ScrollArea>
+      </div>
+    </motion.div>
   );
 };
-
