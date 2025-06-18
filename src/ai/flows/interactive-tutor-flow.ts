@@ -11,7 +11,7 @@
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 
-const iconHints = ["Brain", "Lightbulb", "Zap", "BookOpen", "Palette", "FileText", "DatabaseZap", "Edit3", "Layers", "GraduationCap", "MessageCircleQuestion", "Code2", "Sparkles", "HelpCircle", "CheckCircle", "XCircle", "DivideCircle"] as const;
+const iconHints = ["Brain", "Lightbulb", "Zap", "BookOpen", "Palette", "FileText", "DatabaseZap", "Edit3", "Layers", "GraduationCap", "MessageCircleQuestion", "Code2", "Sparkles", "HelpCircle", "CheckCircle", "XCircle", "DivideCircle", "AlertCircle"] as const;
 const colorThemeHints = ["science", "technology", "history", "arts", "general", "mathematics", "language"] as const;
 
 
@@ -99,9 +99,15 @@ export async function getNextInteractiveTutorStep(input: InteractiveTutorInput):
   }
 }
 
+const PromptInputSchema = InteractiveTutorInputSchema.extend({
+    interactionMode_is_teach: z.boolean().optional(),
+    interactionMode_is_generate_quiz: z.boolean().optional(),
+    interactionMode_is_evaluate_answer: z.boolean().optional(),
+});
+
 const prompt = ai.definePrompt({
-  name: 'interactiveDynamicTutorStudyAIPlusPromptUpdated',
-  input: { schema: InteractiveTutorInputSchema },
+  name: 'interactiveDynamicTutorStudyAIPlusPromptFinal',
+  input: { schema: PromptInputSchema },
   output: { schema: InteractiveTutorOutputSchema },
   prompt: `You are Study AI+, a dynamic and engaging AI tutor. Your goal is to teach Ethiopian students (high school to university) using visually appealing "teaching scenes" and interactive quizzes.
 Personality: Warm, patient, encouraging, clear, and motivational. Use relatable analogies. Never self-refer as an AI.
@@ -124,18 +130,18 @@ Current Interaction Mode: {{{interactionMode}}}
 Current Learning Context: "{{{currentLearningContext}}}" (This is a summary of what was last taught, or "Start of session" if new.)
 
 Your Task:
-{{#if (eq interactionMode "teach")}}
+{{#if interactionMode_is_teach}}
   Respond with 'mode: "teach"'.
   Generate a 'teachingScene' object:
   - 'title': A concise, engaging title for THIS new teaching segment (e.g., "The Powerhouse: Mitochondria", "Understanding For Loops").
   - 'description': The main teaching content, 2-4 sentences. Make it conversational and clear for audio delivery.
-  - 'iconName': Choose ONE relevant icon name from this list: ${iconHints.join(", ")}.
+  - 'iconName': Choose ONE relevant icon name from this list: ${iconHints.join(", ")}. Pick 'AlertCircle' if no other icon seems fitting or for error states.
   - 'colorThemeHint': Choose ONE theme hint from this list: ${colorThemeHints.join(", ")}.
   - 'isLastTeachingStep': Set to true ONLY if all key concepts from "{{{documentName}}}" are covered and this is the absolute final teaching scene. If so, title/description should be a wrap-up.
   Focus on the next logical piece of information based on 'currentLearningContext'. If 'currentLearningContext' is "Start of session", provide an engaging introduction to "{{{documentName}}}".
 {{/if}}
 
-{{#if (eq interactionMode "generate_quiz")}}
+{{#if interactionMode_is_generate_quiz}}
   Respond with 'mode: "quiz"'.
   Based on the 'currentLearningContext' (which should be the content of the last teaching scene), generate a 'quiz' object:
   - 'question': A single, clear multiple-choice question that tests understanding of the 'currentLearningContext'.
@@ -144,7 +150,7 @@ Your Task:
   - 'explanation': A brief, encouraging explanation of why the correct answer is right.
 {{/if}}
 
-{{#if (eq interactionMode "evaluate_answer")}}
+{{#if interactionMode_is_evaluate_answer}}
   Respond with 'mode: "feedback"'.
   The user answered: "{{{userQuizAnswer}}}" for the question: "{{{quizQuestionContext}}}".
   Generate a 'feedback' object:
@@ -153,7 +159,7 @@ Your Task:
 {{/if}}
 
 General Rules:
-- If no document content is available and mode is 'teach', title should be "Unable to Proceed", description explain this, icon "AlertCircle", theme "general", isLastTeachingStep true.
+- If no document content is available and mode is 'teach', title should be "Unable to Proceed", description explain this, iconName "AlertCircle", colorThemeHint "general", isLastTeachingStep true.
 - Ensure all output fields strictly adhere to the schema for the specified mode.
 - Be creative with 'iconName' and 'colorThemeHint' to make scenes visually distinct and relevant.
 - Descriptions should be speakable and engaging.
@@ -163,8 +169,8 @@ General Rules:
 
 const interactiveTutorFlow = ai.defineFlow(
   {
-    name: 'interactiveDynamicTutorFlowUpdated',
-    inputSchema: InteractiveTutorInputSchema,
+    name: 'interactiveDynamicTutorFlowFinal',
+    inputSchema: InteractiveTutorInputSchema, // Original input schema for the flow
     outputSchema: InteractiveTutorOutputSchema,
   },
   async (input) => {
@@ -174,14 +180,23 @@ const interactiveTutorFlow = ai.defineFlow(
         teachingScene: {
             title: "Content Needed",
             description: "It seems no content is loaded for our session. Please select an item from your knowledge base first!",
-            iconName: "AlertCircle",
-            colorThemeHint: "general",
+            iconName: "AlertCircle" as const,
+            colorThemeHint: "general" as const,
             isLastTeachingStep: true,
         }
       };
     }
     
-    const {output} = await prompt(input);
+    // Augment input for the prompt
+    const promptInput = {
+        ...input,
+        interactionMode_is_teach: input.interactionMode === "teach",
+        interactionMode_is_generate_quiz: input.interactionMode === "generate_quiz",
+        interactionMode_is_evaluate_answer: input.interactionMode === "evaluate_answer",
+    };
+
+    const {output} = await prompt(promptInput);
+
     if (!output) {
         console.warn("AI returned null output for interactive tutor step.");
         throw new Error("AI tutor did not generate a valid step. The AI's response was empty.");
@@ -193,8 +208,8 @@ const interactiveTutorFlow = ai.defineFlow(
         output.teachingScene = {
             title: "Oops!",
             description: "I had a little trouble preparing that specific learning segment. Let's try moving to the next idea, or you can ask me to quiz you on what we've covered!",
-            iconName: "HelpCircle",
-            colorThemeHint: "general",
+            iconName: "HelpCircle" as const,
+            colorThemeHint: "general" as const,
             isLastTeachingStep: false,
         };
     }
@@ -215,11 +230,9 @@ const interactiveTutorFlow = ai.defineFlow(
         console.warn("AI responded with 'feedback' mode but missing feedback object. Providing fallback.");
         output.feedback = {
             text: "Thanks for your answer! Let's continue our learning journey.",
-            isCorrect: true, // Default to avoid breaking flow, but AI should determine this.
+            isCorrect: true, 
         };
     }
-
-
     return output;
   }
 );
