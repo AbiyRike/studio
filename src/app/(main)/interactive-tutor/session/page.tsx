@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useEffect, useState, useCallback } from 'react';
@@ -7,9 +8,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardFooter, CardDescription }
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { getActiveDynamicTutorSession, setActiveDynamicTutorSession, type ActiveDynamicTutorSessionData, type TeachingSceneSchema, type QuizSchema, type FeedbackSchema } from '@/lib/session-store';
-import { getNextDynamicTutorResponse, startDynamicTutorSession, type GetNextDynamicTutorResponseInput } from '@/app/actions'; 
+import { getNextDynamicTutorResponse, type GetNextDynamicTutorResponseInput } from '@/app/actions'; 
 import { useToast } from "@/hooks/use-toast";
-import { Skeleton } from '@/components/ui/skeleton';
 import { AlertTriangle, Sparkles, Loader2, ArrowLeft, Home, Volume2, VolumeX, HelpCircle, CheckCircle, XCircle, Brain } from 'lucide-react';
 import { TutorSceneDisplay, type TutorSceneData } from '@/components/tutor-scene-display';
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
@@ -34,7 +34,6 @@ const ClientAuthGuard = ({ children }: { children: React.ReactNode }) => {
   return <>{children}</>;
 };
 
-// Helper to map AI theme hints to Tailwind classes
 const themeToColorClasses = (themeHint?: string): { bgColorClass: string; textColorClass: string } => {
   switch (themeHint) {
     case "science": return { bgColorClass: "bg-blue-600", textColorClass: "text-blue-100" };
@@ -54,9 +53,7 @@ export default function DynamicInteractiveTutorSessionPage() {
   const { toast } = useToast();
   const [sessionData, setSessionData] = useState<ActiveDynamicTutorSessionData | null>(null);
   const [isLoadingPage, setIsLoadingPage] = useState(true);
-  const [currentQuizSelection, setCurrentQuizSelection] = useState<string | null>(null); // Stores index as string
-
-  // Derived state for the TutorSceneDisplay
+  const [currentQuizSelection, setCurrentQuizSelection] = useState<string | null>(null); 
   const [displayScene, setDisplayScene] = useState<TutorSceneData | null>(null);
 
   useEffect(() => {
@@ -66,7 +63,7 @@ export default function DynamicInteractiveTutorSessionPage() {
       if(data.currentTeachingScene) {
         const colors = themeToColorClasses(data.currentTeachingScene.colorThemeHint);
         setDisplayScene({
-            id: data.id + (data.currentTeachingScene.title || 'scene'),
+            id: data.id + (data.currentTeachingScene.title || 'scene') + Date.now(), // Ensure key changes
             title: data.currentTeachingScene.title,
             description: data.currentTeachingScene.description,
             iconName: data.currentTeachingScene.iconName,
@@ -88,12 +85,11 @@ export default function DynamicInteractiveTutorSessionPage() {
       const updatedData = { ...prevData, ...newPartialData };
       setActiveDynamicTutorSession(updatedData);
 
-      // Update displayScene if currentTeachingScene changes
       if (newPartialData.currentTeachingScene) {
         const scene = newPartialData.currentTeachingScene;
         const colors = themeToColorClasses(scene.colorThemeHint);
         setDisplayScene({
-            id: updatedData.id + (scene.title || 'scene') + Date.now(), // Ensure key changes
+            id: updatedData.id + (scene.title || 'scene') + Date.now(),
             title: scene.title,
             description: scene.description,
             iconName: scene.iconName,
@@ -101,7 +97,7 @@ export default function DynamicInteractiveTutorSessionPage() {
             textColorClass: colors.textColorClass,
         });
       } else if (newPartialData.hasOwnProperty('currentTeachingScene') && newPartialData.currentTeachingScene === null) {
-         setDisplayScene(null); // Clear display scene if teaching scene is cleared
+         setDisplayScene(null); 
       }
       return updatedData;
     });
@@ -117,7 +113,6 @@ export default function DynamicInteractiveTutorSessionPage() {
     updateSessionState({ currentMode: loadingMode, quizFeedback: null, currentQuizData: mode !== "generate_quiz" ? null : sessionData.currentQuizData });
     setCurrentQuizSelection(null);
 
-
     const inputForAi: GetNextDynamicTutorResponseInput = {
         currentSessionData: sessionData,
         interactionMode: mode,
@@ -128,15 +123,15 @@ export default function DynamicInteractiveTutorSessionPage() {
 
     if ('error' in response) {
       toast({ title: "Tutor Error", description: response.error, variant: "destructive" });
-      updateSessionState({ currentMode: sessionData.currentTeachingScene ? "teaching" : "finished" }); // Revert to teaching or finished
+      updateSessionState({ currentMode: sessionData.currentTeachingScene ? "teaching" : "finished" });
     } else {
       if (response.mode === "teach" && response.teachingScene) {
         updateSessionState({
           currentTeachingScene: response.teachingScene,
           currentMode: "teaching",
           cumulativeLearningContext: (sessionData.cumulativeLearningContext || "") + "\nTopic: " + response.teachingScene.title + ". Content: " + response.teachingScene.description.substring(0,100) + "...",
-          currentQuizData: null, // Clear previous quiz
-          quizFeedback: null,    // Clear previous feedback
+          currentQuizData: null, 
+          quizFeedback: null,    
         });
       } else if (response.mode === "quiz" && response.quiz) {
         updateSessionState({ currentQuizData: response.quiz, currentMode: "quizzing", quizFeedback: null });
@@ -148,7 +143,6 @@ export default function DynamicInteractiveTutorSessionPage() {
       }
     }
   }, [sessionData, toast]);
-
 
   const handleQuizMe = () => {
     if (sessionData && sessionData.currentTeachingScene) {
@@ -198,44 +192,54 @@ export default function DynamicInteractiveTutorSessionPage() {
 
   return (
     <ClientAuthGuard>
-      <div className="container mx-auto py-4 flex flex-col h-[calc(100vh-6rem)] space-y-4"> {/* Adjusted height and padding */}
+      <div className="container mx-auto py-4 flex flex-col h-[calc(100vh-6rem)] space-y-4">
         <Card className="w-full max-w-4xl mx-auto shadow-xl flex-shrink-0">
-          <CardHeader className="text-center pb-4 pt-5"> {/* Adjusted padding */}
-            <Sparkles className="mx-auto h-10 w-10 text-primary mb-1" /> {/* Adjusted size/margin */}
+          <CardHeader className="text-center pb-4 pt-5">
+            <Sparkles className="mx-auto h-10 w-10 text-primary mb-1" />
             <CardTitle className="text-2xl md:text-3xl font-headline">Interactive Tutor</CardTitle>
             <CardDescription className="text-sm md:text-base">Topic: {documentName}</CardDescription>
           </CardHeader>
         </Card>
 
-        {/* Main Content Area: Tutor Display + Controls */}
-        <div className="flex-grow w-full max-w-4xl mx-auto flex flex-col min-h-0"> {/* Added flex-col */}
-            {/* Tutor Scene Display */}
-            <div className="h-80 md:h-96 w-full mb-4 flex-shrink-0"> {/* Fixed height for display */}
+        {/* Main scrollable content area */}
+        <div className="flex-grow w-full max-w-4xl mx-auto flex flex-col min-h-0 overflow-y-auto space-y-4 rounded-lg p-2 bg-muted/20 shadow-inner">
+            {/* Tutor Scene Display or Quiz Display */}
+            <div className="w-full flex-shrink-0" style={{ minHeight: '300px', maxHeight: '55vh', position: 'relative' }}>
                  {(currentMode === "teaching" || currentMode === "loading_teach" || currentMode === "feedback") && displayScene ? (
                     <TutorSceneDisplay scene={displayScene} isTtsMuted={isTtsMuted} key={displayScene.id} />
-                ) : isLoadingAi && !displayScene ? (
+                ) : isLoadingAi && !displayScene && (currentMode === "loading_teach" || currentMode === "loading_feedback") ? (
                      <div className="w-full h-full flex items-center justify-center bg-muted rounded-xl p-6"><Loader2 className="h-12 w-12 animate-spin text-primary" /></div>
                 ) : null}
-                 {(currentMode === "quizzing" || currentMode === "loading_quiz") && currentQuizData && (
-                     <Card className="w-full h-full flex flex-col items-center justify-center p-6 shadow-lg bg-slate-700 text-slate-100 rounded-xl">
-                        <CardHeader><CardTitle className="text-xl md:text-2xl text-center">{currentQuizData.question}</CardTitle></CardHeader>
-                        <CardContent className="w-full max-w-md">
-                            <RadioGroup value={currentQuizSelection || undefined} onValueChange={setCurrentQuizSelection} className="space-y-3" disabled={isLoadingAi}>
-                                {currentQuizData.options.map((opt, idx) => (
-                                <Label key={idx} htmlFor={`q_opt_${idx}`} className="flex items-center p-3 border border-slate-500 rounded-md hover:bg-slate-600 cursor-pointer has-[:checked]:border-primary has-[:checked]:ring-1 has-[:checked]:ring-primary">
-                                    <RadioGroupItem value={idx.toString()} id={`q_opt_${idx}`} className="mr-3 border-slate-400 text-primary focus:ring-primary" /> {opt}
-                                </Label>
-                                ))}
-                            </RadioGroup>
-                        </CardContent>
+
+                 {(currentMode === "quizzing" || currentMode === "loading_quiz") && (
+                    <Card className="w-full h-full flex flex-col items-center justify-center p-4 md:p-6 shadow-lg bg-slate-700 text-slate-100 rounded-xl">
+                        {isLoadingAi && currentMode === "loading_quiz" && !currentQuizData && (
+                             <Loader2 className="h-12 w-12 animate-spin text-primary" />
+                        )}
+                        {currentQuizData && (
+                        <>
+                            <CardHeader className="pt-2 pb-3 md:pt-3 md:pb-4">
+                                <CardTitle className="text-lg md:text-xl text-center">{currentQuizData.question}</CardTitle>
+                            </CardHeader>
+                            <CardContent className="w-full max-w-md">
+                                <RadioGroup value={currentQuizSelection || undefined} onValueChange={setCurrentQuizSelection} className="space-y-2 md:space-y-3" disabled={isLoadingAi}>
+                                    {currentQuizData.options.map((opt, idx) => (
+                                    <Label key={idx} htmlFor={`q_opt_${idx}`} className="flex items-center p-3 border border-slate-500 rounded-md hover:bg-slate-600 cursor-pointer has-[:checked]:border-primary has-[:checked]:ring-1 has-[:checked]:ring-primary text-sm md:text-base">
+                                        <RadioGroupItem value={idx.toString()} id={`q_opt_${idx}`} className="mr-3 border-slate-400 text-primary focus:ring-primary" /> {opt}
+                                    </Label>
+                                    ))}
+                                </RadioGroup>
+                            </CardContent>
+                        </>
+                        )}
                     </Card>
                  )}
             </div>
             
-            {/* Controls Area */}
-            <div className="flex-shrink-0 space-y-3 mt-2">
-                {isLoadingAi && (
-                     <div className="flex justify-center items-center p-4"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
+            {/* Controls Area (Quiz Me, Submit, Feedback, Continue) */}
+            <div className="flex-shrink-0 space-y-3 p-1">
+                {isLoadingAi && (currentMode === "loading_teach" || currentMode === "loading_quiz" || currentMode === "loading_feedback") && (
+                     <div className="flex justify-center items-center py-4"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
                 )}
 
                 {!isLoadingAi && currentMode === "teaching" && currentTeachingScene && (
@@ -283,8 +287,8 @@ export default function DynamicInteractiveTutorSessionPage() {
             </div>
         </div>
 
-        {/* Bottom Navigation and Mute Toggle */}
-        <div className="mt-auto pt-3 border-t flex flex-col sm:flex-row items-center justify-between gap-3 w-full max-w-4xl mx-auto flex-shrink-0">
+        {/* Bottom Navigation - flex-shrink-0 ensures it doesn't get pushed by the growing content */}
+        <div className="pt-3 border-t flex flex-col sm:flex-row items-center justify-between gap-3 w-full max-w-4xl mx-auto flex-shrink-0">
             <div className="flex gap-3 w-full sm:w-auto">
                 <Button onClick={handleEndSession} variant="secondary" size="lg" className="flex-1 sm:flex-none shadow-md">
                     <ArrowLeft className="mr-2 h-5 w-5" /> End Session
@@ -301,3 +305,4 @@ export default function DynamicInteractiveTutorSessionPage() {
     </ClientAuthGuard>
   );
 }
+
