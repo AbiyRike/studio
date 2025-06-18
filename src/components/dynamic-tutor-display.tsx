@@ -1,13 +1,16 @@
-
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Card, CardContent } from '@/components/ui/card'; // Keep Card for potential internal styling consistency
-import { Sparkles, Lightbulb, Zap, BookOpen, Brain, Palette } from 'lucide-react';
+import { Card, CardContent } from '@/components/ui/card'; 
+import { Sparkles, Lightbulb, Zap, BookOpen, Brain, Palette, Loader2, FileText, DatabaseZap, Edit3, Layers, GraduationCap, MessageCircleQuestion, Code2, AlertCircle, HelpCircle, CheckCircle, XCircle, DivideCircle } from 'lucide-react';
 import type { LucideProps } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
+
+// This component is being replaced by TutorSceneDisplay.tsx
+// Keeping it for now to avoid breaking references during transition,
+// but it should be removed once TutorSceneDisplay is fully integrated and this file is no longer imported.
 
 interface DynamicTutorDisplayProps {
   title: string;
@@ -66,14 +69,13 @@ export const DynamicTutorDisplay: React.FC<DynamicTutorDisplayProps> = ({
     spokenSegmentsRef.current = new Array(explanationSegments.length).fill(false);
     if (isMounted && typeof window !== 'undefined' && window.speechSynthesis) {
         if (utteranceRef.current) {
-            utteranceRef.current.onend = null;
+            utteranceRef.current.onend = null; // Clear previous handlers
             utteranceRef.current.onerror = null;
         }
-        window.speechSynthesis.cancel();
+        window.speechSynthesis.cancel(); // Cancel any ongoing speech
         utteranceRef.current = null;
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [keyForReset, explanationSegments.length, isMounted]);
+  }, [keyForReset, explanationSegments.length, isMounted]); // Added isMounted
 
 
   const speakAndAdvance = useCallback((indexToSpeak: number) => {
@@ -97,21 +99,23 @@ export const DynamicTutorDisplay: React.FC<DynamicTutorDisplayProps> = ({
     };
 
     if (isTtsMuted || typeof window === 'undefined' || !window.speechSynthesis) {
-      // Simulate speech duration for visual flow if TTS is muted
-      setTimeout(completeSegmentProcessing, explanationSegments[indexToSpeak].length * 50); // Approx 50ms per char
+      const simulatedDuration = explanationSegments[indexToSpeak].length * 50;
+      setTimeout(completeSegmentProcessing, simulatedDuration > 1000 ? simulatedDuration : 1000); // Ensure min 1s for visual
       return;
     }
     
-    if (utteranceRef.current && utteranceRef.current.onend) {
+    // Always cancel before speaking a new utterance
+    window.speechSynthesis.cancel(); 
+    if (utteranceRef.current) { // Clear handlers of previous utterance
         utteranceRef.current.onend = null; 
         utteranceRef.current.onerror = null;
     }
-    window.speechSynthesis.cancel(); 
+
 
     const segmentText = explanationSegments[indexToSpeak];
     const newUtterance = new SpeechSynthesisUtterance(segmentText);
     newUtterance.lang = 'en-US';
-    newUtterance.rate = 0.9; 
+    newUtterance.rate = 0.9; // Slightly slower
     newUtterance.pitch = 1.0; 
     
     const voices = window.speechSynthesis.getVoices();
@@ -120,11 +124,12 @@ export const DynamicTutorDisplay: React.FC<DynamicTutorDisplayProps> = ({
         newUtterance.voice = enUsVoice || voices.find(v => v.lang === 'en-US') || voices[0];
     }
     
-    utteranceRef.current = newUtterance;
+    utteranceRef.current = newUtterance; // Assign new utterance to ref
 
     newUtterance.onend = () => {
+      // Check if this is still the current utterance and component is mounted
       if (isMounted && utteranceRef.current === newUtterance) {
-        utteranceRef.current = null;
+        utteranceRef.current = null; // Clear ref after use
         completeSegmentProcessing();
       }
     };
@@ -132,8 +137,8 @@ export const DynamicTutorDisplay: React.FC<DynamicTutorDisplayProps> = ({
     newUtterance.onerror = (event) => {
       if (isMounted && utteranceRef.current === newUtterance) {
         console.error('Speech synthesis error:', event.error);
-        utteranceRef.current = null;
-        completeSegmentProcessing(); 
+        utteranceRef.current = null; // Clear ref
+        completeSegmentProcessing(); // Still advance to not get stuck
       }
     };
 
@@ -148,13 +153,13 @@ export const DynamicTutorDisplay: React.FC<DynamicTutorDisplayProps> = ({
       }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentSegmentIndex, explanationSegments, speakAndAdvance, isMounted]); 
+  }, [currentSegmentIndex, explanationSegments, speakAndAdvance, isMounted]); // isMounted added
   
   const motionKeyBase = `${keyForReset}`;
 
   return (
     <motion.div
-      key={motionKeyBase} // Main animation key for the whole "slide"
+      key={motionKeyBase} 
       initial={{ opacity: 0, scale: 0.95, y: 20 }}
       animate={{ opacity: 1, scale: 1, y: 0 }}
       transition={{ duration: 0.6, ease: [0.42, 0, 0.58, 1] }}

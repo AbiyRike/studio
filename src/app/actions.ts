@@ -9,10 +9,7 @@ import { getNextInteractiveTutorStep as getNextDynamicTutorStepFlow, type Intera
 import { chatWithStudyEthiopiaAI, type AskStudyEthiopiaAIInput as AIAskStudyEthiopiaAIInput, type AskStudyEthiopiaAIOutput } from "@/ai/flows/ask-mr-know-flow";
 import { getProgrammingLanguages as getProgrammingLanguagesFlow, type GetProgrammingLanguagesInput as AIGetProgrammingLanguagesInput } from "@/ai/flows/get-programming-languages-flow.ts";
 import { getCodeTeachingStep as getCodeTeachingStepFlow, type GetCodeTeachingStepInput as AIGetCodeTeachingStepInput, type GetCodeTeachingStepOutput as AIGetCodeTeachingStepOutput } from "@/ai/flows/get-code-teaching-step-flow.ts";
-// Persona context generation for Tavus is removed as we replace that tutor
-// import { generateTavusTutorPersonaContext, type GenerateTavusTutorPersonaContextInput, type GenerateTavusTutorPersonaContextOutput } from "@/ai/flows/generate-tavus-tutor-persona-context-flow";
-// Next Tavus tutor text flow is removed
-// import { getNextTavusTutorText as getNextTavusTutorTextFlow, type GetNextTavusTutorTextInput, type GetNextTavusTutorTextOutput } from "@/ai/flows/get-next-tavus-tutor-text-flow";
+
 import { analyzeCode as analyzeCodeFlow, type AnalyzeCodeInput as AIAnalyzeCodeInput, type AnalyzeCodeOutput as AIAnalyzeCodeOutput } from "@/ai/flows/analyze-code-flow";
 import { explainCode as explainCodeFlow, type ExplainCodeInput as AIExplainCodeInput, type ExplainCodeOutput as AIExplainCodeOutput } from "@/ai/flows/explain-code-flow";
 import { optimizeCode as optimizeCodeFlow, type OptimizeCodeInput as AIOptimizeCodeInput, type OptimizeCodeOutput as AIOptimizeCodeOutput } from "@/ai/flows/optimize-code-flow";
@@ -22,7 +19,7 @@ import type { SummarizeDocumentInput } from "@/ai/flows/summarize-document";
 import { generateId, type KnowledgeBaseItem } from '@/lib/knowledge-base-store'; 
 import type { Flashcard as AppFlashcard } from '@/ai/flows/generate-flashcards'; 
 // Updated import for new session data types
-import type { AskMrKnowMessage, ActiveAskMrKnowSessionData, CodeTeachingStepData, ActiveCodeTeachingSessionData, ActiveDynamicTutorSessionData, DynamicTutorStepData, ChatMessage as DynamicTutorChatMessage, ActiveCodeWizSessionData } from '@/lib/session-store'; 
+import type { AskMrKnowMessage, ActiveAskMrKnowSessionData, CodeTeachingStepData, ActiveCodeTeachingSessionData, ActiveDynamicTutorSessionData, ActiveCodeWizSessionData } from '@/lib/session-store'; 
 
 
 export interface Question {
@@ -487,8 +484,8 @@ export async function startDynamicTutorSession(
         documentName: kbItem.documentName,
         documentContent: kbItem.documentContent || "",
         photoDataUri: kbItem.mediaDataUri,
-        currentTopic: `Introduction to ${kbItem.documentName}`,
-        currentStepNumber: 0,
+        currentLearningContext: "Start of session",
+        interactionMode: "teach",
     };
     
     const firstStepResultOrError = await getNextDynamicTutorStepFlow(firstStepInput);
@@ -496,24 +493,25 @@ export async function startDynamicTutorSession(
     if ('error' in firstStepResultOrError) {
         return { error: `Failed to get the first tutoring step: ${firstStepResultOrError.error}` };
     }
+    
     const firstStepData = firstStepResultOrError as DynamicTutorOutput;
 
-    const initialChatMessage: DynamicTutorChatMessage = {
-      role: 'ai',
-      text: firstStepData.aiResponseToUserQuery || firstStepData.explanationSegments.join(' '), // Use direct response or first explanation
-      timestamp: new Date().toISOString(),
-    };
+    if (firstStepData.mode !== "teach" || !firstStepData.teachingScene) {
+      return { error: "AI did not return a valid initial teaching scene." };
+    }
     
     const sessionData: ActiveDynamicTutorSessionData = {
+      id: `dyn_${generateId()}`,
       kbItemId: kbItem.id,
       documentName: kbItem.documentName,
       documentContent: kbItem.documentContent || "",
       mediaDataUri: kbItem.mediaDataUri,
-      currentStepData: firstStepData,
-      chatHistory: firstStepData.aiResponseToUserQuery ? [initialChatMessage] : [], // Only add if it's a direct answer, teaching steps handled by DynamicTutorDisplay
+      currentTeachingScene: firstStepData.teachingScene,
+      currentQuizData: null,
+      quizFeedback: null,
+      currentMode: "teaching",
       isTtsMuted: false,
-      isCameraAnalysisEnabled: false,
-      currentQuizAttempt: null,
+      cumulativeLearningContext: firstStepData.teachingScene.title, // Initialize with first title
     };
     return sessionData;
 
@@ -530,44 +528,58 @@ export async function startDynamicTutorSession(
   }
 }
 
+export interface GetNextDynamicTutorResponseInput {
+    currentSessionData: ActiveDynamicTutorSessionData;
+    interactionMode: "teach" | "generate_quiz" | "evaluate_answer";
+    userQuizAnswer?: string; // Text of the user's selected option
+    // quizQuestionContext is now derived from currentSessionData.currentQuizData.question
+}
+
 export async function getNextDynamicTutorResponse(
-  currentSession: ActiveDynamicTutorSessionData,
-  userInput: { query?: string; quizAnswer?: string; engagementHint?: "focused" | "confused" | "distracted" }
+  input: GetNextDynamicTutorResponseInput
 ): Promise<DynamicTutorOutput | { error: string }> {
   try {
-    if (!currentSession.currentStepData && !userInput.query) {
-        return {error: "Session not properly initialized or no user input provided."};
-    }
+    const { currentSessionData, interactionMode, userQuizAnswer } = input;
 
-    let previousExplanationSummary = "";
-    if (currentSession.currentStepData?.explanationSegments) {
-        previousExplanationSummary = currentSession.currentStepData.explanationSegments.join(' ').substring(0,150) + "...";
+    let learningContext = currentSessionData.cumulativeLearningContext || "General knowledge about " + currentSessionData.documentName;
+    if (interactionMode === "generate_quiz" && currentSessionData.currentTeachingScene) {
+        learningContext = `Based on the topic: "${currentSessionData.currentTeachingScene.title}", which explained: "${currentSessionData.currentTeachingScene.description.substring(0, 200)}..."`;
     }
     
+    let questionContextForEval: string | undefined = undefined;
+    if (interactionMode === "evaluate_answer" && currentSessionData.currentQuizData) {
+        questionContextForEval = currentSessionData.currentQuizData.question;
+    }
+
+
     const aiInput: DynamicTutorInput = {
-        documentName: currentSession.documentName,
-        documentContent: currentSession.documentContent,
-        photoDataUri: currentSession.mediaDataUri,
-        currentTopic: currentSession.currentStepData?.title || `Continuing ${currentSession.documentName}`,
-        previousStepTitle: currentSession.currentStepData?.title,
-        previousExplanationSummary: previousExplanationSummary,
-        userQuery: userInput.query,
-        userQuizAnswer: userInput.quizAnswer,
-        chatHistory: currentSession.chatHistory.map(m => ({role: m.role, text: m.text})),
-        currentStepNumber: currentSession.chatHistory.filter(m => m.role === 'ai' && !m.text.startsWith("Response to:")).length, // crude step count
-        userEngagementHint: userInput.engagementHint,
+        documentName: currentSessionData.documentName,
+        documentContent: currentSessionData.documentContent,
+        photoDataUri: currentSessionData.mediaDataUri,
+        currentLearningContext: learningContext,
+        interactionMode: interactionMode,
+        userQuizAnswer: userQuizAnswer,
+        quizQuestionContext: questionContextForEval,
     };
 
     const result = await getNextDynamicTutorStepFlow(aiInput);
     
     if ('error' in result) return result;
     
-    if (!result.title && !result.aiResponseToUserQuery) {
-        return { error: "The AI tutor provided an incomplete response. Please try rephrasing." };
+    // Basic validation of AI output based on expected mode
+    if (result.mode === "teach" && !result.teachingScene) {
+        return { error: "The AI tutor an incomplete teaching response. Please try again." };
+    }
+    if (result.mode === "quiz" && !result.quiz) {
+        return { error: "The AI tutor an incomplete quiz response. Please try again." };
+    }
+    if (result.mode === "feedback" && !result.feedback) {
+        return { error: "The AI tutor an incomplete feedback response. Please try again." };
     }
     return result;
 
-  } catch (e) {
+  } catch (e)
+   {
       console.error("Error getting next dynamic tutor response:", e);
       const errorMessage = e instanceof Error ? e.message : "An unknown error occurred.";
       if (errorMessage.includes("rate limit") || errorMessage.includes("quota") || errorMessage.includes("503") || errorMessage.toLowerCase().includes("overloaded")) {

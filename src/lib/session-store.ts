@@ -1,6 +1,8 @@
 import type { Question } from '@/app/actions'; 
 import type { Flashcard as AppFlashcard } from '@/ai/flows/generate-flashcards';
-import type { InteractiveTutorOutput as DynamicTutorStepData } from '@/ai/flows/interactive-tutor-flow'; // Import the output type
+// Import the *new* schema for teaching scene data for ActiveDynamicTutorSessionData
+import type { TeachingSceneSchema, QuizSchema, FeedbackSchema } from '@/ai/flows/interactive-tutor-flow';
+
 
 // ---- Quiz Session (Old Tutor) ----
 export interface TutorSessionData {
@@ -102,28 +104,27 @@ export const getActiveFlashcardSession = (): FlashcardSessionData | null => {
   }
 };
 
-// ---- Active Dynamic Interactive Tutor Session (Replaces Tavus Tutor) ----
-export { type DynamicTutorStepData }; // Export the imported type
+// ---- Active Dynamic Interactive Tutor Session (Scene-based) ----
+// Re-exporting schemas from the AI flow to be used here.
+// This avoids circular dependencies if AI flow also needed types from here.
+export type { TeachingSceneSchema, QuizSchema, FeedbackSchema };
 
-export interface ChatMessage { 
-  role: 'user' | 'ai';
-  text: string;
-  timestamp: string;
-}
 
 export interface ActiveDynamicTutorSessionData {
+  id: string; // Unique ID for this session instance
   kbItemId: string; 
   documentName: string;
   documentContent: string; 
   mediaDataUri?: string;   
-  currentStepData: DynamicTutorStepData | null; 
-  chatHistory: ChatMessage[];
+  currentTeachingScene: TeachingSceneSchema | null; 
+  currentQuizData: QuizSchema | null;
+  quizFeedback: FeedbackSchema | null;
+  currentMode: "loading_teach" | "teaching" | "loading_quiz" | "quizzing" | "loading_feedback" | "feedback" | "finished";
   isTtsMuted: boolean;
-  isCameraAnalysisEnabled: boolean; 
-  currentQuizAttempt: { question: string; answerIndex: number | null } | null; // For managing quiz state within the tutor
+  cumulativeLearningContext: string; // Built up summary of taught content for AI context
 }
 
-const ACTIVE_DYNAMIC_TUTOR_SESSION_KEY = 'activeDynamicTutorSession'; // New key
+const ACTIVE_DYNAMIC_TUTOR_SESSION_KEY = 'activeDynamicTutorSessionNew'; // New key to avoid conflicts
 
 export const setActiveDynamicTutorSession = (data: ActiveDynamicTutorSessionData | null): void => {
   if (typeof window === 'undefined') return;
