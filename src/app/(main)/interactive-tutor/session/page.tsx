@@ -49,12 +49,11 @@ export default function DynamicInteractiveTutorSessionPage() {
   const [showQuizFeedback, setShowQuizFeedback] = useState(false);
   const [isQuizCorrect, setIsQuizCorrect] = useState(false);
   const [displayQuiz, setDisplayQuiz] = useState<DynamicTutorStepData['miniQuiz']>(null);
-  const [chatDisplayKey, setChatDisplayKey] = useState(0); // Used to force re-render of DynamicTutorDisplay
+  const [chatDisplayKey, setChatDisplayKey] = useState(0); 
 
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const tutorDisplayRef = useRef<HTMLDivElement>(null);
 
-  // TTS and Speech Synthesis
   const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
   const [isMounted, setIsMounted] = useState(false);
 
@@ -67,7 +66,6 @@ export default function DynamicInteractiveTutorSessionPage() {
         setDisplayQuiz(data.currentStepData.miniQuiz);
       }
     } else if (data && !data.currentStepData) {
-      // If session exists but no step data, fetch initial step
       setIsLoadingAi(true);
       getNextDynamicTutorResponse(data, {})
         .then(stepResult => {
@@ -121,15 +119,15 @@ export default function DynamicInteractiveTutorSessionPage() {
     newUtterance.voice = desiredVoice || voices.find(v => v.lang === 'en-US') || voices[0];
     newUtterance.rate = 0.9;
     newUtterance.onend = () => {
-      if (isMounted && newUtterance === utteranceRef.current) { // Check if it's still the current utterance
+      if (isMounted && newUtterance === utteranceRef.current) { 
         onEndCallback?.();
         utteranceRef.current = null;
       }
     };
     newUtterance.onerror = (event) => {
-      if (isMounted && newUtterance === utteranceRef.current) { // Check if it's still the current utterance
+      if (isMounted && newUtterance === utteranceRef.current) { 
         console.error("TTS Error:", event.error);
-        onEndCallback?.(); // Proceed even if TTS fails
+        onEndCallback?.(); 
         utteranceRef.current = null;
       }
     };
@@ -152,7 +150,6 @@ export default function DynamicInteractiveTutorSessionPage() {
 
     if ('error' in response) {
       toast({ title: "Tutor Error", description: response.error, variant: "destructive" });
-      // Potentially end session or offer retry
     } else {
       let newChatHistory = [...sessionData.chatHistory];
       if (userQuery) {
@@ -168,7 +165,7 @@ export default function DynamicInteractiveTutorSessionPage() {
         setActiveDynamicTutorSession(updatedSession);
         return updatedSession;
       });
-      setChatDisplayKey(prev => prev + 1); // Force re-render of DynamicTutorDisplay
+      setChatDisplayKey(prev => prev + 1); 
       
       if (response.miniQuiz) {
         setDisplayQuiz(response.miniQuiz);
@@ -194,9 +191,6 @@ export default function DynamicInteractiveTutorSessionPage() {
     setIsQuizCorrect(correct);
     setShowQuizFeedback(true);
     speak(correct ? "That's correct! Well done." : `Not quite. The correct answer was ${displayQuiz.options[displayQuiz.answerIndex]}. ${displayQuiz.explanation || ''}`);
-    
-    // Proceed to next step after showing feedback for a moment, or user clicks next
-    // For now, let's require a "Next" click after feedback.
   };
 
   const handleNextAfterFeedbackOrQuiz = () => {
@@ -234,7 +228,7 @@ export default function DynamicInteractiveTutorSessionPage() {
     router.push('/interactive-tutor/select');
   };
 
-  useEffect(() => { // Scroll chat to bottom
+  useEffect(() => { 
     if (chatContainerRef.current) {
       chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
     }
@@ -279,8 +273,7 @@ export default function DynamicInteractiveTutorSessionPage() {
           </CardHeader>
         </Card>
 
-        <div className="flex-grow grid md:grid-cols-3 gap-4 min-h-0">
-          {/* Tutor Display Panel */}
+        <div className="flex-grow grid md:grid-cols-3 gap-4 min-h-0 overflow-hidden">
           <div className="md:col-span-2 flex flex-col min-h-0">
             <Card ref={tutorDisplayRef} className="shadow-lg flex-grow flex flex-col overflow-hidden">
               <CardContent className="p-2 md:p-4 flex-grow">
@@ -310,7 +303,6 @@ export default function DynamicInteractiveTutorSessionPage() {
             </Card>
           </div>
 
-          {/* Chat and Controls Panel */}
           <div className="md:col-span-1 flex flex-col space-y-4 min-h-0">
             <Card className="shadow-lg flex-grow flex flex-col min-h-0">
               <CardHeader className="flex-row justify-between items-center">
