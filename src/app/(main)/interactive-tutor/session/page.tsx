@@ -18,6 +18,7 @@ import { DynamicTutorDisplay } from '@/components/dynamic-tutor-display';
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar'; // Added Avatar import
 
 const ClientAuthGuard = ({ children }: { children: React.ReactNode }) => {
   const router = useRouter();
@@ -60,14 +61,14 @@ export default function DynamicInteractiveTutorSessionPage() {
       if (data.currentStepData.miniQuiz) {
         setDisplayQuiz(data.currentStepData.miniQuiz);
       }
-      setDynamicDisplayKey(prev => prev + 1); // Force re-render of DynamicTutorDisplay
+      setDynamicDisplayKey(prev => prev + 1);
     } else if (data && !data.currentStepData) {
-      setIsLoadingAi(true); // Show loading while fetching initial step
+      setIsLoadingAi(true); 
       getNextDynamicTutorResponse(data, {})
         .then(stepResult => {
           if ('error' in stepResult) {
             setError(stepResult.error);
-            setActiveDynamicTutorSession(null); // Clear broken session
+            setActiveDynamicTutorSession(null); 
           } else {
             const updatedSession = {...data, currentStepData: stepResult, chatHistory: stepResult.aiResponseToUserQuery ? [{ role: 'ai', text: stepResult.aiResponseToUserQuery, timestamp: new Date().toISOString() }] : [] };
             setSessionData(updatedSession);
@@ -144,7 +145,6 @@ export default function DynamicInteractiveTutorSessionPage() {
     
     setIsQuizCorrect(correct);
     setShowQuizFeedback(true);
-    // TTS for feedback is handled inside DynamicTutorDisplay or here if we want immediate feedback
   };
 
   const handleNextAfterFeedbackOrQuiz = () => {
@@ -251,7 +251,7 @@ export default function DynamicInteractiveTutorSessionPage() {
                     </Card>
                 )}
                  {!currentTeachingStep && !isLoadingAi && (
-                     <div className="flex items-center justify-center h-full text-muted-foreground">
+                     <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
                         <HelpCircle className="h-10 w-10 mb-2"/>
                         <p>Start by asking a question or the tutor will begin shortly.</p>
                     </div>
@@ -351,3 +351,4 @@ export default function DynamicInteractiveTutorSessionPage() {
     </ClientAuthGuard>
   );
 }
+
