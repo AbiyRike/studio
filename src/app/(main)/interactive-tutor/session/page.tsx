@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useEffect, useState, useRef, useCallback } from 'react';
@@ -12,7 +13,7 @@ import { getActiveDynamicTutorSession, setActiveDynamicTutorSession, type Active
 import { getNextDynamicTutorResponse } from '@/app/actions'; 
 import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from '@/components/ui/skeleton';
-import { AlertTriangle, Sparkles, Loader2, ArrowLeft, Home, Send, Volume2, VolumeX, Camera, User, MessageSquare, CheckCircle, XCircle, HelpCircle } from 'lucide-react';
+import { AlertTriangle, Sparkles, Loader2, ArrowLeft, Home, Send, Volume2, VolumeX, Camera, User, MessageSquare, CheckCircle, XCircle, HelpCircle, AlertCircle } from 'lucide-react';
 import { DynamicTutorDisplay } from '@/components/dynamic-tutor-display';
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { cn } from '@/lib/utils';
@@ -91,7 +92,12 @@ export default function DynamicInteractiveTutorSessionPage() {
     return () => {
         setIsMounted(false);
         if (typeof window !== 'undefined' && window.speechSynthesis) {
+            if (utteranceRef.current) {
+                utteranceRef.current.onend = null;
+                utteranceRef.current.onerror = null;
+            }
             window.speechSynthesis.cancel();
+            utteranceRef.current = null;
         }
     }
   }, []);
@@ -101,9 +107,13 @@ export default function DynamicInteractiveTutorSessionPage() {
       onEndCallback?.();
       return;
     }
-    if (window.speechSynthesis.speaking) {
-      window.speechSynthesis.cancel();
+    
+    if (utteranceRef.current) {
+        utteranceRef.current.onend = null;
+        utteranceRef.current.onerror = null;
     }
+    window.speechSynthesis.cancel();
+    
     const newUtterance = new SpeechSynthesisUtterance(text);
     newUtterance.lang = 'en-US';
     const voices = window.speechSynthesis.getVoices();
@@ -111,14 +121,16 @@ export default function DynamicInteractiveTutorSessionPage() {
     newUtterance.voice = desiredVoice || voices.find(v => v.lang === 'en-US') || voices[0];
     newUtterance.rate = 0.9;
     newUtterance.onend = () => {
-      if (isMounted) {
+      if (isMounted && newUtterance === utteranceRef.current) { // Check if it's still the current utterance
         onEndCallback?.();
+        utteranceRef.current = null;
       }
     };
     newUtterance.onerror = (event) => {
-      console.error("TTS Error:", event.error);
-      if (isMounted) {
+      if (isMounted && newUtterance === utteranceRef.current) { // Check if it's still the current utterance
+        console.error("TTS Error:", event.error);
         onEndCallback?.(); // Proceed even if TTS fails
+        utteranceRef.current = null;
       }
     };
     utteranceRef.current = newUtterance;
@@ -392,3 +404,5 @@ export default function DynamicInteractiveTutorSessionPage() {
     </ClientAuthGuard>
   );
 }
+
+    
