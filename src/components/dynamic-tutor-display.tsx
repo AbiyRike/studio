@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from 'react';
@@ -41,23 +42,32 @@ export const DynamicTutorDisplay: React.FC<DynamicTutorDisplayProps> = ({
   const [spokenSegments, setSpokenSegments] = useState<boolean[]>([]);
   const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
   const [isMounted, setIsMounted] = useState(false);
-  const [currentSpeech, setCurrentSpeech] = useState<SpeechSynthesisUtterance | null>(null);
 
   useEffect(() => {
     setIsMounted(true);
     return () => {
       setIsMounted(false);
-      if (typeof window !== 'undefined' && window.speechSynthesis && currentSpeech) {
+      if (typeof window !== 'undefined' && window.speechSynthesis) {
+        if (utteranceRef.current) {
+            utteranceRef.current.onend = null;
+            utteranceRef.current.onerror = null;
+        }
         window.speechSynthesis.cancel();
+        utteranceRef.current = null;
       }
     };
   }, []);
   
-  useEffect(() => { // Reset animation and speech state when keyForReset changes
+  useEffect(() => { 
     setCurrentSegmentIndex(0);
     setSpokenSegments(new Array(explanationSegments.length).fill(false));
-    if (typeof window !== 'undefined' && window.speechSynthesis && currentSpeech) {
-      window.speechSynthesis.cancel();
+    if (typeof window !== 'undefined' && window.speechSynthesis) {
+        if (utteranceRef.current) {
+            utteranceRef.current.onend = null;
+            utteranceRef.current.onerror = null;
+        }
+        window.speechSynthesis.cancel();
+        utteranceRef.current = null;
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [keyForReset, explanationSegments.length]);
@@ -65,17 +75,17 @@ export const DynamicTutorDisplay: React.FC<DynamicTutorDisplayProps> = ({
 
   const speakSegment = useCallback((segmentText: string, segmentIndex: number) => {
     if (!isMounted || isTtsMuted || typeof window === 'undefined' || !window.speechSynthesis || spokenSegments[segmentIndex]) {
-      if (spokenSegments[segmentIndex] && segmentIndex < explanationSegments.length -1 && !isTtsMuted) {
-         // If already spoken and not last segment, try to move to next.
-         // This might need adjustment if it causes rapid skipping.
-         // setCurrentSegmentIndex(prev => prev + 1);
-      }
       return;
     }
 
-    if (window.speechSynthesis.speaking) {
-      window.speechSynthesis.cancel(); // Cancel any ongoing speech
+    if (window.speechSynthesis.speaking || window.speechSynthesis.pending) {
+      window.speechSynthesis.cancel();
     }
+    if (utteranceRef.current) { // Clean up previous utterance's handlers
+        utteranceRef.current.onend = null;
+        utteranceRef.current.onerror = null;
+    }
+
 
     const newUtterance = new SpeechSynthesisUtterance(segmentText);
     newUtterance.lang = 'en-US';
@@ -88,30 +98,34 @@ export const DynamicTutorDisplay: React.FC<DynamicTutorDisplayProps> = ({
         newUtterance.voice = enUsVoice || voices.find(v => v.lang === 'en-US') || voices[0];
     }
     
-    setCurrentSpeech(newUtterance);
+    utteranceRef.current = newUtterance;
 
     newUtterance.onend = () => {
-      if (!isMounted) return;
+      if (!isMounted || newUtterance !== utteranceRef.current) return;
+      
       setSpokenSegments(prev => {
         const newSpoken = [...prev];
         newSpoken[segmentIndex] = true;
         return newSpoken;
       });
       onSegmentSpoken?.(segmentIndex);
+
       if (segmentIndex < explanationSegments.length - 1) {
         setCurrentSegmentIndex(prev => prev + 1);
       } else {
         onAllSegmentsSpoken?.();
       }
+      if (utteranceRef.current === newUtterance) {
+        utteranceRef.current = null; 
+      }
     };
     
     newUtterance.onerror = (event) => {
+      if (!isMounted || newUtterance !== utteranceRef.current) return;
       console.error('Speech synthesis error:', event.error);
-      // Try to advance state even if TTS fails for a segment
-      if (!isMounted) return;
        setSpokenSegments(prev => {
         const newSpoken = [...prev];
-        newSpoken[segmentIndex] = true; // Mark as "handled"
+        newSpoken[segmentIndex] = true; 
         return newSpoken;
       });
       if (segmentIndex < explanationSegments.length - 1) {
@@ -119,17 +133,20 @@ export const DynamicTutorDisplay: React.FC<DynamicTutorDisplayProps> = ({
       } else {
         onAllSegmentsSpoken?.();
       }
+      if (utteranceRef.current === newUtterance) {
+        utteranceRef.current = null;
+      }
     };
 
     window.speechSynthesis.speak(newUtterance);
-  }, [isMounted, isTtsMuted, onSegmentSpoken, onAllSegmentsSpoken, explanationSegments.length, spokenSegments, currentSpeech]);
+  }, [isMounted, isTtsMuted, onSegmentSpoken, onAllSegmentsSpoken, explanationSegments.length, spokenSegments]);
 
   useEffect(() => {
-    if (explanationSegments && explanationSegments.length > 0 && currentSegmentIndex < explanationSegments.length) {
+    if (explanationSegments && explanationSegments.length > 0 && currentSegmentIndex < explanationSegments.length && !spokenSegments[currentSegmentIndex]) {
       speakSegment(explanationSegments[currentSegmentIndex], currentSegmentIndex);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentSegmentIndex, explanationSegments, speakSegment, keyForReset]); // keyForReset to re-trigger on new content
+  }, [currentSegmentIndex, explanationSegments, speakSegment, keyForReset, spokenSegments]);
 
   if (!isMounted) {
     return (
