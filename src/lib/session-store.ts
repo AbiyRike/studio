@@ -105,13 +105,17 @@ export const getActiveFlashcardSession = (): FlashcardSessionData | null => {
 };
 
 // ---- Active Dynamic Interactive Tutor Session (Scene-based) ----
-// Re-exporting schemas from the AI flow to be used here.
-// This avoids circular dependencies if AI flow also needed types from here.
 export type { TeachingSceneSchema, QuizSchema, FeedbackSchema };
 
+export interface UserQuestionRecord {
+    interactionMode: "answer_query"; // To identify this record type
+    userQueryOrAnswer: string; // The user's question
+    aiQueryResponseText: string; // The AI's answer
+    timestamp: string;
+}
 
 export interface ActiveDynamicTutorSessionData {
-  id: string; // Unique ID for this session instance
+  id: string; 
   kbItemId: string; 
   documentName: string;
   documentContent: string; 
@@ -119,12 +123,14 @@ export interface ActiveDynamicTutorSessionData {
   currentTeachingScene: TeachingSceneSchema | null; 
   currentQuizData: QuizSchema | null;
   quizFeedback: FeedbackSchema | null;
-  currentMode: "loading_teach" | "teaching" | "loading_quiz" | "quizzing" | "loading_feedback" | "feedback" | "finished";
+  currentMode: "loading_teach" | "teaching" | "loading_quiz" | "quizzing" | "loading_feedback" | "feedback" | "finished" | "loading_query_answer" | "answered_query";
   isTtsMuted: boolean;
-  cumulativeLearningContext: string; // Built up summary of taught content for AI context
+  cumulativeLearningContext: string; 
+  userQuestionsHistory: UserQuestionRecord[]; // To store ad-hoc Q&A
+  //presentationStateBeforeQuery: { scene: TeachingSceneSchema; segmentIndex: number } | null; // To resume presentation
 }
 
-const ACTIVE_DYNAMIC_TUTOR_SESSION_KEY = 'activeDynamicTutorSessionNew'; // New key to avoid conflicts
+const ACTIVE_DYNAMIC_TUTOR_SESSION_KEY = 'activeDynamicTutorSessionNew'; 
 
 export const setActiveDynamicTutorSession = (data: ActiveDynamicTutorSessionData | null): void => {
   if (typeof window === 'undefined') return;
@@ -269,3 +275,4 @@ export const getActiveCodeWizSession = (): ActiveCodeWizSessionData | null => {
     return null;
   }
 };
+

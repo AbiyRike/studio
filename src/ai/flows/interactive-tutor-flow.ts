@@ -1,7 +1,8 @@
+
 'use server';
 /**
  * @fileOverview Interactive dynamic tutoring AI agent, Study AI+.
- * This flow generates animated, text-based tutoring scenes and handles quiz generation/evaluation.
+ * This flow generates animated, text-based tutoring scenes, handles quiz generation/evaluation, and answers user queries.
  *
  * - getNextInteractiveTutorStep - Main function.
  * - InteractiveTutorInput - Input type.
@@ -20,11 +21,11 @@ const InteractiveTutorInputSchema = z.object({
   documentContent: z.string().describe('The full text content of the document. Can be empty if photoDataUri is primary context.'),
   photoDataUri: z.string().optional().describe("An optional photo related to the document, as a data URI."),
   
-  currentLearningContext: z.string().optional().describe("A summary of what has been taught so far, or the specific topic/sub-topic the AI should focus on for the next teaching step or quiz. For the first step, this can be 'Start of session'."),
+  currentLearningContext: z.string().optional().describe("A summary of what has been taught so far, or the specific topic/sub-topic the AI should focus on for the next teaching step or quiz. For the first step, this can be 'Start of session'. This also includes the content of the current scene if a user asks a question mid-presentation."),
   
-  interactionMode: z.enum(["teach", "generate_quiz", "evaluate_answer"]).describe("The desired mode of interaction: 'teach' for a new learning scene, 'generate_quiz' to create a quiz based on current context, 'evaluate_answer' to check a user's quiz response."),
+  interactionMode: z.enum(["teach", "generate_quiz", "evaluate_answer", "answer_query"]).describe("The desired mode: 'teach' for new scene, 'generate_quiz' for quiz, 'evaluate_answer' for quiz feedback, 'answer_query' to answer user's ad-hoc question."),
   
-  userQuizAnswer: z.string().optional().describe("The user's selected answer text for a quiz question (if interactionMode is 'evaluate_answer')."),
+  userQueryOrAnswer: z.string().optional().describe("The user's latest query or selected answer text for a quiz question."),
   quizQuestionContext: z.string().optional().describe("The text of the quiz question the user just answered (if interactionMode is 'evaluate_answer')."),
 });
 export type InteractiveTutorInput = z.infer<typeof InteractiveTutorInputSchema>;
@@ -45,15 +46,16 @@ const QuizSchema = z.object({
 });
 
 const FeedbackSchema = z.object({
-  text: z.string().describe("Encouraging and constructive feedback on the user's quiz answer. If correct, positive reinforcement. If incorrect, a gentle correction and brief re-explanation related to the quiz question."),
+  text: z.string().describe("Encouraging and constructive feedback on the user's quiz answer. If correct, positive reinforcement. If incorrect, a gentle and inspired correction, briefly re-explaining the concept related to the quiz question."),
   isCorrect: z.boolean().describe("Whether the user's answer was correct or not."),
 });
 
 const InteractiveTutorOutputSchema = z.object({
-  mode: z.enum(["teach", "quiz", "feedback"]).describe("The mode this output corresponds to."),
+  mode: z.enum(["teach", "quiz", "feedback", "answer_query"]).describe("The mode this output corresponds to."),
   teachingScene: TeachingSceneSchema.optional().describe("The content for a teaching scene, if mode is 'teach'."),
   quiz: QuizSchema.optional().describe("The quiz question and options, if mode is 'quiz'."),
   feedback: FeedbackSchema.optional().describe("Feedback on the user's quiz answer, if mode is 'feedback'."),
+  aiQueryResponseText: z.string().optional().describe("The AI's direct textual answer to a user's ad-hoc query, if mode is 'answer_query'."),
 });
 export type InteractiveTutorOutput = z.infer<typeof InteractiveTutorOutputSchema>;
 
@@ -63,8 +65,11 @@ export async function getNextInteractiveTutorStep(input: InteractiveTutorInput):
     if (!input.documentContent && !input.photoDataUri) {
        return { error: "It looks like there's no content loaded for this tutoring session. Please select a document or image." };
     }
-    if (input.interactionMode === "evaluate_answer" && (!input.userQuizAnswer || !input.quizQuestionContext)) {
+    if (input.interactionMode === "evaluate_answer" && (!input.userQueryOrAnswer || !input.quizQuestionContext)) {
         return { error: "Missing user answer or question context for evaluation."}
+    }
+    if (input.interactionMode === "answer_query" && !input.userQueryOrAnswer) {
+        return { error: "User query cannot be empty when asking a question."}
     }
     
     const result = await interactiveTutorFlow(input);
@@ -82,6 +87,9 @@ export async function getNextInteractiveTutorStep(input: InteractiveTutorInput):
     }
     if (result.mode === "feedback" && !result.feedback) {
         return { error: "AI failed to generate feedback. Please try again." };
+    }
+    if (result.mode === "answer_query" && !result.aiQueryResponseText) {
+        return { error: "AI failed to generate an answer to your query. Please try rephrasing."};
     }
 
     return result;
@@ -103,14 +111,15 @@ const PromptInputSchema = InteractiveTutorInputSchema.extend({
     interactionMode_is_teach: z.boolean().optional(),
     interactionMode_is_generate_quiz: z.boolean().optional(),
     interactionMode_is_evaluate_answer: z.boolean().optional(),
+    interactionMode_is_answer_query: z.boolean().optional(),
 });
 
 const prompt = ai.definePrompt({
   name: 'interactiveDynamicTutorStudyAIPlusPromptFinal',
   input: { schema: PromptInputSchema },
   output: { schema: InteractiveTutorOutputSchema },
-  prompt: `You are Study AI+, a dynamic and engaging AI tutor. Your goal is to teach Ethiopian students (high school to university) using visually appealing "teaching scenes" and interactive quizzes.
-Personality: Warm, patient, encouraging, clear, and motivational. Use relatable analogies. Never self-refer as an AI.
+  prompt: `You are Study AI+, a dynamic and engaging AI tutor. Your goal is to teach Ethiopian students (high school to university) using visually appealing "teaching scenes", interactive quizzes, and by answering their questions.
+Personality: Warm, patient, encouraging, clear, and motivational. Use relatable analogies. Never self-refer as an AI. Your speech is for audio delivery, so ensure it sounds natural.
 
 Document Context for this session:
 - Document Name: {{{documentName}}}
@@ -127,18 +136,20 @@ Document Context for this session:
 {{/if}}
 
 Current Interaction Mode: {{{interactionMode}}}
-Current Learning Context: "{{{currentLearningContext}}}" (This is a summary of what was last taught, or "Start of session" if new.)
+Current Learning Context: "{{{currentLearningContext}}}" (This is a summary of what was last taught, or the content of the scene when a question was asked, or "Start of session" if new.)
 
 Your Task:
 {{#if interactionMode_is_teach}}
   Respond with 'mode: "teach"'.
   Generate a 'teachingScene' object:
   - 'title': A concise, engaging title for THIS new teaching segment (e.g., "The Powerhouse: Mitochondria", "Understanding For Loops").
-  - 'description': The main teaching content, 2-4 sentences. Make it conversational and clear for audio delivery.
-  - 'iconName': Choose ONE relevant icon name from this list: ${iconHints.join(", ")}. Pick 'AlertCircle' if no other icon seems fitting or for error states.
-  - 'colorThemeHint': Choose ONE theme hint from this list: ${colorThemeHints.join(", ")}.
-  - 'isLastTeachingStep': Set to true ONLY if all key concepts from "{{{documentName}}}" are covered and this is the absolute final teaching scene. If so, title/description should be a wrap-up.
+  - 'description': The main teaching content, ideally 2-4 engaging sentences that can be split for sequential display. Make it conversational and clear.
+  - 'iconName': Choose ONE relevant icon name from this list: ${iconHints.join(", ")}. Pick 'Brain' or 'Sparkles' if unsure.
+  - 'colorThemeHint': Choose ONE theme hint from this list: ${colorThemeHints.join(", ")}. Pick 'general' if unsure.
+  - 'isLastTeachingStep': Set to true ONLY if all key concepts from "{{{documentName}}}" are covered and this is the final teaching scene. If so, title/description should be a wrap-up.
   Focus on the next logical piece of information based on 'currentLearningContext'. If 'currentLearningContext' is "Start of session", provide an engaging introduction to "{{{documentName}}}".
+  If continuing after a user question was answered, provide a smooth transition back to the teaching material, e.g., "Great question! Now, let's get back to..." or "To pick up where we left off...".
+  If the user chose to "Continue Learning" (skipping a quiz), use varied transitional phrases like "Alright, moving on to...", "Next, we'll explore...", or "Let's continue our journey with...".
 {{/if}}
 
 {{#if interactionMode_is_generate_quiz}}
@@ -152,10 +163,19 @@ Your Task:
 
 {{#if interactionMode_is_evaluate_answer}}
   Respond with 'mode: "feedback"'.
-  The user answered: "{{{userQuizAnswer}}}" for the question: "{{{quizQuestionContext}}}".
+  The user answered: "{{{userQueryOrAnswer}}}" for the question: "{{{quizQuestionContext}}}".
   Generate a 'feedback' object:
-  - 'text': Provide encouraging feedback. If correct, affirm it. If incorrect, gently correct and briefly re-iterate the core concept from the 'quizQuestionContext' or why the chosen answer was not best.
-  - 'isCorrect': Boolean, true if 'userQuizAnswer' corresponds to the correct concept in 'quizQuestionContext'. You'll need to infer this based on the question and typical right/wrong answers.
+  - 'text': Provide encouraging feedback. If correct, affirm it enthusiastically. If incorrect, gently correct and provide an inspired re-explanation of the core concept from the 'quizQuestionContext' or why the chosen answer was not best. Avoid simply saying "Incorrect."
+  - 'isCorrect': Boolean, true if 'userQueryOrAnswer' corresponds to the correct concept in 'quizQuestionContext'. You'll need to infer this based on the question and typical right/wrong answers.
+{{/if}}
+
+{{#if interactionMode_is_answer_query}}
+  Respond with 'mode: "answer_query"'.
+  The user asked: "{{{userQueryOrAnswer}}}" during a presentation about: "{{{currentLearningContext}}}".
+  Generate an 'aiQueryResponseText':
+  - A concise, clear, and helpful answer to the user's question, using the document context and the 'currentLearningContext' of the presentation as primary sources.
+  - Keep the answer focused and directly relevant to the user's query.
+  - After answering, you don't need to add a transition phrase here; the UI will handle resuming the presentation.
 {{/if}}
 
 General Rules:
@@ -170,7 +190,7 @@ General Rules:
 const interactiveTutorFlow = ai.defineFlow(
   {
     name: 'interactiveDynamicTutorFlowFinal',
-    inputSchema: InteractiveTutorInputSchema, // Original input schema for the flow
+    inputSchema: InteractiveTutorInputSchema, 
     outputSchema: InteractiveTutorOutputSchema,
   },
   async (input) => {
@@ -187,12 +207,12 @@ const interactiveTutorFlow = ai.defineFlow(
       };
     }
     
-    // Augment input for the prompt
     const promptInput = {
         ...input,
         interactionMode_is_teach: input.interactionMode === "teach",
         interactionMode_is_generate_quiz: input.interactionMode === "generate_quiz",
         interactionMode_is_evaluate_answer: input.interactionMode === "evaluate_answer",
+        interactionMode_is_answer_query: input.interactionMode === "answer_query",
     };
 
     const {output} = await prompt(promptInput);
@@ -202,7 +222,6 @@ const interactiveTutorFlow = ai.defineFlow(
         throw new Error("AI tutor did not generate a valid step. The AI's response was empty.");
     }
     
-    // Basic validation/fallback for teachingScene if mode is teach but content is missing
     if (output.mode === "teach" && !output.teachingScene) {
         console.warn("AI responded with 'teach' mode but missing teachingScene. Providing fallback.");
         output.teachingScene = {
@@ -213,7 +232,6 @@ const interactiveTutorFlow = ai.defineFlow(
             isLastTeachingStep: false,
         };
     }
-     // Basic validation for quiz
     if (output.mode === "quiz" && output.quiz) {
         if (!output.quiz.options || output.quiz.options.length < 3 || output.quiz.answerIndex === undefined || output.quiz.answerIndex >= output.quiz.options.length) {
             console.warn("AI generated an invalid or incomplete quiz. Providing fallback quiz.");
@@ -225,14 +243,18 @@ const interactiveTutorFlow = ai.defineFlow(
             };
         }
     }
-    // Basic validation for feedback
-     if (output.mode === "feedback" && !output.feedback) {
+    if (output.mode === "feedback" && !output.feedback) {
         console.warn("AI responded with 'feedback' mode but missing feedback object. Providing fallback.");
         output.feedback = {
             text: "Thanks for your answer! Let's continue our learning journey.",
             isCorrect: true, 
         };
     }
+     if (output.mode === "answer_query" && !output.aiQueryResponseText) {
+        console.warn("AI responded with 'answer_query' mode but missing aiQueryResponseText. Providing fallback.");
+        output.aiQueryResponseText = "I'm sorry, I couldn't quite understand that question in this context. Could you try rephrasing it?";
+    }
     return output;
   }
 );
+

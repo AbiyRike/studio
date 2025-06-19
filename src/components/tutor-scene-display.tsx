@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from 'react';
@@ -10,39 +11,51 @@ import { cn } from '@/lib/utils';
 
 export interface TutorSceneData {
   title: string;
-  description: string; // Can be multi-line, will be split for TTS
-  iconName: string; // e.g., "Sparkles", "Brain"
-  bgColorClass: string; // Tailwind CSS class, e.g., "bg-sky-600"
-  textColorClass: string; // Tailwind CSS class, e.g., "text-sky-100"
-  id: string; // Unique ID for the scene, for keying animations
+  description: string; 
+  iconName: string; 
+  bgColorClass: string; 
+  textColorClass: string; 
+  id: string; 
 }
 
 interface TutorSceneDisplayProps {
   scene: TutorSceneData | null;
   isTtsMuted: boolean;
-  onSpeechEnd?: () => void; // Callback when all speech for the current scene ends
+  isPaused: boolean; // New prop
+  onSpeechEnd?: (isCompleted: boolean) => void; // Callback when all speech for the current scene ends, or if paused
+  key: string | number; // Ensure component re-mounts or re-keys properly for new scenes
 }
 
 const iconMap: { [key: string]: React.ComponentType<LucideProps> } = {
   Sparkles, Lightbulb, Zap, BookOpen, Brain, Palette, FileText, DatabaseZap, Edit3, Layers, GraduationCap, MessageCircleQuestion, Code2, AlertCircle, HelpCircle, CheckCircle, XCircle, DivideCircle,
-  Default: Sparkles, // Fallback icon
+  Default: Sparkles, 
 };
 
 export const TutorSceneDisplay: React.FC<TutorSceneDisplayProps> = ({
   scene,
   isTtsMuted,
+  isPaused, // Consuming new prop
   onSpeechEnd,
+  key,
 }) => {
   const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
   const currentSegmentIndexRef = useRef(0);
   const segmentsRef = useRef<string[]>([]);
   const [isMounted, setIsMounted] = useState(false);
-  const [displayText, setDisplayText] = useState(""); // For animating text display
+  const [displayText, setDisplayText] = useState(""); 
+  const sceneIdRef = useRef<string | null>(null); // To track current scene for callbacks
 
   useEffect(() => {
     setIsMounted(true);
     if (typeof window !== 'undefined' && window.speechSynthesis) {
-      window.speechSynthesis.getVoices(); // Preload voices
+      window.speechSynthesis.getVoices(); 
+      // Initial cleanup in case of fast re-mounts
+      window.speechSynthesis.cancel();
+      if (utteranceRef.current) {
+          utteranceRef.current.onend = null;
+          utteranceRef.current.onerror = null;
+          utteranceRef.current = null;
+      }
     }
     return () => {
       setIsMounted(false);
@@ -58,32 +71,53 @@ export const TutorSceneDisplay: React.FC<TutorSceneDisplayProps> = ({
   }, []);
 
   const speakNextSegment = useCallback(() => {
-    if (!isMounted || !scene || currentSegmentIndexRef.current >= segmentsRef.current.length) {
-      if (isMounted && scene) onSpeechEnd?.(); // All segments spoken
+    if (!isMounted || !scene || sceneIdRef.current !== scene.id) {
+        // Scene changed or component unmounted, stop processing
+        if (isMounted && utteranceRef.current) window.speechSynthesis.cancel();
+        return;
+    }
+    
+    if (isPaused) {
+        if (typeof window !== 'undefined' && window.speechSynthesis.speaking) {
+            window.speechSynthesis.pause();
+        }
+        // Don't advance segments if paused
+        return;
+    } else {
+         if (typeof window !== 'undefined' && window.speechSynthesis.paused) {
+            window.speechSynthesis.resume();
+            // If it was paused mid-segment, let it finish
+            // If it was paused between segments, it will pick up here
+        }
+    }
+
+    if (currentSegmentIndexRef.current >= segmentsRef.current.length) {
+      onSpeechEnd?.(true); // All segments spoken for this scene
       return;
     }
 
     const segmentToSpeak = segmentsRef.current[currentSegmentIndexRef.current];
-    setDisplayText(segmentsRef.current.slice(0, currentSegmentIndexRef.current + 1).join(" "));
+    // Accumulate display text
+    setDisplayText(prev => prev + (prev ? " " : "") + segmentToSpeak);
 
 
     if (isTtsMuted || typeof window === 'undefined' || !window.speechSynthesis) {
-      // Simulate speech duration for visual flow if TTS is muted
-      const simulatedDuration = segmentToSpeak.length * 40; // Adjusted timing
+      const simulatedDuration = segmentToSpeak.length * 50; 
       setTimeout(() => {
-        if (isMounted) {
+        if (isMounted && sceneIdRef.current === scene.id && !isPaused) { 
             currentSegmentIndexRef.current++;
             speakNextSegment();
         }
       }, simulatedDuration);
       return;
     }
-
+    
+    // Ensure any previous utterance's handlers are cleared before starting a new one
     if (utteranceRef.current && utteranceRef.current.onend) {
-      utteranceRef.current.onend = null;
-      utteranceRef.current.onerror = null;
+        utteranceRef.current.onend = null; 
+        utteranceRef.current.onerror = null;
     }
-    window.speechSynthesis.cancel();
+    window.speechSynthesis.cancel(); // Cancel any currently speaking/pending utterance
 
     const newUtterance = new SpeechSynthesisUtterance(segmentToSpeak);
     newUtterance.lang = 'en-US';
@@ -98,47 +132,77 @@ export const TutorSceneDisplay: React.FC<TutorSceneDisplayProps> = ({
     utteranceRef.current = newUtterance;
 
     newUtterance.onend = () => {
-      if (isMounted && utteranceRef.current === newUtterance) {
+      if (isMounted && utteranceRef.current === newUtterance && sceneIdRef.current === scene.id && !isPaused) {
         utteranceRef.current = null;
         currentSegmentIndexRef.current++;
         speakNextSegment();
       }
     };
     newUtterance.onerror = (event) => {
-      if (isMounted && utteranceRef.current === newUtterance) {
+      if (isMounted && utteranceRef.current === newUtterance && sceneIdRef.current === scene.id && !isPaused) {
         console.error('Speech synthesis error:', event.error);
         utteranceRef.current = null;
-        currentSegmentIndexRef.current++; // Still advance to not get stuck
+        currentSegmentIndexRef.current++; 
         speakNextSegment();
       }
     };
     window.speechSynthesis.speak(newUtterance);
-  }, [isMounted, scene, isTtsMuted, onSpeechEnd]);
+  }, [isMounted, scene, isTtsMuted, onSpeechEnd, isPaused]);
 
   useEffect(() => {
     if (isMounted && scene) {
-      // Prepare segments for speech and display
-      segmentsRef.current = [scene.title, ...scene.description.split(/[.!?]+\s/).filter(s => s.trim().length > 0)];
+      sceneIdRef.current = scene.id; // Track the ID of the current scene
+      // Split title and description into segments
+      const titleSegment = scene.title ? [scene.title] : [];
+      const descriptionSegments = scene.description ? scene.description.split(/[.!?]+\s(?![a-z])/) // Split by sentence enders, but not for e.g. in "Mr. Know"
+                                      .map(s => s.trim()).filter(s => s.length > 0) : [];
+      segmentsRef.current = [...titleSegment, ...descriptionSegments];
       currentSegmentIndexRef.current = 0;
-      setDisplayText(""); // Reset display text for new scene
+      setDisplayText(""); 
 
-      // Cancel any ongoing speech from previous scene
       if (typeof window !== 'undefined' && window.speechSynthesis) {
         window.speechSynthesis.cancel();
          if (utteranceRef.current) {
-          utteranceRef.current.onend = null; // Important to clear old handlers
+          utteranceRef.current.onend = null; 
           utteranceRef.current.onerror = null;
+          utteranceRef.current = null;
         }
       }
       // Delay slightly to allow DOM to update with new scene key before starting speech
-      setTimeout(() => {
-        if (isMounted && scene) { // Check again if scene is still current
+      const startTimer = setTimeout(() => {
+        if (isMounted && scene && sceneIdRef.current === scene.id && !isPaused) { 
              speakNextSegment();
         }
-      }, 100); // Short delay
+      }, 150); 
+      return () => clearTimeout(startTimer);
+    } else if (!scene && isMounted) {
+        // If scene becomes null, cancel any speech
+        if (typeof window !== 'undefined' && window.speechSynthesis) {
+            window.speechSynthesis.cancel();
+        }
+        sceneIdRef.current = null;
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [scene, isMounted]); // speakNextSegment is memoized but its internals depend on scene.
+  }, [scene, isMounted]); // Removed speakNextSegment to avoid loop, it's stable due to useCallback
+  
+  // Effect to handle pause/resume
+  useEffect(() => {
+      if (!isMounted || !scene || sceneIdRef.current !== scene.id) return;
+
+      if (isPaused) {
+          if (typeof window !== 'undefined' && window.speechSynthesis.speaking) {
+              window.speechSynthesis.pause();
+          }
+      } else { // Resuming
+          if (typeof window !== 'undefined' && window.speechSynthesis.paused) {
+              window.speechSynthesis.resume();
+          } else if (typeof window !== 'undefined' && !window.speechSynthesis.speaking && currentSegmentIndexRef.current < segmentsRef.current.length) {
+              // If it was paused between segments, or if speech ended while paused, restart current/next segment
+              speakNextSegment();
+          }
+      }
+  }, [isPaused, isMounted, scene, speakNextSegment]);
+
 
   if (!scene) {
     return (
@@ -152,10 +216,10 @@ export const TutorSceneDisplay: React.FC<TutorSceneDisplayProps> = ({
 
   return (
     <motion.div
-      key={scene.id} // Animate presence based on scene ID
-      initial={{ opacity: 0, scale: 0.9, x: 100 }}
-      animate={{ opacity: 1, scale: 1, x: 0 }}
-      exit={{ opacity: 0, scale: 0.9, x: -100 }}
+      key={key} 
+      initial={{ opacity: 0, scale: 0.9, y: 50 }}
+      animate={{ opacity: 1, scale: 1, y: 0 }}
+      exit={{ opacity: 0, scale: 0.9, y: -50 }}
       transition={{ duration: 0.7, ease: [0.42, 0, 0.58, 1] }}
       className={cn(
         "w-full h-full rounded-xl shadow-2xl flex flex-col items-center justify-center p-4 md:p-8 text-center overflow-hidden",
@@ -187,14 +251,14 @@ export const TutorSceneDisplay: React.FC<TutorSceneDisplayProps> = ({
         animate={{ y: 0, opacity: 1 }}
         transition={{ delay: 0.6, duration: 0.6, ease: "easeOut" }}
       >
-        {/* Display progressively revealed text */}
         <AnimatePresence mode="wait">
           <motion.p
-            key={displayText} // Re-animate when displayText changes
-            initial={{ opacity: 0 }}
+            key={displayText} 
+            initial={{ opacity: 0.7 }} // Start slightly visible to avoid harsh pop
             animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
+            exit={{ opacity: 0.7 }}
             transition={{ duration: 0.3 }}
+            className="whitespace-pre-line" // Allow newlines in description to render
           >
             {displayText || "..."}
           </motion.p>
@@ -203,3 +267,4 @@ export const TutorSceneDisplay: React.FC<TutorSceneDisplayProps> = ({
     </motion.div>
   );
 };
+

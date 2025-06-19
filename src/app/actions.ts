@@ -1,8 +1,9 @@
+
 "use server";
 
 import { summarizeDocument } from "@/ai/flows/summarize-document";
 import { generateQuestions, type GenerateQuestionsInput as AIQuestionsInput } from "@/ai/flows/generate-questions";
-import { generateFlashcards as generateFlashcardsFlowInternal, type GenerateFlashcardsInput as AIGenerateFlashcardsInput } from "@/ai/flows/generate-flashcards"; // Renamed internal flow
+import { generateFlashcards as generateFlashcardsFlowInternal, type GenerateFlashcardsInput as AIGenerateFlashcardsInput } from "@/ai/flows/generate-flashcards"; 
 // Updated import for the dynamic tutor flow
 import { getNextInteractiveTutorStep as getNextDynamicTutorStepFlow, type InteractiveTutorInput as DynamicTutorInput, type InteractiveTutorOutput as DynamicTutorOutput } from "@/ai/flows/interactive-tutor-flow"; 
 
@@ -357,7 +358,7 @@ export type { AppFlashcard };
 
 export interface FlashcardSessionData {
   documentName: string;
-  flashcards: AppFlashcard[]; 
+  flashcards: AppFlashcard[];
   documentContent: string; 
   mediaDataUri?: string;   
 }
@@ -470,7 +471,7 @@ export async function generateMoreFlashcards(
 }
 
 
-// ---- Dynamic Interactive Tutor Actions (Replaces Tavus Tutor) ----
+// ---- Dynamic Interactive Tutor Actions ----
 export async function startDynamicTutorSession( 
   kbItem: KnowledgeBaseItem
 ): Promise<ActiveDynamicTutorSessionData | { error: string }> {
@@ -479,7 +480,6 @@ export async function startDynamicTutorSession(
       return { error: "Knowledge base item is missing content. Cannot start dynamic tutor session." };
     }
     
-    // Fetch the first teaching step
     const firstStepInput: DynamicTutorInput = {
         documentName: kbItem.documentName,
         documentContent: kbItem.documentContent || "",
@@ -511,7 +511,9 @@ export async function startDynamicTutorSession(
       quizFeedback: null,
       currentMode: "teaching",
       isTtsMuted: false,
-      cumulativeLearningContext: firstStepData.teachingScene.title, // Initialize with first title
+      cumulativeLearningContext: `Topic: ${firstStepData.teachingScene.title}. Initial content: ${firstStepData.teachingScene.description.substring(0,150)}...`, 
+      userQuestionsHistory: [],
+      //presentationStateBeforeQuery: null, // Initialize this for the new interruptible feature
     };
     return sessionData;
 
@@ -530,20 +532,28 @@ export async function startDynamicTutorSession(
 
 export interface GetNextDynamicTutorResponseInput {
     currentSessionData: ActiveDynamicTutorSessionData;
-    interactionMode: "teach" | "generate_quiz" | "evaluate_answer";
-    userQuizAnswer?: string; // Text of the user's selected option
-    // quizQuestionContext is now derived from currentSessionData.currentQuizData.question
+    interactionMode: "teach" | "generate_quiz" | "evaluate_answer" | "answer_query";
+    userQueryOrAnswer?: string; 
 }
 
 export async function getNextDynamicTutorResponse(
   input: GetNextDynamicTutorResponseInput
 ): Promise<DynamicTutorOutput | { error: string }> {
   try {
-    const { currentSessionData, interactionMode, userQuizAnswer } = input;
+    const { currentSessionData, interactionMode, userQueryOrAnswer } = input;
 
     let learningContext = currentSessionData.cumulativeLearningContext || "General knowledge about " + currentSessionData.documentName;
+    
     if (interactionMode === "generate_quiz" && currentSessionData.currentTeachingScene) {
-        learningContext = `Based on the topic: "${currentSessionData.currentTeachingScene.title}", which explained: "${currentSessionData.currentTeachingScene.description.substring(0, 200)}..."`;
+        learningContext = `Based on the topic: "${currentSessionData.currentTeachingScene.title}", which explained: "${currentSessionData.currentTeachingScene.description.substring(0, 250)}..."`;
+    } else if (interactionMode === "answer_query" && currentSessionData.currentTeachingScene) {
+        // For answering a query, the context is the specific scene the user was viewing
+        learningContext = `The user is currently viewing a presentation slide titled "${currentSessionData.currentTeachingScene.title}" with the content: "${currentSessionData.currentTeachingScene.description.substring(0,300)}...". They have the following question related to this or the broader topic of ${currentSessionData.documentName}.`;
+    } else if (interactionMode === "teach" && currentSessionData.userQuestionsHistory && currentSessionData.userQuestionsHistory.length > 0) {
+        const lastQuestion = currentSessionData.userQuestionsHistory[currentSessionData.userQuestionsHistory.length-1];
+        if (lastQuestion.interactionMode === "answer_query") {
+            learningContext += `\nPreviously, the user asked: "${lastQuestion.userQueryOrAnswer}" and you responded. Now continue the presentation.`;
+        }
     }
     
     let questionContextForEval: string | undefined = undefined;
@@ -551,14 +561,13 @@ export async function getNextDynamicTutorResponse(
         questionContextForEval = currentSessionData.currentQuizData.question;
     }
 
-
     const aiInput: DynamicTutorInput = {
         documentName: currentSessionData.documentName,
         documentContent: currentSessionData.documentContent,
         photoDataUri: currentSessionData.mediaDataUri,
         currentLearningContext: learningContext,
         interactionMode: interactionMode,
-        userQuizAnswer: userQuizAnswer,
+        userQueryOrAnswer: userQueryOrAnswer,
         quizQuestionContext: questionContextForEval,
     };
 
@@ -566,7 +575,6 @@ export async function getNextDynamicTutorResponse(
     
     if ('error' in result) return result;
     
-    // Basic validation of AI output based on expected mode
     if (result.mode === "teach" && !result.teachingScene) {
         return { error: "The AI tutor an incomplete teaching response. Please try again." };
     }
@@ -575,6 +583,9 @@ export async function getNextDynamicTutorResponse(
     }
     if (result.mode === "feedback" && !result.feedback) {
         return { error: "The AI tutor an incomplete feedback response. Please try again." };
+    }
+    if (result.mode === "answer_query" && !result.aiQueryResponseText) {
+        return { error: "The AI tutor failed to provide an answer to your query. Please try rephrasing." };
     }
     return result;
 
@@ -924,3 +935,4 @@ export async function fetchCodeFromUrlAction(url: string): Promise<{ code: strin
     return { error: `Could not fetch code: ${errorMessage}` };
   }
 }
+
