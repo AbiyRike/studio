@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardFooter, CardDescription }
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Textarea } from '@/components/ui/textarea';
-import { getActiveDynamicTutorSession, setActiveDynamicTutorSession, type ActiveDynamicTutorSessionData, type TeachingSceneSchema, type QuizSchema, type FeedbackSchema } from '@/lib/session-store';
+import { getActiveDynamicTutorSession, setActiveDynamicTutorSession, type ActiveDynamicTutorSessionData, type TeachingSceneSchema } from '@/lib/session-store';
 import { getNextDynamicTutorResponse, type GetNextDynamicTutorResponseInput } from '@/app/actions'; 
 import { useToast } from "@/hooks/use-toast";
 import { AlertTriangle, Sparkles, Loader2, ArrowLeft, Home, Volume2, VolumeX, HelpCircle, CheckCircle, XCircle, Brain, Send, MessageSquare } from 'lucide-react';
@@ -59,6 +59,7 @@ const ConfettiPiece = ({ x, y, rotate, color } : {x: number, y:number, rotate: n
       height: '16px',
       backgroundColor: color,
       rotate: `${rotate}deg`,
+      zIndex: 1000, // Ensure confetti is on top
     }}
     initial={{ opacity: 1, y: 0, scale: 1 }}
     animate={{ opacity: 0, y: 100 + Math.random() * 100, scale: 0.5, transition: { duration: 1.5 + Math.random() * 1, ease: "easeOut" } }}
@@ -70,13 +71,13 @@ const ConfettiAnimation = ({ onComplete }: { onComplete: () => void }) => {
   const pieces = Array.from({ length: 50 }).map((_, i) => ({
     id: i,
     x: Math.random() * 100,
-    y: -10 - Math.random() * 20, // Start above the screen
+    y: -10 - Math.random() * 20,
     rotate: Math.random() * 360,
     color: colors[Math.floor(Math.random() * colors.length)],
   }));
 
   useEffect(() => {
-    const timer = setTimeout(onComplete, 3000); // Duration of confetti
+    const timer = setTimeout(onComplete, 3000);
     return () => clearTimeout(timer);
   }, [onComplete]);
 
@@ -102,7 +103,7 @@ export default function DynamicInteractiveTutorSessionPage() {
   const [currentAiQueryResponse, setCurrentAiQueryResponse] = useState<string | null>(null);
   const [showConfetti, setShowConfetti] = useState(false);
   const [lastTeachingSceneBeforeQuery, setLastTeachingSceneBeforeQuery] = useState<TeachingSceneSchema | null>(null);
-  const tutorSceneDisplayKeyRef = useRef(Date.now()); // For forcing re-render of TutorSceneDisplay
+  const tutorSceneDisplayKeyRef = useRef(Date.now());
 
   useEffect(() => {
     const data = getActiveDynamicTutorSession();
@@ -127,30 +128,31 @@ export default function DynamicInteractiveTutorSessionPage() {
       router.push('/interactive-tutor/select');
     }
     setIsLoadingPage(false);
-  }, []);
+  }, []); // Removed router and toast from dependencies as they are stable
 
 
   const updateSessionState = (newPartialData: Partial<ActiveDynamicTutorSessionData>, newSceneData?: TeachingSceneSchema | null) => {
     setSessionData(prevData => {
-      if (!prevData && !newPartialData.id) { // Ensure id is set on initial load
+      let baseData = prevData;
+      if (!baseData && !newPartialData.id) {
          const initialId = generateId();
-         prevData = {
+         baseData = {
             id: `dyn_${initialId}`,
             kbItemId: "", documentName: "", documentContent: "",
             currentTeachingScene: null, currentQuizData: null, quizFeedback: null,
             currentMode: "loading_teach", isTtsMuted: false, cumulativeLearningContext: "Start of session",
+            userQuestionsHistory: [],
          };
       }
 
       const sceneToUpdateWith = newSceneData !== undefined ? newSceneData : newPartialData.currentTeachingScene;
-      
-      const updatedData = { ...(prevData as ActiveDynamicTutorSessionData), ...newPartialData };
+      const updatedData = { ...(baseData as ActiveDynamicTutorSessionData), ...newPartialData };
       setActiveDynamicTutorSession(updatedData);
 
       if (sceneToUpdateWith) {
         const scene = sceneToUpdateWith;
         const colors = themeToColorClasses(scene.colorThemeHint);
-        tutorSceneDisplayKeyRef.current = Date.now(); // Force re-key for TutorSceneDisplay
+        tutorSceneDisplayKeyRef.current = Date.now();
         setDisplayScene({
             id: updatedData.id + (scene.title || 'scene') + Date.now(),
             title: scene.title,
@@ -170,7 +172,7 @@ export default function DynamicInteractiveTutorSessionPage() {
         mode: "teach" | "generate_quiz" | "evaluate_answer" | "answer_query", 
         userQueryOrAnswerText?: string
     ) => {
-    if (!sessionData && mode !== "teach") { // Allow initial teach call even if sessionData is brief
+    if (!sessionData && mode !== "teach") {
          console.warn("handleAiInteraction called without sessionData for mode:", mode);
          return;
     }
@@ -178,20 +180,19 @@ export default function DynamicInteractiveTutorSessionPage() {
     let loadingMode: ActiveDynamicTutorSessionData['currentMode'] = "loading_teach";
     if (mode === "generate_quiz") loadingMode = "loading_quiz";
     else if (mode === "evaluate_answer") loadingMode = "loading_feedback";
-    else if (mode === "answer_query") loadingMode = "loading_query_answer"; // New loading state
+    else if (mode === "answer_query") loadingMode = "loading_query_answer";
     
-    // Preserve current scene if answering query, otherwise clear for quiz/feedback
     const sceneToKeep = (mode === "answer_query" || mode === "loading_query_answer") ? sessionData?.currentTeachingScene : null;
 
     updateSessionState({ currentMode: loadingMode, quizFeedback: null, currentQuizData: mode === "generate_quiz" ? sessionData?.currentQuizData : null, currentTeachingScene: sceneToKeep });
     setCurrentQuizSelection(null);
-    setCurrentAiQueryResponse(null); // Clear previous query response
+    setCurrentAiQueryResponse(null);
 
     const inputForAi: GetNextDynamicTutorResponseInput = {
-        currentSessionData: sessionData || { // Provide a minimal valid session if it's null (e.g. initial call)
+        currentSessionData: sessionData || { 
             id: `dyn_init_${generateId()}`, kbItemId: "", documentName: "Starting Session", documentContent: "",
             currentTeachingScene: null, currentQuizData: null, quizFeedback: null,
-            currentMode: "loading_teach", isTtsMuted: false, cumulativeLearningContext: "Start of session",
+            currentMode: "loading_teach", isTtsMuted: false, cumulativeLearningContext: "Start of session", userQuestionsHistory: []
         },
         interactionMode: mode,
         userQueryOrAnswer: userQueryOrAnswerText,
@@ -212,7 +213,7 @@ export default function DynamicInteractiveTutorSessionPage() {
           quizFeedback: null,    
         });
       } else if (response.mode === "quiz" && response.quiz) {
-        updateSessionState({ currentQuizData: response.quiz, currentMode: "quizzing", quizFeedback: null, currentTeachingScene: null }); // Clear scene for quiz
+        updateSessionState({ currentQuizData: response.quiz, currentMode: "quizzing", quizFeedback: null, currentTeachingScene: null });
       } else if (response.mode === "feedback" && response.feedback) {
         updateSessionState({ quizFeedback: response.feedback, currentMode: "feedback", currentQuizData: null, currentTeachingScene: sessionData?.currentTeachingScene || null });
         if (response.feedback.isCorrect) {
@@ -220,42 +221,38 @@ export default function DynamicInteractiveTutorSessionPage() {
         }
       } else if (response.mode === "answer_query" && response.aiQueryResponseText) {
           setCurrentAiQueryResponse(response.aiQueryResponseText);
-          updateSessionState({ currentMode: "answered_query", currentTeachingScene: lastTeachingSceneBeforeQuery }); // Restore scene view
-      }
-       else {
+          updateSessionState({ currentMode: "answered_query", currentTeachingScene: lastTeachingSceneBeforeQuery });
+      } else {
          toast({ title: "Tutor Error", description: "Received an unexpected response from the tutor.", variant: "destructive" });
-         updateSessionState({ currentMode: "teaching"}); // Default back to teaching if unexpected
+         updateSessionState({ currentMode: "teaching"});
       }
     }
-  }, [sessionData, toast, lastTeachingSceneBeforeQuery]);
+  }, [sessionData, toast, lastTeachingSceneBeforeQuery]); // Removed updateSessionState from dependencies
 
   const handleAskQuestion = () => {
     if (!userQueryInputValue.trim() || !sessionData) return;
     setIsPresentationPaused(true);
-    setLastTeachingSceneBeforeQuery(sessionData.currentTeachingScene); // Save current scene
+    setLastTeachingSceneBeforeQuery(sessionData.currentTeachingScene);
     handleAiInteraction("answer_query", userQueryInputValue);
     setUserQueryInputValue("");
   };
 
   const handleResumePresentation = () => {
-    setCurrentAiQueryResponse(null); // Clear AI's answer
+    setCurrentAiQueryResponse(null);
     setIsPresentationPaused(false);
-    // The TutorSceneDisplay should ideally resume from its last segment using its internal state or a prop
-    // For now, re-triggering the current scene for display
     if (lastTeachingSceneBeforeQuery) {
         updateSessionState({ currentMode: "teaching", currentTeachingScene: lastTeachingSceneBeforeQuery});
     } else if (sessionData?.currentTeachingScene) {
         updateSessionState({ currentMode: "teaching", currentTeachingScene: sessionData.currentTeachingScene});
-    } else { // If no scene to resume, fetch a new one
+    } else {
         handleAiInteraction("teach");
     }
     setLastTeachingSceneBeforeQuery(null);
   };
   
-
   const handleQuizMe = () => {
     if (sessionData && sessionData.currentTeachingScene) {
-      setIsPresentationPaused(true); // Pause scene if QuizMe is hit
+      setIsPresentationPaused(true);
       handleAiInteraction("generate_quiz");
     }
   };
@@ -267,8 +264,8 @@ export default function DynamicInteractiveTutorSessionPage() {
   };
 
   const handleContinueLearning = () => {
-    setIsPresentationPaused(false); // Unpause before continuing
-    setCurrentAiQueryResponse(null); // Clear any query answer
+    setIsPresentationPaused(false);
+    setCurrentAiQueryResponse(null);
     if (sessionData?.currentTeachingScene?.isLastTeachingStep && sessionData.currentMode !== "quizzing") {
         updateSessionState({ currentMode: "finished" });
         toast({ title: "Topic Complete!", description: `You've finished learning about ${sessionData.documentName}.`, duration: 5000});
@@ -292,7 +289,7 @@ export default function DynamicInteractiveTutorSessionPage() {
   if (isLoadingPage || (!sessionData && !initialLoadAttemptedRef.current)) {
     return (
       <ClientAuthGuard>
-        <div className="container mx-auto py-8 flex justify-center items-center h-full">
+        <div className="container mx-auto py-8 flex justify-center items-center min-h-[80vh]">
           <Loader2 className="h-12 w-12 animate-spin text-primary" />
         </div>
       </ClientAuthGuard>
@@ -305,31 +302,32 @@ export default function DynamicInteractiveTutorSessionPage() {
   return (
     <ClientAuthGuard>
       {showConfetti && <ConfettiAnimation onComplete={() => setShowConfetti(false)} />}
-      <div className="container mx-auto py-4 flex flex-col h-[calc(100vh-6rem)] space-y-4">
-        <Card className="w-full max-w-4xl mx-auto shadow-xl flex-shrink-0">
-          <CardHeader className="text-center pb-4 pt-5">
+      <div className="container mx-auto py-4 md:py-8"> {/* Removed fixed height, page will scroll */}
+        <Card className="w-full max-w-4xl mx-auto shadow-2xl flex flex-col"> {/* Single presentation box */}
+          <CardHeader className="text-center pb-4 pt-5 border-b">
             <Sparkles className="mx-auto h-10 w-10 text-primary mb-1" />
             <CardTitle className="text-2xl md:text-3xl font-headline">Interactive Tutor</CardTitle>
             {documentName && <CardDescription className="text-sm md:text-base">Topic: {documentName}</CardDescription>}
           </CardHeader>
-        </Card>
 
-        <div className="flex-grow w-full max-w-4xl mx-auto flex flex-col min-h-0 overflow-y-auto space-y-4 rounded-lg p-2 bg-muted/20 shadow-inner">
-            <div className="w-full flex-shrink-0 min-h-[50vh] md:min-h-[60vh] relative">
+          <CardContent className="p-3 sm:p-4 md:p-6 space-y-6 flex-grow"> {/* Main content area within the card */}
+            
+            {/* Tutor Scene Display Area */}
+            <div className="w-full min-h-[300px] md:min-h-[400px] lg:min-h-[45vh] relative bg-muted/30 rounded-xl p-2">
                  {(currentMode === "teaching" || currentMode === "answered_query" || currentMode === "feedback" || currentMode === "loading_teach") && displayScene ? (
                     <TutorSceneDisplay 
                         scene={displayScene} 
                         isTtsMuted={isTtsMuted || false} 
                         key={tutorSceneDisplayKeyRef.current} 
                         isPaused={isPresentationPaused}
-                        onSpeechEnd={() => { /* Can use for advancing if needed */ }}
+                        onSpeechEnd={() => { /* Callback for when scene speech ends */ }}
                      />
                 ) : isLoadingAi && (currentMode === "loading_teach" || (currentMode === "loading_feedback" && !displayScene)) ? (
-                     <div className="w-full h-full flex items-center justify-center bg-muted rounded-xl p-6"><Loader2 className="h-12 w-12 animate-spin text-primary" /></div>
+                     <div className="w-full h-full flex items-center justify-center rounded-xl p-6"><Loader2 className="h-12 w-12 animate-spin text-primary" /></div>
                 ) : null}
 
                  {(currentMode === "quizzing" || (isLoadingAi && currentMode === "loading_quiz")) && (
-                    <Card className="w-full h-full flex flex-col items-center justify-center p-4 md:p-6 shadow-lg bg-slate-700 text-slate-100 rounded-xl">
+                    <div className="w-full h-full flex flex-col items-center justify-center p-4 md:p-6 bg-slate-700 text-slate-100 rounded-xl">
                         {isLoadingAi && currentMode === "loading_quiz" && !currentQuizData && (
                              <Loader2 className="h-12 w-12 animate-spin text-primary" />
                         )}
@@ -347,32 +345,32 @@ export default function DynamicInteractiveTutorSessionPage() {
                                     ))}
                                 </RadioGroup>
                             </CardContent>
+                             <CardFooter className="pt-4 w-full max-w-md">
+                                <Button onClick={handleQuizSubmit} className="w-full text-lg py-3 shadow-md" disabled={currentQuizSelection === null || isLoadingAi}>
+                                    {isLoadingAi ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : null} Submit Answer
+                                </Button>
+                            </CardFooter>
                         </>
                         )}
-                    </Card>
+                    </div>
                  )}
             </div>
             
-            <div className="flex-shrink-0 space-y-3 p-1">
+            {/* Contextual Controls Area (Quiz Me, Continue Learning, Feedback, Query Input) */}
+            <div className="flex-shrink-0 space-y-4 p-1">
                 {isLoadingAi && (currentMode === "loading_teach" || currentMode === "loading_quiz" || currentMode === "loading_feedback" || currentMode === "loading_query_answer") && (
                      <div className="flex justify-center items-center py-4"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
                 )}
 
-                {!isLoadingAi && (currentMode === "teaching" || currentMode === "answered_query") && currentTeachingScene && !currentAiQueryResponse && (
+                {!isLoadingAi && (currentMode === "teaching" || currentMode === "answered_query") && currentTeachingScene && !currentAiQueryResponse && !isPresentationPaused && (
                     <div className="flex flex-col sm:flex-row gap-3">
-                        <Button onClick={handleQuizMe} className="flex-1 text-base py-2.5 shadow-md" disabled={currentTeachingScene.isLastTeachingStep || isPresentationPaused}>
+                        <Button onClick={handleQuizMe} className="flex-1 text-base py-2.5 shadow-md" disabled={currentTeachingScene.isLastTeachingStep}>
                             <Brain className="mr-2 h-5 w-5" /> Quiz Me On This!
                         </Button>
-                         <Button onClick={handleContinueLearning} variant="outline" className="flex-1 text-base py-2.5 shadow-md" disabled={isPresentationPaused}>
+                         <Button onClick={handleContinueLearning} variant="outline" className="flex-1 text-base py-2.5 shadow-md">
                             {currentTeachingScene.isLastTeachingStep ? "Finish Topic" : "Continue Learning"}
                         </Button>
                     </div>
-                )}
-
-                {!isLoadingAi && currentMode === "quizzing" && currentQuizData && (
-                    <Button onClick={handleQuizSubmit} className="w-full text-lg py-3 shadow-md" disabled={currentQuizSelection === null}>
-                        Submit Answer
-                    </Button>
                 )}
 
                 {!isLoadingAi && (currentMode === "feedback" || (currentMode === "answered_query" && currentAiQueryResponse)) && (
@@ -389,7 +387,7 @@ export default function DynamicInteractiveTutorSessionPage() {
                         )}>
                             {currentMode === "answered_query" ? "Study AI+ Responds:" : (quizFeedback?.isCorrect ? "Correct!" : "Not Quite!")}
                         </AlertTitle>
-                        <AlertDescription className={cn(
+                        <AlertDescription className={cn("whitespace-pre-line", // Allow newlines in AI response
                              currentMode === "answered_query" && "text-blue-600 dark:text-blue-400",
                              currentMode === "feedback" && (quizFeedback?.isCorrect ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400")
                         )}>
@@ -419,10 +417,10 @@ export default function DynamicInteractiveTutorSessionPage() {
                         {documentName && <AlertDescription className="text-green-600 dark:text-green-400">You've successfully completed this topic on {documentName}.</AlertDescription>}
                     </Alert>
                 )}
-                 {/* User Query Input - Visible during teaching or when AI has answered a query */}
+                
                 {!isLoadingAi && (currentMode === "teaching" || currentMode === "answered_query") && !isPresentationPaused && (
                 <div className="mt-4 space-y-2">
-                    <Label htmlFor="userQueryInput" className="text-sm font-medium">Have a question about this? Ask Study AI+:</Label>
+                    <Label htmlFor="userQueryInput" className="text-sm font-medium">Have a question? Ask Study AI+:</Label>
                     <div className="flex items-center space-x-2">
                     <Textarea
                         id="userQueryInput"
@@ -447,23 +445,26 @@ export default function DynamicInteractiveTutorSessionPage() {
                 </div>
                 )}
             </div>
-        </div>
+          </CardContent>
 
-        <div className="pt-3 border-t flex flex-col sm:flex-row items-center justify-between gap-3 w-full max-w-4xl mx-auto flex-shrink-0">
-            <div className="flex gap-3 w-full sm:w-auto">
-                <Button onClick={handleEndSession} variant="secondary" size="lg" className="flex-1 sm:flex-none shadow-md">
+          <CardFooter className="p-4 md:p-6 border-t flex flex-col space-y-4 items-center">
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-3 w-full">
+                <Button onClick={handleEndSession} variant="secondary" size="lg" className="w-full sm:w-auto shadow-md">
                     <ArrowLeft className="mr-2 h-5 w-5" /> End Session
                 </Button>
-                <Button onClick={() => router.push('/dashboard')} variant="default" size="lg" className="flex-1 sm:flex-none shadow-md">
+                <Button onClick={() => router.push('/dashboard')} variant="default" size="lg" className="w-full sm:w-auto shadow-md">
                     <Home className="mr-2 h-5 w-5" /> Dashboard
                 </Button>
             </div>
             <Button variant="outline" size="icon" onClick={toggleMute} title={isTtsMuted ? "Unmute TTS" : "Mute TTS"} className="shadow-md">
                 {isTtsMuted ? <VolumeX className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}
             </Button>
-        </div>
+        </CardFooter>
+        </Card>
       </div>
     </ClientAuthGuard>
   );
 }
 
+
+    
