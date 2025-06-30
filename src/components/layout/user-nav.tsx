@@ -15,15 +15,23 @@ import { LogOut, UserCircle, Settings } from "lucide-react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { useAuth } from "@/components/auth/auth-provider";
 
 export function UserNav() {
   const router = useRouter();
+  const { user, signOut } = useAuth();
   const [userName, setUserName] = useState("AI Learner");
   const [userEmail, setUserEmail] = useState("learner@example.com");
   const [userProfilePic, setUserProfilePic] = useState<string | null>(null);
 
-  const updateUserData = () => {
-    if (typeof window !== 'undefined') {
+  useEffect(() => {
+    if (user) {
+      // If user is authenticated with Supabase, use their profile data
+      setUserName(user.user_metadata?.name || user.email?.split('@')[0] || "AI Learner");
+      setUserEmail(user.email || "learner@example.com");
+      setUserProfilePic(user.user_metadata?.avatar_url || null);
+    } else if (typeof window !== 'undefined') {
+      // Fallback to localStorage for backward compatibility
       const storedName = localStorage.getItem("userName") || "AI Learner";
       setUserName(storedName);
       const storedEmail = localStorage.getItem("userEmail") || "learner@example.com";
@@ -31,34 +39,21 @@ export function UserNav() {
       const storedPic = localStorage.getItem("userProfilePic");
       setUserProfilePic(storedPic);
     }
-  };
+  }, [user]);
 
-  useEffect(() => {
-    updateUserData();
-    window.addEventListener('storage', updateUserData);
-    return () => {
-      window.removeEventListener('storage', updateUserData);
-    };
-  }, []);
-
-  const handleLogout = () => {
-     if (typeof window !== 'undefined') {
-      localStorage.removeItem("isLoggedIn");
-      localStorage.removeItem("userName");
-      localStorage.removeItem("userEmail");
-      localStorage.removeItem("userDepartment");
-      localStorage.removeItem("userInstitution");
-      localStorage.removeItem("userBirthday");
-      localStorage.removeItem("userProfilePic");
+  const handleLogout = async () => {
+    // Clear all session data
+    if (typeof window !== 'undefined') {
       localStorage.removeItem('activeTutorSession');
       localStorage.removeItem('activeFlashcardSession');
-      localStorage.removeItem('activeDynamicTutorSession'); // Updated
+      localStorage.removeItem('activeDynamicTutorSession');
       localStorage.removeItem('activeAskMrKnowSession');
       localStorage.removeItem('activeCodeTeachingSession');
       localStorage.removeItem('activeCodeWizSession');
-      window.dispatchEvent(new Event('storage')); 
     }
-    router.push("/"); 
+    
+    // Sign out from Supabase
+    await signOut();
   };
 
   return (

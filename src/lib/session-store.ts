@@ -2,7 +2,7 @@ import type { Question } from '@/app/actions';
 import type { Flashcard as AppFlashcard } from '@/ai/flows/generate-flashcards';
 // Import the *new* schema for teaching scene data for ActiveDynamicTutorSessionData
 import type { TeachingSceneSchema, QuizSchema, FeedbackSchema } from '@/ai/flows/interactive-tutor-flow';
-
+import { supabase } from '@/lib/supabase';
 
 // ---- Quiz Session (Old Tutor) ----
 export interface TutorSessionData {
@@ -51,7 +51,46 @@ export interface HistoryItem {
   completedAt: string; 
 }
 
-export const getLearningHistory = (): HistoryItem[] => {
+export const getLearningHistory = async (): Promise<HistoryItem[]> => {
+  if (typeof window === 'undefined') return [];
+  
+  // Try to get user from Supabase
+  const { data: { user } } = await supabase.auth.getUser();
+  
+  if (user) {
+    // User is authenticated, get history from Supabase
+    const { data, error } = await supabase
+      .from('learning_history')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('completed_at', { ascending: false });
+      
+    if (error) {
+      console.error("Error fetching learning history from Supabase", error);
+      // Fall back to localStorage
+      return getLocalLearningHistory();
+    }
+    
+    // Transform Supabase data to match HistoryItem interface
+    return data.map(item => ({
+      id: item.id,
+      documentName: item.document_name,
+      summary: item.summary,
+      questions: item.questions as Question[],
+      documentContent: item.document_content,
+      mediaDataUri: item.media_data_uri,
+      userAnswers: item.user_answers as (number | null)[],
+      score: item.score,
+      completedAt: item.completed_at
+    }));
+  } else {
+    // User is not authenticated, use localStorage
+    return getLocalLearningHistory();
+  }
+};
+
+// Get learning history from localStorage only
+const getLocalLearningHistory = (): HistoryItem[] => {
   if (typeof window === 'undefined') return [];
   const storedHistory = localStorage.getItem(HISTORY_STORAGE_KEY);
   try {
@@ -62,9 +101,44 @@ export const getLearningHistory = (): HistoryItem[] => {
   }
 };
 
-export const addToLearningHistory = (item: HistoryItem): void => {
+export const addToLearningHistory = async (item: HistoryItem): Promise<void> => {
   if (typeof window === 'undefined') return;
-  const history = getLearningHistory();
+  
+  // Try to get user from Supabase
+  const { data: { user } } = await supabase.auth.getUser();
+  
+  if (user) {
+    // User is authenticated, save to Supabase
+    const { error } = await supabase
+      .from('learning_history')
+      .upsert({
+        id: item.id,
+        user_id: user.id,
+        document_name: item.documentName,
+        summary: item.summary,
+        questions: item.questions,
+        document_content: item.documentContent,
+        media_data_uri: item.mediaDataUri,
+        user_answers: item.userAnswers,
+        score: item.score,
+        completed_at: item.completedAt
+      });
+      
+    if (error) {
+      console.error("Error saving learning history to Supabase", error);
+      // Fall back to localStorage
+      addToLocalLearningHistory(item);
+    }
+  } else {
+    // User is not authenticated, use localStorage
+    addToLocalLearningHistory(item);
+  }
+};
+
+// Add to learning history in localStorage only
+const addToLocalLearningHistory = (item: HistoryItem): void => {
+  if (typeof window === 'undefined') return;
+  const history = getLocalLearningHistory();
   const existingIndex = history.findIndex(h => h.id === item.id);
   if (existingIndex > -1) {
     history[existingIndex] = item; 
@@ -275,4 +349,3 @@ export const getActiveCodeWizSession = (): ActiveCodeWizSessionData | null => {
     return null;
   }
 };
-

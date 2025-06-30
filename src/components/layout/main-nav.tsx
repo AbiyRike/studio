@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import { LayoutDashboard, History, LogOut, Brain, DatabaseZap, Edit3, Layers, GraduationCap, MessageCircleQuestion, Code2, User, Briefcase, Video, FolderKanban, Library, Wand2, Sparkles } from "lucide-react"; 
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
+import { useAuth } from "@/components/auth/auth-provider";
 
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -26,26 +27,21 @@ const navItems = [
 export function MainNav() {
   const pathname = usePathname();
   const router = useRouter();
+  const { signOut } = useAuth();
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     if (typeof window !== 'undefined') {
-      localStorage.removeItem("isLoggedIn");
-      localStorage.removeItem("userName");
-      localStorage.removeItem("userEmail");
-      localStorage.removeItem("userDepartment");
-      localStorage.removeItem("userInstitution");
-      localStorage.removeItem("userBirthday");
-      localStorage.removeItem("userProfilePic");
-      // Clear all known active session keys
+      // Clear all session data
       localStorage.removeItem('activeTutorSession');
       localStorage.removeItem('activeFlashcardSession');
-      localStorage.removeItem('activeDynamicTutorSession'); // Updated
+      localStorage.removeItem('activeDynamicTutorSession');
       localStorage.removeItem('activeAskMrKnowSession');
       localStorage.removeItem('activeCodeTeachingSession');
       localStorage.removeItem('activeCodeWizSession');
-      window.dispatchEvent(new Event('storage')); 
     }
-    router.push("/"); 
+    
+    // Sign out from Supabase
+    await signOut();
   };
 
   return (
