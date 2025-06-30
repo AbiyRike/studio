@@ -33,6 +33,10 @@ const scenes: Scene[] = [
   { id: 'code', title: 'Code with Me', description: 'Learn programming languages interactively, from syntax basics to core concepts.', Icon: Code2, color: 'bg-rose-600', textColor: 'text-rose-100', duration: 7000 },
 ];
 
+// Preferred voice options with gender balance
+const PREFERRED_MALE_VOICES = ['Google US English Male', 'Microsoft David', 'Daniel', 'Alex', 'Google UK English Male'];
+const PREFERRED_FEMALE_VOICES = ['Google US English Female', 'Microsoft Zira', 'Samantha', 'Karen', 'Google UK English Female'];
+
 const AnimatedAppShowcase: React.FC = () => {
   const [currentSceneIndex, setCurrentSceneIndex] = useState(0);
   const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
@@ -41,6 +45,7 @@ const AnimatedAppShowcase: React.FC = () => {
   const [isMounted, setIsMounted] = useState(false);
   const [isIntersecting, setIsIntersecting] = useState(false);
   const observerContainerRef = useRef<HTMLDivElement>(null);
+  const [preferMaleVoice, setPreferMaleVoice] = useState(true); // Start with male voice
 
   useEffect(() => {
     setIsMounted(true);
@@ -88,28 +93,52 @@ const AnimatedAppShowcase: React.FC = () => {
     };
   }, [isMounted]);
 
+  // Toggle voice gender when scene changes
+  useEffect(() => {
+    setPreferMaleVoice(prev => !prev);
+  }, [currentSceneIndex]);
+
+  const findBestVoice = useCallback((voices: SpeechSynthesisVoice[]) => {
+    if (!voices || voices.length === 0) return null;
+    
+    // Prioritize voices based on gender preference
+    const preferredVoiceList = preferMaleVoice ? PREFERRED_MALE_VOICES : PREFERRED_FEMALE_VOICES;
+    
+    // Try to find a voice from our preferred list
+    for (const voiceName of preferredVoiceList) {
+      const match = voices.find(v => v.name.includes(voiceName));
+      if (match) return match;
+    }
+    
+    // Fallback to any English voice
+    const anyEnglishVoice = voices.find(v => v.lang.startsWith('en'));
+    if (anyEnglishVoice) return anyEnglishVoice;
+    
+    // Last resort: use any available voice
+    return voices[0];
+  }, [preferMaleVoice]);
+
   const speak = useCallback((text: string) => {
     if (!isMounted || !isSpeakingAllowed || typeof window === 'undefined' || !window.speechSynthesis) {
       return;
     }
-
+    
     if (window.speechSynthesis.speaking) {
       window.speechSynthesis.cancel();
     }
-
+    
     const newUtterance = new SpeechSynthesisUtterance(text);
     newUtterance.lang = 'en-US';
     newUtterance.rate = 0.95;
-    newUtterance.pitch = 1.1;
+    newUtterance.pitch = preferMaleVoice ? 0.9 : 1.1; // Lower pitch for male, higher for female
     newUtterance.volume = 1.0;
     
     const voices = window.speechSynthesis.getVoices();
     if (voices.length > 0) {
-      const preferredVoice = voices.find(v => 
-        v.lang.startsWith('en') && 
-        (v.name.includes('Google') || v.name.includes('Microsoft') || v.name.includes('Samantha') || v.name.includes('Alex'))
-      );
-      newUtterance.voice = preferredVoice || voices.find(v => v.lang.startsWith('en')) || voices[0];
+      const selectedVoice = findBestVoice(voices);
+      if (selectedVoice) {
+        newUtterance.voice = selectedVoice;
+      }
     }
 
     utteranceRef.current = newUtterance;
@@ -119,7 +148,7 @@ const AnimatedAppShowcase: React.FC = () => {
     } catch (error) {
       console.error('Error speaking utterance:', error);
     }
-  }, [isSpeakingAllowed, isMounted]);
+  }, [isMounted, isSpeakingAllowed, preferMaleVoice, findBestVoice]);
 
   // Main effect for scene transitions and speech
   useEffect(() => {

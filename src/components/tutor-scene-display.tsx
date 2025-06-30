@@ -29,6 +29,10 @@ const iconMap: { [key: string]: React.ComponentType<LucideProps> } = {
   Default: Sparkles,
 };
 
+// Preferred voice options with gender balance
+const PREFERRED_MALE_VOICES = ['Google US English Male', 'Microsoft David', 'Daniel', 'Alex', 'Google UK English Male'];
+const PREFERRED_FEMALE_VOICES = ['Google US English Female', 'Microsoft Zira', 'Samantha', 'Karen', 'Google UK English Female'];
+
 export const TutorSceneDisplay: React.FC<TutorSceneDisplayProps> = ({
   scene,
   isTtsMuted,
@@ -41,6 +45,7 @@ export const TutorSceneDisplay: React.FC<TutorSceneDisplayProps> = ({
   const [isMounted, setIsMounted] = useState(false);
   const sceneIdRef = useRef<string | null>(null);
   const speechTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const [preferMaleVoice, setPreferMaleVoice] = useState(false); // Alternate between male and female voices
 
   useEffect(() => {
     setIsMounted(true);
@@ -81,6 +86,33 @@ export const TutorSceneDisplay: React.FC<TutorSceneDisplayProps> = ({
       }
     };
   }, []);
+
+  // Toggle preferred voice gender when scene changes
+  useEffect(() => {
+    if (scene) {
+      setPreferMaleVoice(prev => !prev);
+    }
+  }, [scene?.id]);
+
+  const findBestVoice = useCallback((voices: SpeechSynthesisVoice[]) => {
+    if (!voices || voices.length === 0) return null;
+    
+    // Prioritize voices based on gender preference
+    const preferredVoiceList = preferMaleVoice ? PREFERRED_MALE_VOICES : PREFERRED_FEMALE_VOICES;
+    
+    // Try to find a voice from our preferred list
+    for (const voiceName of preferredVoiceList) {
+      const match = voices.find(v => v.name.includes(voiceName));
+      if (match) return match;
+    }
+    
+    // Fallback to any English voice
+    const anyEnglishVoice = voices.find(v => v.lang.startsWith('en'));
+    if (anyEnglishVoice) return anyEnglishVoice;
+    
+    // Last resort: use any available voice
+    return voices[0];
+  }, [preferMaleVoice]);
 
   const speakNextSegment = useCallback(() => {
     if (!isMounted || !scene || sceneIdRef.current !== scene.id) {
@@ -128,35 +160,34 @@ export const TutorSceneDisplay: React.FC<TutorSceneDisplayProps> = ({
 
     const newUtterance = new SpeechSynthesisUtterance(segmentToSpeak);
     newUtterance.lang = 'en-US';
-    newUtterance.rate = 0.9;
-    newUtterance.pitch = 1.0;
+    newUtterance.rate = 0.95; // Slightly slower for better comprehension
+    newUtterance.pitch = preferMaleVoice ? 0.9 : 1.1; // Lower pitch for male, higher for female
     newUtterance.volume = 1.0;
 
-    // Get voices and select appropriate one
+    // Get voices and select appropriate one based on gender preference
     const voices = window.speechSynthesis.getVoices();
     if (voices.length > 0) {
-      const preferredVoice = voices.find(v => 
-        v.lang.startsWith('en') && 
-        (v.name.includes('Google') || v.name.includes('Microsoft') || v.name.includes('Samantha') || v.name.includes('Alex'))
-      );
-      newUtterance.voice = preferredVoice || voices.find(v => v.lang.startsWith('en')) || voices[0];
+      const selectedVoice = findBestVoice(voices);
+      if (selectedVoice) {
+        newUtterance.voice = selectedVoice;
+      }
     }
     
-    utteranceRef.current = newUtterance;
+    utteranceRef.current = newUtterance; // Assign new utterance to ref
 
     newUtterance.onend = () => {
       if (isMounted && utteranceRef.current === newUtterance && scene && sceneIdRef.current === scene.id && !isPaused) {
-        utteranceRef.current = null;
+        utteranceRef.current = null; // Clear ref after use
         currentSegmentIndexRef.current++;
         speakNextSegment();
       }
     };
     
     newUtterance.onerror = (event) => {
-      console.error('Speech synthesis error:', event.error);
-      if (isMounted && utteranceRef.current === newUtterance && scene && sceneIdRef.current === scene.id && !isPaused) {
-        utteranceRef.current = null;
-        currentSegmentIndexRef.current++;
+      if (isMounted && utteranceRef.current === newUtterance) {
+        console.error('Speech synthesis error:', event.error);
+        utteranceRef.current = null; // Clear ref
+        currentSegmentIndexRef.current++; // Still advance to not get stuck
         speakNextSegment();
       }
     };
@@ -169,7 +200,7 @@ export const TutorSceneDisplay: React.FC<TutorSceneDisplayProps> = ({
       currentSegmentIndexRef.current++;
       speakNextSegment();
     }
-  }, [isMounted, scene, isTtsMuted, onSpeechEnd, isPaused]);
+  }, [isMounted, scene, isTtsMuted, onSpeechEnd, isPaused, preferMaleVoice, findBestVoice]);
 
   // Effect to initialize or reset speech when the scene changes
   useEffect(() => {
