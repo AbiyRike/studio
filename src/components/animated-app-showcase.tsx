@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from 'react';
@@ -19,9 +18,9 @@ interface Scene {
   title: string;
   description: string;
   Icon: React.ComponentType<LucideProps>;
-  color: string; // tailwind color class for background
-  textColor: string; // tailwind color class for text
-  duration: number; // in milliseconds
+  color: string;
+  textColor: string;
+  duration: number;
 }
 
 const scenes: Scene[] = [
@@ -40,21 +39,31 @@ const AnimatedAppShowcase: React.FC = () => {
   const sceneTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const [isSpeakingAllowed, setIsSpeakingAllowed] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
-  const [isIntersecting, setIsIntersecting] = useState(false); // For IntersectionObserver
-  const observerContainerRef = useRef<HTMLDivElement>(null); // Ref for the container to observe
+  const [isIntersecting, setIsIntersecting] = useState(false);
+  const observerContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setIsMounted(true);
+    
+    // Initialize speech synthesis
     if (typeof window !== 'undefined' && window.speechSynthesis) {
-        window.speechSynthesis.getVoices();
-        setIsSpeakingAllowed(true);
+      const loadVoices = () => {
+        const voices = window.speechSynthesis.getVoices();
+        if (voices.length > 0) {
+          setIsSpeakingAllowed(true);
+        } else {
+          window.speechSynthesis.addEventListener('voiceschanged', loadVoices, { once: true });
+        }
+      };
+      loadVoices();
     }
+    
     return () => {
-       setIsMounted(false);
-       if (sceneTimeoutRef.current) clearTimeout(sceneTimeoutRef.current);
-       if (typeof window !== 'undefined' && window.speechSynthesis) {
-           window.speechSynthesis.cancel();
-       }
+      setIsMounted(false);
+      if (sceneTimeoutRef.current) clearTimeout(sceneTimeoutRef.current);
+      if (typeof window !== 'undefined' && window.speechSynthesis) {
+        window.speechSynthesis.cancel();
+      }
     }
   }, []);
 
@@ -66,7 +75,7 @@ const AnimatedAppShowcase: React.FC = () => {
       ([entry]) => {
         setIsIntersecting(entry.intersectionRatio === 1);
       },
-      { threshold: 1.0 } // Trigger when 100% visible
+      { threshold: 1.0 }
     );
 
     observer.observe(observerContainerRef.current);
@@ -78,7 +87,6 @@ const AnimatedAppShowcase: React.FC = () => {
       observer.disconnect();
     };
   }, [isMounted]);
-
 
   const speak = useCallback((text: string) => {
     if (!isMounted || !isSpeakingAllowed || typeof window === 'undefined' || !window.speechSynthesis) {
@@ -93,40 +101,48 @@ const AnimatedAppShowcase: React.FC = () => {
     newUtterance.lang = 'en-US';
     newUtterance.rate = 0.95;
     newUtterance.pitch = 1.1;
+    newUtterance.volume = 1.0;
     
     const voices = window.speechSynthesis.getVoices();
     if (voices.length > 0) {
-        const enUsVoice = voices.find(v => v.lang === 'en-US' && (v.name.includes('Google') || v.name.includes('Microsoft David') || v.name.includes('Samantha') || v.name.includes('Alex')));
-        newUtterance.voice = enUsVoice || voices.find(v => v.lang === 'en-US') || voices[0];
+      const preferredVoice = voices.find(v => 
+        v.lang.startsWith('en') && 
+        (v.name.includes('Google') || v.name.includes('Microsoft') || v.name.includes('Samantha') || v.name.includes('Alex'))
+      );
+      newUtterance.voice = preferredVoice || voices.find(v => v.lang.startsWith('en')) || voices[0];
     }
 
     utteranceRef.current = newUtterance;
-    window.speechSynthesis.speak(newUtterance);
-
+    
+    try {
+      window.speechSynthesis.speak(newUtterance);
+    } catch (error) {
+      console.error('Error speaking utterance:', error);
+    }
   }, [isSpeakingAllowed, isMounted]);
 
   // Main effect for scene transitions and speech
   useEffect(() => {
     if (!isMounted || !isIntersecting) {
       if (isMounted && typeof window !== 'undefined' && window.speechSynthesis?.speaking) {
-          window.speechSynthesis.pause(); // Pause speech if not intersecting but was speaking
+        window.speechSynthesis.pause();
       }
-      if(sceneTimeoutRef.current) clearTimeout(sceneTimeoutRef.current); // Clear timer if not intersecting
+      if (sceneTimeoutRef.current) clearTimeout(sceneTimeoutRef.current);
       return;
     }
 
     // If intersecting, resume speech if it was paused
     if (typeof window !== 'undefined' && window.speechSynthesis?.paused) {
-        window.speechSynthesis.resume();
+      window.speechSynthesis.resume();
     }
 
     const currentScene = scenes[currentSceneIndex];
     const textToSpeak = `${currentScene.title}. ${currentScene.description}`;
     
     const speechTimeout = setTimeout(() => {
-        if (isMounted && isIntersecting) { // Double check before speaking
-            speak(textToSpeak);
-        }
+      if (isMounted && isIntersecting) {
+        speak(textToSpeak);
+      }
     }, 500);
 
     if (sceneTimeoutRef.current) {
@@ -134,7 +150,7 @@ const AnimatedAppShowcase: React.FC = () => {
     }
 
     sceneTimeoutRef.current = setTimeout(() => {
-      if (isMounted && isIntersecting) { // Double check before advancing
+      if (isMounted && isIntersecting) {
         setCurrentSceneIndex((prevIndex) => (prevIndex + 1) % scenes.length);
       }
     }, currentScene.duration);
@@ -142,10 +158,8 @@ const AnimatedAppShowcase: React.FC = () => {
     return () => {
       clearTimeout(speechTimeout);
       if (sceneTimeoutRef.current) {
-          clearTimeout(sceneTimeoutRef.current);
+        clearTimeout(sceneTimeoutRef.current);
       }
-      // Don't cancel synthesis here if we want it to resume correctly on intersect
-      // It will be paused by the isIntersecting check or visibilitychange
     };
   }, [currentSceneIndex, speak, isMounted, isIntersecting]);
 
@@ -160,18 +174,16 @@ const AnimatedAppShowcase: React.FC = () => {
         window.speechSynthesis.pause();
         if (sceneTimeoutRef.current) clearTimeout(sceneTimeoutRef.current);
       } else {
-        // Only resume if also intersecting
         if (isIntersecting) {
           if (window.speechSynthesis.paused) {
             window.speechSynthesis.resume();
           }
-          // Restart scene transition timer if it was cleared and we are visible
           if (!sceneTimeoutRef.current && scenes[currentSceneIndex] && isMounted && isIntersecting) {
-               sceneTimeoutRef.current = setTimeout(() => {
-                  if (isMounted && isIntersecting) {
-                      setCurrentSceneIndex((prevIndex) => (prevIndex + 1) % scenes.length);
-                  }
-              }, scenes[currentSceneIndex].duration);
+            sceneTimeoutRef.current = setTimeout(() => {
+              if (isMounted && isIntersecting) {
+                setCurrentSceneIndex((prevIndex) => (prevIndex + 1) % scenes.length);
+              }
+            }, scenes[currentSceneIndex].duration);
           }
         }
       }
@@ -181,16 +193,15 @@ const AnimatedAppShowcase: React.FC = () => {
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [isMounted, isIntersecting, currentSceneIndex]); // Add isIntersecting and currentSceneIndex
-  
+  }, [isMounted, isIntersecting, currentSceneIndex]);
 
   if (!isMounted) {
     return (
-        <div className="relative w-full h-64 md:h-80 rounded-xl overflow-hidden shadow-2xl bg-slate-700 flex flex-col items-center justify-center p-6 text-slate-100">
-            <Sparkles className="w-16 h-16 md:w-20 md:h-20 mb-4 opacity-50" />
-            <h3 className="text-xl md:text-3xl font-bold mb-2 text-center">Loading Study AI+ Showcase...</h3>
-            <p className="text-xs md:text-sm text-center max-w-md">Preparing interactive overview.</p>
-        </div>
+      <div className="relative w-full h-64 md:h-80 rounded-xl overflow-hidden shadow-2xl bg-slate-700 flex flex-col items-center justify-center p-6 text-slate-100">
+        <Sparkles className="w-16 h-16 md:w-20 md:h-20 mb-4 opacity-50" />
+        <h3 className="text-xl md:text-3xl font-bold mb-2 text-center">Loading Study AI+ Showcase...</h3>
+        <p className="text-xs md:text-sm text-center max-w-md">Preparing interactive overview.</p>
+      </div>
     );
   }
 

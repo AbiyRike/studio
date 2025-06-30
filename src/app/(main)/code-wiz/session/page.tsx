@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useEffect, useState, useRef, useCallback } from 'react';
@@ -39,9 +38,24 @@ export default function CodeWizSessionPage() {
 
   const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
   const [isMounted, setIsMounted] = useState(false);
+  const [voicesLoaded, setVoicesLoaded] = useState(false);
 
   useEffect(() => {
     setIsMounted(true);
+    
+    // Initialize speech synthesis
+    if (typeof window !== 'undefined' && window.speechSynthesis) {
+      const loadVoices = () => {
+        const voices = window.speechSynthesis.getVoices();
+        if (voices.length > 0) {
+          setVoicesLoaded(true);
+        } else {
+          window.speechSynthesis.addEventListener('voiceschanged', loadVoices, { once: true });
+        }
+      };
+      loadVoices();
+    }
+    
     const data = getActiveCodeWizSession();
     if (data) {
       setSessionData(data);
@@ -52,29 +66,44 @@ export default function CodeWizSessionPage() {
     setIsLoadingPage(false);
     
     return () => {
-        setIsMounted(false);
-        if (typeof window !== 'undefined' && window.speechSynthesis) {
-            window.speechSynthesis.cancel();
-        }
+      setIsMounted(false);
+      if (typeof window !== 'undefined' && window.speechSynthesis) {
+        window.speechSynthesis.cancel();
+      }
     }
   }, []);
 
   const speak = useCallback((text: string) => {
-    if (!isMounted || !sessionData || sessionData.isTtsMuted || typeof window === 'undefined' || !window.speechSynthesis) {
+    if (!isMounted || !sessionData || sessionData.isTtsMuted || !voicesLoaded || typeof window === 'undefined' || !window.speechSynthesis) {
       return;
     }
+    
     if (window.speechSynthesis.speaking) {
       window.speechSynthesis.cancel();
     }
+    
     const newUtterance = new SpeechSynthesisUtterance(text);
     newUtterance.lang = 'en-US';
-    const voices = window.speechSynthesis.getVoices();
-    const desiredVoice = voices.find(v => v.lang === 'en-US' && (v.name.includes('Google') || v.name.includes('Microsoft David') || v.name.includes('Samantha')));
-    newUtterance.voice = desiredVoice || voices.find(v => v.lang === 'en-US') || voices[0];
     newUtterance.rate = 0.9;
+    newUtterance.volume = 1.0;
+    
+    const voices = window.speechSynthesis.getVoices();
+    if (voices.length > 0) {
+      const preferredVoice = voices.find(v => 
+        v.lang.startsWith('en') && 
+        (v.name.includes('Google') || v.name.includes('Microsoft') || v.name.includes('Samantha') || v.name.includes('Alex'))
+      );
+      newUtterance.voice = preferredVoice || voices.find(v => v.lang.startsWith('en')) || voices[0];
+    }
+
     utteranceRef.current = newUtterance;
-    window.speechSynthesis.speak(newUtterance);
-  }, [isMounted, sessionData]);
+    
+    try {
+      window.speechSynthesis.speak(newUtterance);
+    } catch (error) {
+      console.error('Error speaking utterance:', error);
+    }
+  }, [isMounted, sessionData, voicesLoaded]);
 
   const updateSession = (updates: Partial<ActiveCodeWizSessionData>) => {
     setSessionData(prev => {
@@ -149,7 +178,6 @@ export default function CodeWizSessionPage() {
     router.push('/code-wiz');
   };
 
-
   if (isLoadingPage) {
     return (
       <ClientAuthGuard>
@@ -201,19 +229,18 @@ export default function CodeWizSessionPage() {
     codeToDisplayInResult = sessionData.optimizedCode;
   }
 
-
   return (
     <ClientAuthGuard>
       <div className="container mx-auto py-8 flex flex-col h-[calc(100vh-8rem)]">
         <Card className="w-full max-w-6xl mx-auto shadow-xl mb-6">
-            <CardHeader className="text-center">
-                <Wand2 className="mx-auto h-12 w-12 text-primary mb-2" />
-                <CardTitle className="text-3xl font-headline">Code Wiz Session</CardTitle>
-                <CardDescription>
-                Interacting with your {sessionData.languageHint ? `${sessionData.languageHint} ` : ''}code.
-                Language Hint: {sessionData.languageHint || "Not specified"}
-                </CardDescription>
-            </CardHeader>
+          <CardHeader className="text-center">
+            <Wand2 className="mx-auto h-12 w-12 text-primary mb-2" />
+            <CardTitle className="text-3xl font-headline">Code Wiz Session</CardTitle>
+            <CardDescription>
+              Interacting with your {sessionData.languageHint ? `${sessionData.languageHint} ` : ''}code.
+              Language Hint: {sessionData.languageHint || "Not specified"}
+            </CardDescription>
+          </CardHeader>
         </Card>
 
         <div className="grid md:grid-cols-2 gap-6 flex-grow min-h-0">
@@ -221,7 +248,7 @@ export default function CodeWizSessionPage() {
           <Card className="flex flex-col shadow-lg">
             <CardHeader className="flex-row justify-between items-center">
               <CardTitle className="text-xl">Original Code</CardTitle>
-               <Button variant="ghost" size="icon" onClick={() => copyToClipboard(sessionData.originalCode)} title="Copy original code">
+              <Button variant="ghost" size="icon" onClick={() => copyToClipboard(sessionData.originalCode)} title="Copy original code">
                 <Copy className="h-5 w-5" />
               </Button>
             </CardHeader>
@@ -251,10 +278,10 @@ export default function CodeWizSessionPage() {
                   </div>
                 )}
                 {!sessionData.isLoadingAi && !resultTextContent && !codeToDisplayInResult && (
-                     <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
-                        <Sparkles className="h-10 w-10 text-primary mb-3" />
-                        <p>Select an action (Analyze, Explain, Optimize) to get started.</p>
-                    </div>
+                  <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
+                    <Sparkles className="h-10 w-10 text-primary mb-3" />
+                    <p>Select an action (Analyze, Explain, Optimize) to get started.</p>
+                  </div>
                 )}
                 {resultTextContent && (
                   <div className="prose dark:prose-invert max-w-none text-sm mb-4 whitespace-pre-wrap">
@@ -264,10 +291,10 @@ export default function CodeWizSessionPage() {
                 {codeToDisplayInResult && (
                   <>
                     <div className="flex justify-between items-center mb-2">
-                        <h4 className="font-semibold text-md">Optimized Code Suggestion:</h4>
-                        <Button variant="ghost" size="sm" onClick={() => copyToClipboard(codeToDisplayInResult)} title="Copy optimized code">
-                            <Copy className="mr-1 h-4 w-4" /> Copy
-                        </Button>
+                      <h4 className="font-semibold text-md">Optimized Code Suggestion:</h4>
+                      <Button variant="ghost" size="sm" onClick={() => copyToClipboard(codeToDisplayInResult)} title="Copy optimized code">
+                        <Copy className="mr-1 h-4 w-4" /> Copy
+                      </Button>
                     </div>
                     <pre className="text-sm whitespace-pre-wrap break-all font-code bg-muted/50 p-3 rounded-md">
                       {codeToDisplayInResult}
@@ -285,7 +312,7 @@ export default function CodeWizSessionPage() {
             Analyze Code
           </Button>
           <Button onClick={() => handleOperation('explain')} disabled={sessionData.isLoadingAi} size="lg" className="w-full sm:w-auto shadow-md bg-green-600 hover:bg-green-700">
-             {sessionData.isLoadingAi && sessionData.currentOperation === 'explain' ? <Loader2 className="mr-2 h-5 w-5 animate-spin"/> : <Sparkles className="mr-2 h-5 w-5" />}
+            {sessionData.isLoadingAi && sessionData.currentOperation === 'explain' ? <Loader2 className="mr-2 h-5 w-5 animate-spin"/> : <Sparkles className="mr-2 h-5 w-5" />}
             Explain Code
           </Button>
           <Button onClick={() => handleOperation('optimize')} disabled={sessionData.isLoadingAi} size="lg" className="w-full sm:w-auto shadow-md bg-purple-600 hover:bg-purple-700">
@@ -295,15 +322,14 @@ export default function CodeWizSessionPage() {
         </CardFooter>
         
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mt-4 w-full max-w-6xl mx-auto">
-            <Button onClick={handleEndSession} variant="secondary" size="lg" className="w-full sm:w-auto shadow-md">
-                <ArrowLeft className="mr-2 h-5 w-5" /> New Code Wiz Session
-            </Button>
-            <Button onClick={() => router.push('/dashboard')} variant="default" size="lg" className="w-full sm:w-auto shadow-md">
-                 <Home className="mr-2 h-5 w-5" /> Dashboard
-            </Button>
+          <Button onClick={handleEndSession} variant="secondary" size="lg" className="w-full sm:w-auto shadow-md">
+            <ArrowLeft className="mr-2 h-5 w-5" /> New Code Wiz Session
+          </Button>
+          <Button onClick={() => router.push('/dashboard')} variant="default" size="lg" className="w-full sm:w-auto shadow-md">
+            <Home className="mr-2 h-5 w-5" /> Dashboard
+          </Button>
         </div>
       </div>
     </ClientAuthGuard>
   );
 }
-
