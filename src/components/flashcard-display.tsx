@@ -1,4 +1,3 @@
-
 "use client";
 
 import type { Flashcard } from '@/app/actions';

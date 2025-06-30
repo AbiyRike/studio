@@ -1,9 +1,9 @@
-
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ArrowRight, Brain, DatabaseZap, Edit3, Layers, GraduationCap, MessageCircleQuestion, Code2, Sparkles } from 'lucide-react';
 import AnimatedAppShowcase from '@/components/animated-app-showcase'; // Import the new component
+import { ThemeToggle } from '@/components/theme-toggle';
 
 interface FeatureCardProps {
   icon: React.ElementType;
@@ -31,9 +31,12 @@ export default function HomePage() {
           <Sparkles className="h-8 w-8 text-primary" />
           <h1 className="text-2xl font-bold font-headline text-primary">Study AI+</h1>
         </div>
-        <Button asChild variant="outline">
-          <Link href="/login">Login / Sign Up</Link>
-        </Button>
+        <div className="flex items-center gap-2">
+          <ThemeToggle />
+          <Button asChild variant="outline">
+            <Link href="/login">Login / Sign Up</Link>
+          </Button>
+        </div>
       </nav>
 
       <main className="container mx-auto px-4 py-12 md:py-20">

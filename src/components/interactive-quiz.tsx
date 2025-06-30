@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useCallback } from 'react';
@@ -194,10 +193,10 @@ export function InteractiveQuiz({ sessionData }: InteractiveQuizProps) {
                     <p className="font-semibold text-base mb-1">
                       Q{item.originalIndex + 1}: {item.question}
                     </p>
-                    <p className="text-sm text-red-600">
+                    <p className="text-sm text-red-600 dark:text-red-400">
                       Your answer: {item.options[item.userAnswer!]} <XCircle className="inline h-4 w-4 ml-1" />
                     </p>
-                    <p className="text-sm text-green-600">
+                    <p className="text-sm text-green-600 dark:text-green-400">
                       Correct answer: {item.options[item.answer]} <CheckCircle className="inline h-4 w-4 ml-1" />
                     </p>
                     {item.explanation && (
@@ -213,7 +212,7 @@ export function InteractiveQuiz({ sessionData }: InteractiveQuizProps) {
             </div>
           )}
            {incorrectAnswers.length === 0 && allQuestions.length > 0 && (
-             <p className="text-center text-green-600 font-medium text-lg">Amazing! You got all questions correct!</p>
+             <p className="text-center text-green-600 dark:text-green-400 font-medium text-lg">Amazing! You got all questions correct!</p>
            )}
         </CardContent>
         <CardFooter className="flex flex-col sm:flex-row justify-around gap-3 p-6">
@@ -336,4 +335,3 @@ export function InteractiveQuiz({ sessionData }: InteractiveQuizProps) {
     </div>
   );
 }
-

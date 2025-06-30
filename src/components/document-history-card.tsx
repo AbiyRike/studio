@@ -1,11 +1,10 @@
-
 import type { HistoryItem } from '@/lib/session-store';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Badge } from "@/components/ui/badge";
 import { CheckCircle, XCircle, HelpCircle } from "lucide-react";
 import { format } from 'date-fns';
-import { cn } from '@/lib/utils'; // Added import
+import { cn } from '@/lib/utils';
 
 interface DocumentHistoryCardProps {
   item: HistoryItem;
@@ -46,12 +45,12 @@ export function DocumentHistoryCard({ item }: DocumentHistoryCardProps) {
                     <ul className="list-disc list-inside pl-4 mt-1 text-sm space-y-1">
                       {q.options.map((opt, optIndex) => (
                         <li key={optIndex} className={cn(
-                          optIndex === q.answer && "text-green-600 font-medium",
-                          optIndex === userAnswer && userAnswer !== q.answer && "text-red-600 line-through"
+                          optIndex === q.answer && "text-green-600 dark:text-green-400 font-medium",
+                          optIndex === userAnswer && userAnswer !== q.answer && "text-red-600 dark:text-red-400 line-through"
                         )}>
                           {opt}
-                          {optIndex === q.answer && <CheckCircle className="inline ml-2 h-4 w-4 text-green-600" />}
-                          {optIndex === userAnswer && userAnswer !== q.answer && <XCircle className="inline ml-2 h-4 w-4 text-red-600" />}
+                          {optIndex === q.answer && <CheckCircle className="inline ml-2 h-4 w-4 text-green-600 dark:text-green-400" />}
+                          {optIndex === userAnswer && userAnswer !== q.answer && <XCircle className="inline ml-2 h-4 w-4 text-red-600 dark:text-red-400" />}
                         </li>
                       ))}
                     </ul>
@@ -59,7 +58,7 @@ export function DocumentHistoryCard({ item }: DocumentHistoryCardProps) {
                       Your answer: {userAnswer !== null && userAnswer !== undefined ? q.options[userAnswer] : "Not answered"}
                     </p>
                     {!isCorrect && userAnswer !== null && (
-                      <p className="mt-1 text-xs text-blue-600 bg-blue-50 p-2 rounded">
+                      <p className="mt-1 text-xs text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 p-2 rounded">
                         <HelpCircle className="inline mr-1 h-3 w-3" />
                         Explanation: {q.explanation || `Correct answer was ${q.options[q.answer]}`}
                       </p>

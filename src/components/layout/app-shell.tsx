@@ -1,4 +1,3 @@
-
 "use client";
 
 import type React from 'react';
@@ -18,6 +17,7 @@ import { MainNav } from "./main-nav";
 import { UserNav } from "./user-nav";
 import { Gem } from "lucide-react";
 import Link from "next/link";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 interface AppShellProps {
   children: React.ReactNode;
@@ -37,7 +37,7 @@ export function AppShell({ children }: AppShellProps) {
           <MainNav />
         </SidebarContent>
         <SidebarFooter className="p-4 mt-auto">
-          {/* Optional: Footer content like settings or help */}
+          <ThemeToggle />
         </SidebarFooter>
       </Sidebar>
       <SidebarInset>
@@ -46,7 +46,10 @@ export function AppShell({ children }: AppShellProps) {
             <SidebarTrigger className="md:hidden" />
             <h2 className="text-lg font-semibold font-headline">Study AI+</h2>
           </div>
-          <UserNav />
+          <div className="flex items-center gap-2">
+            <ThemeToggle />
+            <UserNav />
+          </div>
         </header>
         <main className="flex-1 p-4 overflow-auto md:p-6">
           {children}

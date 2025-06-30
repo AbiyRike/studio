@@ -335,15 +335,15 @@ export default function CodeWizSessionPage() {
         </div>
 
         <CardFooter className="flex flex-col sm:flex-row justify-center gap-4 mt-6 pt-6 border-t">
-          <Button onClick={() => handleOperation('analyze')} disabled={sessionData.isLoadingAi} size="lg" className="w-full sm:w-auto shadow-md bg-blue-600 hover:bg-blue-700">
+          <Button onClick={() => handleOperation('analyze')} disabled={sessionData.isLoadingAi} size="lg" className="w-full sm:w-auto shadow-md bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-800">
             {sessionData.isLoadingAi && sessionData.currentOperation === 'analyze' ? <Loader2 className="mr-2 h-5 w-5 animate-spin"/> : <Lightbulb className="mr-2 h-5 w-5" />}
             Analyze Code
           </Button>
-          <Button onClick={() => handleOperation('explain')} disabled={sessionData.isLoadingAi} size="lg" className="w-full sm:w-auto shadow-md bg-green-600 hover:bg-green-700">
+          <Button onClick={() => handleOperation('explain')} disabled={sessionData.isLoadingAi} size="lg" className="w-full sm:w-auto shadow-md bg-green-600 hover:bg-green-700 dark:bg-green-700 dark:hover:bg-green-800">
             {sessionData.isLoadingAi && sessionData.currentOperation === 'explain' ? <Loader2 className="mr-2 h-5 w-5 animate-spin"/> : <Sparkles className="mr-2 h-5 w-5" />}
             Explain Code
           </Button>
-          <Button onClick={() => handleOperation('optimize')} disabled={sessionData.isLoadingAi} size="lg" className="w-full sm:w-auto shadow-md bg-purple-600 hover:bg-purple-700">
+          <Button onClick={() => handleOperation('optimize')} disabled={sessionData.isLoadingAi} size="lg" className="w-full sm:w-auto shadow-md bg-purple-600 hover:bg-purple-700 dark:bg-purple-700 dark:hover:bg-purple-800">
             {sessionData.isLoadingAi && sessionData.currentOperation === 'optimize' ? <Loader2 className="mr-2 h-5 w-5 animate-spin"/> : <Zap className="mr-2 h-5 w-5" />}
             Optimize Code
           </Button>
