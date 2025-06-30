@@ -21,40 +21,11 @@ export const generateId = (): string => {
 };
 
 // Get items from localStorage (for backward compatibility)
-export const getKnowledgeBaseItems = async (): Promise<KnowledgeBaseItem[]> => {
+export const getKnowledgeBaseItems = (): KnowledgeBaseItem[] => {
   if (typeof window === 'undefined') return [];
   
-  // Try to get user from Supabase
-  const { data: { user } } = await supabase.auth.getUser();
-  
-  if (user) {
-    // User is authenticated, get items from Supabase
-    const { data, error } = await supabase
-      .from('knowledge_items')
-      .select('*')
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false });
-      
-    if (error) {
-      console.error("Error fetching knowledge base items from Supabase", error);
-      // Fall back to localStorage
-      return getLocalKnowledgeBaseItems();
-    }
-    
-    // Transform Supabase data to match KnowledgeBaseItem interface
-    return data.map(item => ({
-      id: item.id,
-      documentName: item.document_name,
-      documentContent: item.document_content,
-      mediaDataUri: item.media_data_uri,
-      summary: item.summary,
-      createdAt: item.created_at,
-      updatedAt: item.updated_at
-    }));
-  } else {
-    // User is not authenticated, use localStorage
-    return getLocalKnowledgeBaseItems();
-  }
+  // Use localStorage for now, async version will be implemented later
+  return getLocalKnowledgeBaseItems();
 };
 
 // Get items from localStorage only
@@ -70,36 +41,38 @@ const getLocalKnowledgeBaseItems = (): KnowledgeBaseItem[] => {
 };
 
 // Add or update an item
-export const addKnowledgeBaseItem = async (item: KnowledgeBaseItem): Promise<void> => {
+export const addKnowledgeBaseItem = (item: KnowledgeBaseItem): void => {
   if (typeof window === 'undefined') return;
   
-  // Try to get user from Supabase
-  const { data: { user } } = await supabase.auth.getUser();
+  // Use localStorage for now, async version will be implemented later
+  addLocalKnowledgeBaseItem(item);
   
-  if (user) {
-    // User is authenticated, save to Supabase
-    const { error } = await supabase
-      .from('knowledge_items')
-      .upsert({
-        id: item.id,
-        user_id: user.id,
-        document_name: item.documentName,
-        document_content: item.documentContent,
-        media_data_uri: item.mediaDataUri,
-        summary: item.summary,
-        created_at: item.createdAt,
-        updated_at: new Date().toISOString()
-      });
+  // Try to save to Supabase if user is logged in
+  const saveToSupabase = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
       
-    if (error) {
-      console.error("Error saving knowledge base item to Supabase", error);
-      // Fall back to localStorage
-      addLocalKnowledgeBaseItem(item);
+      if (user) {
+        await supabase
+          .from('knowledge_items')
+          .upsert({
+            id: item.id,
+            user_id: user.id,
+            document_name: item.documentName,
+            document_content: item.documentContent,
+            media_data_uri: item.mediaDataUri,
+            summary: item.summary,
+            created_at: item.createdAt,
+            updated_at: new Date().toISOString()
+          });
+      }
+    } catch (error) {
+      console.error("Error saving to Supabase:", error);
+      // Already saved to localStorage, so no fallback needed
     }
-  } else {
-    // User is not authenticated, use localStorage
-    addLocalKnowledgeBaseItem(item);
-  }
+  };
+  
+  saveToSupabase();
 };
 
 // Add or update an item in localStorage only
@@ -117,41 +90,11 @@ const addLocalKnowledgeBaseItem = (item: KnowledgeBaseItem): void => {
 };
 
 // Get an item by ID
-export const getKnowledgeBaseItemById = async (id: string): Promise<KnowledgeBaseItem | null> => {
+export const getKnowledgeBaseItemById = (id: string): KnowledgeBaseItem | null => {
   if (typeof window === 'undefined') return null;
   
-  // Try to get user from Supabase
-  const { data: { user } } = await supabase.auth.getUser();
-  
-  if (user) {
-    // User is authenticated, get item from Supabase
-    const { data, error } = await supabase
-      .from('knowledge_items')
-      .select('*')
-      .eq('id', id)
-      .eq('user_id', user.id)
-      .single();
-      
-    if (error) {
-      console.error("Error fetching knowledge base item from Supabase", error);
-      // Fall back to localStorage
-      return getLocalKnowledgeBaseItemById(id);
-    }
-    
-    // Transform Supabase data to match KnowledgeBaseItem interface
-    return {
-      id: data.id,
-      documentName: data.document_name,
-      documentContent: data.document_content,
-      mediaDataUri: data.media_data_uri,
-      summary: data.summary,
-      createdAt: data.created_at,
-      updatedAt: data.updated_at
-    };
-  } else {
-    // User is not authenticated, use localStorage
-    return getLocalKnowledgeBaseItemById(id);
-  }
+  // Use localStorage for now, async version will be implemented later
+  return getLocalKnowledgeBaseItemById(id);
 };
 
 // Get an item by ID from localStorage only
@@ -162,29 +105,31 @@ const getLocalKnowledgeBaseItemById = (id: string): KnowledgeBaseItem | null => 
 };
 
 // Delete an item
-export const deleteKnowledgeBaseItem = async (id: string): Promise<void> => {
+export const deleteKnowledgeBaseItem = (id: string): void => {
   if (typeof window === 'undefined') return;
   
-  // Try to get user from Supabase
-  const { data: { user } } = await supabase.auth.getUser();
+  // Use localStorage for now, async version will be implemented later
+  deleteLocalKnowledgeBaseItem(id);
   
-  if (user) {
-    // User is authenticated, delete from Supabase
-    const { error } = await supabase
-      .from('knowledge_items')
-      .delete()
-      .eq('id', id)
-      .eq('user_id', user.id);
+  // Try to delete from Supabase if user is logged in
+  const deleteFromSupabase = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
       
-    if (error) {
-      console.error("Error deleting knowledge base item from Supabase", error);
-      // Fall back to localStorage
-      deleteLocalKnowledgeBaseItem(id);
+      if (user) {
+        await supabase
+          .from('knowledge_items')
+          .delete()
+          .eq('id', id)
+          .eq('user_id', user.id);
+      }
+    } catch (error) {
+      console.error("Error deleting from Supabase:", error);
+      // Already deleted from localStorage, so no fallback needed
     }
-  } else {
-    // User is not authenticated, use localStorage
-    deleteLocalKnowledgeBaseItem(id);
-  }
+  };
+  
+  deleteFromSupabase();
 };
 
 // Delete an item from localStorage only

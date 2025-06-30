@@ -1,17 +1,23 @@
-import { createMiddlewareClient } from '@supabase/auth-helpers-nextjs';
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
+import { supabase } from './lib/supabase';
 
 export async function middleware(req: NextRequest) {
   const res = NextResponse.next();
-  const supabase = createMiddlewareClient({ req, res });
   
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
-
-  // Check if the user is authenticated
-  const isAuthenticated = !!session;
+  // Get the session from the cookie
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  
+  if (!supabaseUrl || !supabaseKey) {
+    console.error('Supabase credentials not found');
+    return res;
+  }
+  
+  // Check if the user is authenticated using cookies
+  const authCookie = req.cookies.get('sb-auth-token')?.value;
+  const isAuthenticated = !!authCookie;
+  
   const isAuthPage = req.nextUrl.pathname.startsWith('/login') || 
                      req.nextUrl.pathname.startsWith('/signup') ||
                      req.nextUrl.pathname === '/';

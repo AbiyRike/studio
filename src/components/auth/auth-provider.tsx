@@ -31,12 +31,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setSession(session);
       setUser(session?.user ?? null);
       setIsLoading(false);
+      
+      // For backward compatibility, set localStorage isLoggedIn flag
+      if (session?.user) {
+        localStorage.setItem('isLoggedIn', 'true');
+      } else {
+        localStorage.removeItem('isLoggedIn');
+      }
     };
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
       setUser(session?.user ?? null);
       setIsLoading(false);
+      
+      // For backward compatibility, set localStorage isLoggedIn flag
+      if (session?.user) {
+        localStorage.setItem('isLoggedIn', 'true');
+      } else {
+        localStorage.removeItem('isLoggedIn');
+      }
     });
 
     setData();
@@ -68,6 +82,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signOut = async () => {
     try {
       await supabase.auth.signOut();
+      localStorage.removeItem('isLoggedIn');
       router.push('/');
     } catch (error) {
       console.error('Error signing out:', error);

@@ -51,42 +51,11 @@ export interface HistoryItem {
   completedAt: string; 
 }
 
-export const getLearningHistory = async (): Promise<HistoryItem[]> => {
+export const getLearningHistory = (): HistoryItem[] => {
   if (typeof window === 'undefined') return [];
   
-  // Try to get user from Supabase
-  const { data: { user } } = await supabase.auth.getUser();
-  
-  if (user) {
-    // User is authenticated, get history from Supabase
-    const { data, error } = await supabase
-      .from('learning_history')
-      .select('*')
-      .eq('user_id', user.id)
-      .order('completed_at', { ascending: false });
-      
-    if (error) {
-      console.error("Error fetching learning history from Supabase", error);
-      // Fall back to localStorage
-      return getLocalLearningHistory();
-    }
-    
-    // Transform Supabase data to match HistoryItem interface
-    return data.map(item => ({
-      id: item.id,
-      documentName: item.document_name,
-      summary: item.summary,
-      questions: item.questions as Question[],
-      documentContent: item.document_content,
-      mediaDataUri: item.media_data_uri,
-      userAnswers: item.user_answers as (number | null)[],
-      score: item.score,
-      completedAt: item.completed_at
-    }));
-  } else {
-    // User is not authenticated, use localStorage
-    return getLocalLearningHistory();
-  }
+  // Use localStorage for now, async version will be implemented later
+  return getLocalLearningHistory();
 };
 
 // Get learning history from localStorage only
@@ -101,38 +70,40 @@ const getLocalLearningHistory = (): HistoryItem[] => {
   }
 };
 
-export const addToLearningHistory = async (item: HistoryItem): Promise<void> => {
+export const addToLearningHistory = (item: HistoryItem): void => {
   if (typeof window === 'undefined') return;
   
-  // Try to get user from Supabase
-  const { data: { user } } = await supabase.auth.getUser();
+  // Use localStorage for now, async version will be implemented later
+  addToLocalLearningHistory(item);
   
-  if (user) {
-    // User is authenticated, save to Supabase
-    const { error } = await supabase
-      .from('learning_history')
-      .upsert({
-        id: item.id,
-        user_id: user.id,
-        document_name: item.documentName,
-        summary: item.summary,
-        questions: item.questions,
-        document_content: item.documentContent,
-        media_data_uri: item.mediaDataUri,
-        user_answers: item.userAnswers,
-        score: item.score,
-        completed_at: item.completedAt
-      });
+  // Try to save to Supabase if user is logged in
+  const saveToSupabase = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
       
-    if (error) {
-      console.error("Error saving learning history to Supabase", error);
-      // Fall back to localStorage
-      addToLocalLearningHistory(item);
+      if (user) {
+        await supabase
+          .from('learning_history')
+          .upsert({
+            id: item.id,
+            user_id: user.id,
+            document_name: item.documentName,
+            summary: item.summary,
+            questions: item.questions,
+            document_content: item.documentContent,
+            media_data_uri: item.mediaDataUri,
+            user_answers: item.userAnswers,
+            score: item.score,
+            completed_at: item.completedAt
+          });
+      }
+    } catch (error) {
+      console.error("Error saving to Supabase:", error);
+      // Already saved to localStorage, so no fallback needed
     }
-  } else {
-    // User is not authenticated, use localStorage
-    addToLocalLearningHistory(item);
-  }
+  };
+  
+  saveToSupabase();
 };
 
 // Add to learning history in localStorage only
