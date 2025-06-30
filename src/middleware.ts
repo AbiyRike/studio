@@ -1,22 +1,18 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { supabase } from './lib/supabase';
 
 export async function middleware(req: NextRequest) {
   const res = NextResponse.next();
   
-  // Get the session from the cookie
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  
-  if (!supabaseUrl || !supabaseKey) {
-    console.error('Supabase credentials not found');
-    return res;
-  }
-  
   // Check if the user is authenticated using cookies
-  const authCookie = req.cookies.get('sb-auth-token')?.value;
-  const isAuthenticated = !!authCookie;
+  const supabaseCookie = req.cookies.get('sb-access-token')?.value || 
+                         req.cookies.get('sb-refresh-token')?.value ||
+                         req.cookies.get('sb-auth-token')?.value;
+  
+  // For backward compatibility, also check localStorage via cookies
+  const legacyAuthCookie = req.cookies.get('isLoggedIn')?.value;
+  
+  const isAuthenticated = !!supabaseCookie || !!legacyAuthCookie;
   
   const isAuthPage = req.nextUrl.pathname.startsWith('/login') || 
                      req.nextUrl.pathname.startsWith('/signup') ||

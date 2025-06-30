@@ -3,15 +3,20 @@ import { createClient } from '@supabase/supabase-js';
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-if (!supabaseUrl || !supabaseAnonKey) {
-  console.warn('Missing Supabase environment variables. Using mock client.');
-}
-
+// Create a Supabase client with fallback values if environment variables are missing
 export const supabase = createClient(
   supabaseUrl || 'https://example.supabase.co',
-  supabaseAnonKey || 'example-anon-key'
+  supabaseAnonKey || 'example-anon-key',
+  {
+    auth: {
+      persistSession: true,
+      autoRefreshToken: true,
+      detectSessionInUrl: true
+    }
+  }
 );
 
+// Database types for TypeScript
 export type Database = {
   public: {
     Tables: {
