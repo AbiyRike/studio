@@ -9,6 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "./auth-provider";
 import { Loader2, Mail } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
+import { supabase } from "@/lib/supabase";
 
 export function LoginForm() {
   const router = useRouter();
@@ -21,7 +22,19 @@ export function LoginForm() {
   const handleGoogleLogin = async () => {
     try {
       setIsLoading(true);
-      await signIn('google');
+      
+      // Use Supabase OAuth directly
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback`,
+        },
+      });
+      
+      if (error) {
+        throw error;
+      }
+      
       // No need to redirect here as the OAuth callback will handle it
     } catch (error) {
       console.error('Login error:', error);
